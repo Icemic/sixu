@@ -4,12 +4,12 @@ use nom::sequence::*;
 use nom::IResult;
 
 use super::comment::span0;
-use super::common::argument;
+use super::argument::argument;
 use super::identifier::identifier;
 use super::Child;
 use super::CommandLine;
 
-pub fn line(input: &str) -> IResult<&str, Child> {
+pub fn command_line(input: &str) -> IResult<&str, Child> {
     let (input, (command, arguments)) = delimited(
         span0,
         tuple((
@@ -46,7 +46,7 @@ mod tests {
     #[test]
     fn test_line() {
         assert_eq!(
-            line("@command"),
+            command_line("@command"),
             Ok((
                 "",
                 Child::CommandLine(CommandLine {
@@ -57,7 +57,7 @@ mod tests {
             ))
         );
         assert_eq!(
-            line("@command a"),
+            command_line("@command a"),
             Ok((
                 "",
                 Child::CommandLine(CommandLine {
@@ -68,7 +68,7 @@ mod tests {
             ))
         );
         assert_eq!(
-            line("@command a = 1"),
+            command_line("@command a = 1"),
             Ok((
                 "",
                 Child::CommandLine(CommandLine {
@@ -82,7 +82,7 @@ mod tests {
             ))
         );
         assert_eq!(
-            line("@command a = 1 b"),
+            command_line("@command a = 1 b"),
             Ok((
                 "",
                 Child::CommandLine(CommandLine {
@@ -96,7 +96,7 @@ mod tests {
             ))
         );
         assert_eq!(
-            line("@command a= 1 b = 2"),
+            command_line("@command a= 1 b = 2"),
             Ok((
                 "",
                 Child::CommandLine(CommandLine {
@@ -116,7 +116,7 @@ mod tests {
             ))
         );
         assert_eq!(
-            line("@command a=1 b = 2 c"),
+            command_line("@command a=1 b = 2 c"),
             Ok((
                 "",
                 Child::CommandLine(CommandLine {

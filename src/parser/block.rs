@@ -4,15 +4,15 @@ use nom::multi::many0;
 use nom::sequence::*;
 use nom::IResult;
 
+use super::command_line::command_line;
 use super::comment::span0;
-use super::line::line;
+use super::systemcall_line::systemcall_line;
 use super::Block;
 
 pub fn block(input: &str) -> IResult<&str, Block> {
     let (input, _) = tag("{")(input)?;
-    let (input, children) = many0(preceded(span0, alt((line, line))))(input)?;
-    let (input, _) = span0(input)?;
-    let (input, _) = tag("}")(input)?;
+    let (input, children) = many0(preceded(span0, alt((command_line, systemcall_line))))(input)?;
+    let (input, _) = preceded(span0, tag("}"))(input)?;
     Ok((
         input,
         Block {

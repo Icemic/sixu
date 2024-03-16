@@ -1,5 +1,6 @@
 use nom::bytes::complete::*;
 use nom::combinator::*;
+use nom::multi::separated_list0;
 use nom::sequence::*;
 use nom::IResult;
 
@@ -7,6 +8,15 @@ use super::comment::span0;
 use super::identifier::identifier;
 use super::primitive::primitive;
 use super::Argument;
+
+pub fn arguments(input: &str) -> IResult<&str, Vec<Argument>> {
+    let (input, _) = tag("(")(input)?;
+    let (input, _) = span0(input)?;
+    let (input, arguments) = separated_list0(delimited(span0, tag(","), span0), argument)(input)?;
+    let (input, _) = span0(input)?;
+    let (input, _) = tag(")")(input)?;
+    Ok((input, arguments))
+}
 
 pub fn argument(input: &str) -> IResult<&str, Argument> {
     let (input, name) = identifier(input)?;

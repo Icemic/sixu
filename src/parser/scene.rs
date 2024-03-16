@@ -15,19 +15,21 @@ pub fn scene(input: &str) -> IResult<&str, Scene> {
     let (input, _) = span1(input)?;
     let (input, name) = identifier(input)?;
     let (input, parameters) = delimited(span0, opt(parameters), span0)(input)?;
-    let (input, _) = block(input)?;
+    let (input, block) = preceded(span0, block)(input)?;
     Ok((
         input,
         Scene {
             name: name.to_string(),
             parameters: parameters.unwrap_or_default(),
-            block: Default::default(),
+            block,
         },
     ))
 }
 
 #[cfg(test)]
 mod tests {
+    use crate::format::{Block, Child, CommandLine};
+
     use super::*;
 
     #[test]
@@ -84,6 +86,24 @@ mod tests {
                     name: "a".to_string(),
                     parameters: vec![],
                     block: Default::default(),
+                }
+            ))
+        );
+        assert_eq!(
+            scene("scene a {\n@command\n}"),
+            Ok((
+                "",
+                Scene {
+                    name: "a".to_string(),
+                    parameters: vec![],
+                    block: Block {
+                        attributes: vec![],
+                        children: vec![Child::CommandLine(CommandLine {
+                            command: "command".to_string(),
+                            flags: vec![],
+                            arguments: vec![],
+                        })]
+                    },
                 }
             ))
         );
