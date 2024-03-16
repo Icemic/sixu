@@ -2,6 +2,7 @@ use nom::branch::alt;
 use nom::bytes::complete::*;
 use nom::character::complete::*;
 use nom::combinator::*;
+use nom::error::context;
 use nom::multi::*;
 use nom::sequence::*;
 use nom::Parser;
@@ -11,35 +12,41 @@ use crate::result::SixuResult;
 use super::Primitive;
 
 pub fn primitive(input: &str) -> SixuResult<&str, Primitive> {
-    alt((string, number, boolean))(input)
+    context("primitive", alt((string, number, boolean)))(input)
 }
 
 pub fn string(input: &str) -> SixuResult<&str, Primitive> {
-    let (input, s) = delimited(tag("\""), take_until("\""), tag("\""))(input)?;
+    let (input, s) = context("string", delimited(tag("\""), take_until("\""), tag("\"")))(input)?;
     Ok((input, Primitive::String(s.to_string())))
 }
 
 // all integer, which should not start with 0
 pub fn number(input: &str) -> SixuResult<&str, Primitive> {
     // let (input, n) = recognize(many1(terminated(digit1, many0(char('_'))))).parse(input)?;
-    let (input, n) = map_res(
-        tuple((
-            opt(alt((tag("-"), tag("+")))),
-            recognize(many1(terminated(digit1, many0(char('_'))))),
-        )),
-        |(sign, value)| {
-            let value = &str::replace(value, "_", "");
-            value
-                .parse::<i64>()
-                .map(|n| if sign == Some("-") { -n } else { n })
-        },
+    let (input, n) = context(
+        "number",
+        map_res(
+            tuple((
+                opt(alt((tag("-"), tag("+")))),
+                recognize(many1(terminated(digit1, many0(char('_'))))),
+            )),
+            |(sign, value)| {
+                let value = &str::replace(value, "_", "");
+                value
+                    .parse::<i64>()
+                    .map(|n| if sign == Some("-") { -n } else { n })
+            },
+        ),
     )
     .parse(input)?;
     Ok((input, Primitive::Integer(n)))
 }
 
 pub fn boolean(input: &str) -> SixuResult<&str, Primitive> {
-    let (input, b) = alt((value(true, tag("true")), value(false, tag("false"))))(input)?;
+    let (input, b) = context(
+        "boolean",
+        alt((value(true, tag("true")), value(false, tag("false")))),
+    )(input)?;
     Ok((input, Primitive::Boolean(b)))
 }
 
@@ -69,7 +76,9 @@ mod tests {
                 errors: vec![
                     ("_123", VerboseErrorKind::Nom(nom::error::ErrorKind::Tag)),
                     ("_123", VerboseErrorKind::Nom(nom::error::ErrorKind::Alt)),
-                    ("_123", VerboseErrorKind::Nom(nom::error::ErrorKind::Alt))
+                    ("_123", VerboseErrorKind::Context("boolean")),
+                    ("_123", VerboseErrorKind::Nom(nom::error::ErrorKind::Alt)),
+                    ("_123", VerboseErrorKind::Context("primitive"))
                 ]
             }))
         );

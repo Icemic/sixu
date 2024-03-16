@@ -10,7 +10,7 @@ use crate::result::SixuResult;
 pub fn identifier(input: &str) -> SixuResult<&str, &str> {
     recognize(pair(
         alt((alpha1, tag("_"))),
-        many0(alt((alphanumeric1, tag("_")))),
+        cut(many0(alt((alphanumeric1, tag("_"))))),
     ))(input)
 }
 

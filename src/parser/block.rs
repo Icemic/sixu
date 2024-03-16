@@ -1,5 +1,6 @@
 use nom::branch::alt;
 use nom::bytes::complete::*;
+use nom::combinator::cut;
 use nom::multi::many0;
 use nom::sequence::*;
 
@@ -12,7 +13,8 @@ use super::Block;
 
 pub fn block(input: &str) -> SixuResult<&str, Block> {
     let (input, _) = tag("{")(input)?;
-    let (input, children) = many0(preceded(span0, alt((command_line, systemcall_line))))(input)?;
+    let (input, children) =
+        cut(many0(preceded(span0, alt((command_line, systemcall_line)))))(input)?;
     let (input, _) = preceded(span0, tag("}"))(input)?;
     Ok((
         input,

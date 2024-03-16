@@ -1,4 +1,6 @@
 use nom::branch::alt;
+use nom::combinator::cut;
+use nom::error::context;
 
 use crate::result::SixuResult;
 
@@ -7,7 +9,7 @@ use super::variable::variable;
 use super::RValue;
 
 pub fn rvalue(input: &str) -> SixuResult<&str, RValue> {
-    alt((primitive_value, variable_value))(input)
+    context("rvalue", alt((primitive_value, cut(variable_value))))(input)
 }
 
 pub fn primitive_value(input: &str) -> SixuResult<&str, RValue> {

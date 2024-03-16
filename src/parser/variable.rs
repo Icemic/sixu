@@ -11,7 +11,7 @@ use super::Variable;
 /// parse a variable like "foo" or "foo.bar.a.b"
 pub fn variable(input: &str) -> SixuResult<&str, Variable> {
     let (input, chain) = map_res(
-        separated_list1(tag("."), identifier),
+        separated_list1(tag("."), cut(identifier)),
         |v: Vec<&str>| -> Result<Vec<String>, std::convert::Infallible> {
             Ok(v.iter().map(|s| s.to_string()).collect())
         },

@@ -9,7 +9,7 @@ use crate::result::SixuResult;
 
 /// parse comment like `// C++/EOL-style comments`
 pub fn comment(input: &str) -> SixuResult<&str, &str> {
-    preceded(tag("//"), is_not("\r\n"))(input)
+    preceded(tag("//"), cut(is_not("\r\n")))(input)
 }
 
 /// match contiguous comments or whitespaces, which can be multiple lines

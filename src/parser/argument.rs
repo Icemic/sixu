@@ -13,7 +13,8 @@ use super::Argument;
 pub fn arguments(input: &str) -> SixuResult<&str, Vec<Argument>> {
     let (input, _) = tag("(")(input)?;
     let (input, _) = span0(input)?;
-    let (input, arguments) = separated_list0(delimited(span0, tag(","), span0), argument)(input)?;
+    let (input, arguments) =
+        cut(separated_list0(delimited(span0, tag(","), span0), cut(argument)))(input)?;
     let (input, _) = span0(input)?;
     let (input, _) = tag(")")(input)?;
     Ok((input, arguments))
@@ -22,7 +23,7 @@ pub fn arguments(input: &str) -> SixuResult<&str, Vec<Argument>> {
 pub fn argument(input: &str) -> SixuResult<&str, Argument> {
     let (input, name) = identifier(input)?;
     let (input, _) = span0(input)?;
-    let (input, value) = opt(preceded(tag("="), preceded(span0, cut(rvalue))))(input)?;
+    let (input, value) = cut(opt(preceded(tag("="), preceded(span0, cut(rvalue)))))(input)?;
     Ok((
         input,
         Argument {

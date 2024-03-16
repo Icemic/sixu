@@ -1,4 +1,5 @@
 use nom::character::complete::char;
+use nom::combinator::cut;
 use nom::multi::many0;
 use nom::sequence::*;
 
@@ -14,8 +15,8 @@ pub fn command_line(input: &str) -> SixuResult<&str, Child> {
     let (input, (command, arguments)) = delimited(
         span0,
         tuple((
-            preceded(char('@'), identifier),
-            many0(delimited(span0, argument, span0)),
+            preceded(char('@'), cut(identifier)),
+            cut(many0(delimited(span0, argument, span0))),
         )),
         span0,
     )(input)?;
