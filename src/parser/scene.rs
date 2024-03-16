@@ -1,7 +1,8 @@
 use nom::bytes::complete::*;
 use nom::combinator::*;
 use nom::sequence::*;
-use nom::IResult;
+
+use crate::result::SixuResult;
 
 use super::block::block;
 use super::comment::span0;
@@ -10,12 +11,12 @@ use super::identifier::identifier;
 use super::parameter::parameters;
 use super::Scene;
 
-pub fn scene(input: &str) -> IResult<&str, Scene> {
+pub fn scene(input: &str) -> SixuResult<&str, Scene> {
     let (input, _) = tag("scene")(input)?;
     let (input, _) = span1(input)?;
-    let (input, name) = identifier(input)?;
+    let (input, name) = cut(identifier)(input)?;
     let (input, parameters) = delimited(span0, opt(parameters), span0)(input)?;
-    let (input, block) = preceded(span0, block)(input)?;
+    let (input, block) = preceded(span0, cut(block))(input)?;
     Ok((
         input,
         Scene {

@@ -1,20 +1,21 @@
 use nom::branch::alt;
-use nom::IResult;
+
+use crate::result::SixuResult;
 
 use super::primitive::primitive;
 use super::variable::variable;
 use super::RValue;
 
-pub fn rvalue(input: &str) -> IResult<&str, RValue> {
+pub fn rvalue(input: &str) -> SixuResult<&str, RValue> {
     alt((primitive_value, variable_value))(input)
 }
 
-pub fn primitive_value(input: &str) -> IResult<&str, RValue> {
+pub fn primitive_value(input: &str) -> SixuResult<&str, RValue> {
     let (input, p) = primitive(input)?;
     Ok((input, RValue::Primitive(p)))
 }
 
-pub fn variable_value(input: &str) -> IResult<&str, RValue> {
+pub fn variable_value(input: &str) -> SixuResult<&str, RValue> {
     let (input, variable) = variable(input)?;
     Ok((input, RValue::Variable(variable)))
 }

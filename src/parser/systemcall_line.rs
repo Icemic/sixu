@@ -1,6 +1,7 @@
 use nom::character::complete::char;
 use nom::sequence::*;
-use nom::IResult;
+
+use crate::result::SixuResult;
 
 use super::argument::arguments;
 use super::comment::span0;
@@ -8,7 +9,7 @@ use super::identifier::identifier;
 use super::Child;
 use super::SystemCallLine;
 
-pub fn systemcall_line(input: &str) -> IResult<&str, Child> {
+pub fn systemcall_line(input: &str) -> SixuResult<&str, Child> {
     let (input, (command, arguments)) = delimited(
         span0,
         tuple((

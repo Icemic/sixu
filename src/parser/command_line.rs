@@ -1,7 +1,8 @@
 use nom::character::complete::char;
 use nom::multi::many0;
 use nom::sequence::*;
-use nom::IResult;
+
+use crate::result::SixuResult;
 
 use super::argument::argument;
 use super::comment::span0;
@@ -9,7 +10,7 @@ use super::identifier::identifier;
 use super::Child;
 use super::CommandLine;
 
-pub fn command_line(input: &str) -> IResult<&str, Child> {
+pub fn command_line(input: &str) -> SixuResult<&str, Child> {
     let (input, (command, arguments)) = delimited(
         span0,
         tuple((

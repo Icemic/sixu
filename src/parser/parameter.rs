@@ -2,32 +2,27 @@ use nom::bytes::complete::*;
 use nom::combinator::*;
 use nom::multi::*;
 use nom::sequence::*;
-use nom::IResult;
+
+use crate::result::SixuResult;
 
 use super::comment::span0;
 use super::identifier::identifier;
 use super::primitive::primitive;
 use super::Parameter;
 
-pub fn parameters(input: &str) -> IResult<&str, Vec<Parameter>> {
+pub fn parameters(input: &str) -> SixuResult<&str, Vec<Parameter>> {
     let (input, _) = tag("(")(input)?;
     let (input, _) = span0(input)?;
-    let (input, parameters) = separated_list0(
-        delimited(span0, tag(","), span0),
-        parameter,
-    )(input)?;
+    let (input, parameters) = separated_list0(delimited(span0, tag(","), span0), cut(parameter))(input)?;
     let (input, _) = span0(input)?;
     let (input, _) = tag(")")(input)?;
     Ok((input, parameters))
 }
 
-pub fn parameter(input: &str) -> IResult<&str, Parameter> {
+pub fn parameter(input: &str) -> SixuResult<&str, Parameter> {
     let (input, name) = identifier(input)?;
     let (input, _) = span0(input)?;
-    let (input, default_value) = opt(preceded(
-        tag("="),
-        preceded(span0, primitive),
-    ))(input)?;
+    let (input, default_value) = opt(preceded(tag("="), preceded(span0, cut(primitive))))(input)?;
     Ok((
         input,
         Parameter {

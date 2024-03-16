@@ -1,14 +1,15 @@
 use nom::bytes::complete::*;
 use nom::combinator::*;
 use nom::multi::*;
-use nom::IResult;
 use nom::Parser;
+
+use crate::result::SixuResult;
 
 use super::identifier::identifier;
 use super::Variable;
 
 /// parse a variable like "foo" or "foo.bar.a.b"
-pub fn variable(input: &str) -> IResult<&str, Variable> {
+pub fn variable(input: &str) -> SixuResult<&str, Variable> {
     let (input, chain) = map_res(
         separated_list1(tag("."), identifier),
         |v: Vec<&str>| -> Result<Vec<String>, std::convert::Infallible> {

@@ -2,14 +2,15 @@ use nom::bytes::complete::*;
 use nom::combinator::*;
 use nom::multi::separated_list0;
 use nom::sequence::*;
-use nom::IResult;
+
+use crate::result::SixuResult;
 
 use super::comment::span0;
 use super::identifier::identifier;
 use super::rvalue::rvalue;
 use super::Argument;
 
-pub fn arguments(input: &str) -> IResult<&str, Vec<Argument>> {
+pub fn arguments(input: &str) -> SixuResult<&str, Vec<Argument>> {
     let (input, _) = tag("(")(input)?;
     let (input, _) = span0(input)?;
     let (input, arguments) = separated_list0(delimited(span0, tag(","), span0), argument)(input)?;
@@ -18,10 +19,10 @@ pub fn arguments(input: &str) -> IResult<&str, Vec<Argument>> {
     Ok((input, arguments))
 }
 
-pub fn argument(input: &str) -> IResult<&str, Argument> {
+pub fn argument(input: &str) -> SixuResult<&str, Argument> {
     let (input, name) = identifier(input)?;
     let (input, _) = span0(input)?;
-    let (input, value) = opt(preceded(tag("="), preceded(span0, rvalue)))(input)?;
+    let (input, value) = opt(preceded(tag("="), preceded(span0, cut(rvalue))))(input)?;
     Ok((
         input,
         Argument {

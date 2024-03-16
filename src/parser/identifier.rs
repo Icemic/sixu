@@ -4,9 +4,10 @@ use nom::character::complete::*;
 use nom::combinator::*;
 use nom::multi::*;
 use nom::sequence::*;
-use nom::IResult;
 
-pub fn identifier(input: &str) -> IResult<&str, &str> {
+use crate::result::SixuResult;
+
+pub fn identifier(input: &str) -> SixuResult<&str, &str> {
     recognize(pair(
         alt((alpha1, tag("_"))),
         many0(alt((alphanumeric1, tag("_")))),
@@ -15,7 +16,7 @@ pub fn identifier(input: &str) -> IResult<&str, &str> {
 
 #[cfg(test)]
 mod tests {
-    use nom::error::ErrorKind;
+    use nom::error::{ErrorKind, VerboseError, VerboseErrorKind};
     use nom::Err;
 
     use super::*;
@@ -36,9 +37,11 @@ mod tests {
 
         assert_eq!(
             identifier("0a"),
-            Err(Err::Error(nom::error::Error {
-                input: "0a",
-                code: ErrorKind::Tag
+            Err(Err::Error(VerboseError {
+                errors: vec![
+                    ("0a", VerboseErrorKind::Nom(ErrorKind::Tag)),
+                    ("0a", VerboseErrorKind::Nom(ErrorKind::Alt))
+                ]
             }))
         );
     }

@@ -4,22 +4,23 @@ use nom::character::complete::*;
 use nom::combinator::*;
 use nom::multi::*;
 use nom::sequence::*;
-use nom::IResult;
 use nom::Parser;
+
+use crate::result::SixuResult;
 
 use super::Primitive;
 
-pub fn primitive(input: &str) -> IResult<&str, Primitive> {
+pub fn primitive(input: &str) -> SixuResult<&str, Primitive> {
     alt((string, number, boolean))(input)
 }
 
-pub fn string(input: &str) -> IResult<&str, Primitive> {
+pub fn string(input: &str) -> SixuResult<&str, Primitive> {
     let (input, s) = delimited(tag("\""), take_until("\""), tag("\""))(input)?;
     Ok((input, Primitive::String(s.to_string())))
 }
 
 // all integer, which should not start with 0
-pub fn number(input: &str) -> IResult<&str, Primitive> {
+pub fn number(input: &str) -> SixuResult<&str, Primitive> {
     // let (input, n) = recognize(many1(terminated(digit1, many0(char('_'))))).parse(input)?;
     let (input, n) = map_res(
         tuple((
@@ -37,13 +38,14 @@ pub fn number(input: &str) -> IResult<&str, Primitive> {
     Ok((input, Primitive::Integer(n)))
 }
 
-pub fn boolean(input: &str) -> IResult<&str, Primitive> {
-    let (input, b) = alt((tag("true"), tag("false")))(input)?;
-    Ok((input, Primitive::Boolean(b == "true")))
+pub fn boolean(input: &str) -> SixuResult<&str, Primitive> {
+    let (input, b) = alt((value(true, tag("true")), value(false, tag("false"))))(input)?;
+    Ok((input, Primitive::Boolean(b)))
 }
 
 #[cfg(test)]
 mod tests {
+    use nom::error::{VerboseError, VerboseErrorKind};
     use nom::Err;
 
     use super::*;
@@ -63,9 +65,12 @@ mod tests {
         );
         assert_eq!(
             primitive("_123"),
-            Err(Err::Error(nom::error::Error {
-                input: "_123",
-                code: nom::error::ErrorKind::Tag
+            Err(Err::Error(VerboseError {
+                errors: vec![
+                    ("_123", VerboseErrorKind::Nom(nom::error::ErrorKind::Tag)),
+                    ("_123", VerboseErrorKind::Nom(nom::error::ErrorKind::Alt)),
+                    ("_123", VerboseErrorKind::Nom(nom::error::ErrorKind::Alt))
+                ]
             }))
         );
         assert_eq!(

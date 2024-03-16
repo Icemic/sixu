@@ -2,14 +2,15 @@ use nom::branch::alt;
 use nom::bytes::complete::*;
 use nom::multi::many0;
 use nom::sequence::*;
-use nom::IResult;
+
+use crate::result::SixuResult;
 
 use super::command_line::command_line;
 use super::comment::span0;
 use super::systemcall_line::systemcall_line;
 use super::Block;
 
-pub fn block(input: &str) -> IResult<&str, Block> {
+pub fn block(input: &str) -> SixuResult<&str, Block> {
     let (input, _) = tag("{")(input)?;
     let (input, children) = many0(preceded(span0, alt((command_line, systemcall_line))))(input)?;
     let (input, _) = preceded(span0, tag("}"))(input)?;

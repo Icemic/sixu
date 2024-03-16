@@ -4,15 +4,16 @@ use nom::character::complete::*;
 use nom::combinator::*;
 use nom::multi::*;
 use nom::sequence::*;
-use nom::IResult;
+
+use crate::result::SixuResult;
 
 /// parse comment like `// C++/EOL-style comments`
-pub fn comment(input: &str) -> IResult<&str, &str> {
+pub fn comment(input: &str) -> SixuResult<&str, &str> {
     preceded(tag("//"), is_not("\r\n"))(input)
 }
 
 /// match contiguous comments or whitespaces, which can be multiple lines
-pub fn span0(input: &str) -> IResult<&str, ()> {
+pub fn span0(input: &str) -> SixuResult<&str, ()> {
     value(
         (),
         many0(alt((map(comment, |_| ()), value((), multispace1)))),
@@ -20,7 +21,7 @@ pub fn span0(input: &str) -> IResult<&str, ()> {
 }
 
 /// match contiguous comments or whitespaces, which can be multiple lines
-pub fn span1(input: &str) -> IResult<&str, ()> {
+pub fn span1(input: &str) -> SixuResult<&str, ()> {
     value(
         (),
         many1(alt((map(comment, |_| ()), value((), multispace1)))),
@@ -29,6 +30,7 @@ pub fn span1(input: &str) -> IResult<&str, ()> {
 
 #[cfg(test)]
 mod tests {
+    use nom::error::{VerboseError, VerboseErrorKind};
     use nom::Err;
 
     use super::*;
@@ -75,9 +77,12 @@ mod tests {
     fn test_comment_or_multispace1() {
         assert_eq!(
             span1(""),
-            Err(Err::Error(nom::error::Error {
-                input: "",
-                code: nom::error::ErrorKind::MultiSpace
+            Err(Err::Error(VerboseError {
+                errors: vec![
+                    ("", VerboseErrorKind::Nom(nom::error::ErrorKind::MultiSpace)),
+                    ("", VerboseErrorKind::Nom(nom::error::ErrorKind::Alt)),
+                    ("", VerboseErrorKind::Nom(nom::error::ErrorKind::Many1))
+                ]
             }))
         );
         assert_eq!(span1(" "), Ok(("", ())));
