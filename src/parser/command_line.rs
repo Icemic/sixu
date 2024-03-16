@@ -3,8 +3,8 @@ use nom::multi::many0;
 use nom::sequence::*;
 use nom::IResult;
 
-use super::comment::span0;
 use super::argument::argument;
+use super::comment::span0;
 use super::identifier::identifier;
 use super::Child;
 use super::CommandLine;
@@ -39,7 +39,7 @@ pub fn command_line(input: &str) -> IResult<&str, Child> {
 
 #[cfg(test)]
 mod tests {
-    use crate::format::{Argument, Primitive};
+    use crate::format::{Argument, Primitive, RValue};
 
     use super::*;
 
@@ -76,7 +76,7 @@ mod tests {
                     flags: vec![],
                     arguments: vec![Argument {
                         name: "a".to_string(),
-                        value: Some(Primitive::Integer(1)),
+                        value: Some(RValue::Primitive(Primitive::Integer(1))),
                     }],
                 })
             ))
@@ -90,7 +90,7 @@ mod tests {
                     flags: vec!["b".to_string()],
                     arguments: vec![Argument {
                         name: "a".to_string(),
-                        value: Some(Primitive::Integer(1)),
+                        value: Some(RValue::Primitive(Primitive::Integer(1))),
                     }],
                 })
             ))
@@ -105,11 +105,11 @@ mod tests {
                     arguments: vec![
                         Argument {
                             name: "a".to_string(),
-                            value: Some(Primitive::Integer(1)),
+                            value: Some(RValue::Primitive(Primitive::Integer(1))),
                         },
                         Argument {
                             name: "b".to_string(),
-                            value: Some(Primitive::Integer(2)),
+                            value: Some(RValue::Primitive(Primitive::Integer(2))),
                         },
                     ],
                 })
@@ -125,11 +125,11 @@ mod tests {
                     arguments: vec![
                         Argument {
                             name: "a".to_string(),
-                            value: Some(Primitive::Integer(1)),
+                            value: Some(RValue::Primitive(Primitive::Integer(1))),
                         },
                         Argument {
                             name: "b".to_string(),
-                            value: Some(Primitive::Integer(2)),
+                            value: Some(RValue::Primitive(Primitive::Integer(2))),
                         },
                     ],
                 })

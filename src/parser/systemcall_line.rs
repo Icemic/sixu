@@ -29,7 +29,7 @@ pub fn systemcall_line(input: &str) -> IResult<&str, Child> {
 
 #[cfg(test)]
 mod tests {
-    use crate::format::{Argument, Primitive};
+    use crate::format::{Argument, Primitive, RValue};
 
     use super::*;
 
@@ -53,7 +53,7 @@ mod tests {
                     command: "command".to_string(),
                     arguments: vec![Argument {
                         name: "a".to_string(),
-                        value: Some(Primitive::Integer(1)),
+                        value: Some(RValue::Primitive(Primitive::Integer(1))),
                     }],
                 })
             ))

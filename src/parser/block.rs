@@ -24,7 +24,7 @@ pub fn block(input: &str) -> IResult<&str, Block> {
 
 #[cfg(test)]
 mod tests {
-    use crate::format::{Argument, Child, CommandLine, Primitive};
+    use crate::format::{Argument, Child, CommandLine, Primitive, RValue};
 
     use super::*;
 
@@ -61,7 +61,7 @@ mod tests {
                         flags: vec![],
                         arguments: vec![Argument {
                             name: "foo".to_string(),
-                            value: Some(Primitive::Boolean(false)),
+                            value: Some(RValue::Primitive(Primitive::Boolean(false))),
                         }],
                     })],
                 }

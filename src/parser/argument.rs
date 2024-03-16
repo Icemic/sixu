@@ -6,7 +6,7 @@ use nom::IResult;
 
 use super::comment::span0;
 use super::identifier::identifier;
-use super::primitive::primitive;
+use super::rvalue::rvalue;
 use super::Argument;
 
 pub fn arguments(input: &str) -> IResult<&str, Vec<Argument>> {
@@ -21,7 +21,7 @@ pub fn arguments(input: &str) -> IResult<&str, Vec<Argument>> {
 pub fn argument(input: &str) -> IResult<&str, Argument> {
     let (input, name) = identifier(input)?;
     let (input, _) = span0(input)?;
-    let (input, value) = opt(preceded(tag("="), preceded(span0, primitive)))(input)?;
+    let (input, value) = opt(preceded(tag("="), preceded(span0, rvalue)))(input)?;
     Ok((
         input,
         Argument {
@@ -33,7 +33,7 @@ pub fn argument(input: &str) -> IResult<&str, Argument> {
 
 #[cfg(test)]
 mod tests {
-    use crate::format::Primitive;
+    use crate::format::{Primitive, RValue};
 
     use super::*;
 
@@ -55,7 +55,7 @@ mod tests {
                 "",
                 Argument {
                     name: "a".to_string(),
-                    value: Some(Primitive::Integer(1)),
+                    value: Some(RValue::Primitive(Primitive::Integer(1))),
                 }
             ))
         );
@@ -65,7 +65,7 @@ mod tests {
                 " ",
                 Argument {
                     name: "a".to_string(),
-                    value: Some(Primitive::Integer(1)),
+                    value: Some(RValue::Primitive(Primitive::Integer(1))),
                 }
             ))
         );
@@ -75,7 +75,7 @@ mod tests {
                 " ",
                 Argument {
                     name: "foo".to_string(),
-                    value: Some(Primitive::String("bar".to_string())),
+                    value: Some(RValue::Primitive(Primitive::String("bar".to_string()))),
                 }
             ))
         );

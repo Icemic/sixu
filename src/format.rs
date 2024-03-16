@@ -23,7 +23,7 @@ pub struct Parameter {
 #[derive(Debug, Default, Clone, PartialEq)]
 pub struct Argument {
     pub name: String,
-    pub value: Option<Primitive>,
+    pub value: Option<RValue>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -32,6 +32,17 @@ pub enum Primitive {
     Integer(i64),
     Float(f64),
     Boolean(bool),
+}
+
+#[derive(Debug, Default, Clone, PartialEq)]
+pub struct Variable {
+    pub chain: Vec<String>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum RValue {
+    Primitive(Primitive),
+    Variable(Variable),
 }
 
 #[derive(Debug, Default, Clone, PartialEq)]
