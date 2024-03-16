@@ -1,5 +1,8 @@
+mod block;
 mod comment;
+mod common;
 mod identifier;
+mod line;
 mod parameter;
 mod primitive;
 mod scene;
@@ -14,11 +17,7 @@ use self::comment::span0;
 use self::scene::scene;
 
 pub fn parse(input: &str) -> IResult<&str, Story> {
-    let (input, scenes) = many0(delimited(
-        span0,
-        scene,
-        span0,
-    ))(input)?;
+    let (input, scenes) = many0(delimited(span0, scene, span0))(input)?;
 
     Ok((
         input,

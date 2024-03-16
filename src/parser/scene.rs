@@ -3,6 +3,7 @@ use nom::combinator::*;
 use nom::sequence::*;
 use nom::IResult;
 
+use super::block::block;
 use super::comment::span0;
 use super::comment::span1;
 use super::identifier::identifier;
@@ -13,14 +14,8 @@ pub fn scene(input: &str) -> IResult<&str, Scene> {
     let (input, _) = tag("scene")(input)?;
     let (input, _) = span1(input)?;
     let (input, name) = identifier(input)?;
-    let (input, parameters) = delimited(
-        span0,
-        opt(parameters),
-        span0,
-    )(input)?;
-    let (input, _) = tag("{")(input)?;
-    let (input, _) = span0(input)?;
-    let (input, _) = tag("}")(input)?;
+    let (input, parameters) = delimited(span0, opt(parameters), span0)(input)?;
+    let (input, _) = block(input)?;
     Ok((
         input,
         Scene {

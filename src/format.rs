@@ -20,6 +20,12 @@ pub struct Parameter {
     pub default_value: Option<Primitive>,
 }
 
+#[derive(Debug, Default, Clone, PartialEq)]
+pub struct Argument {
+    pub name: String,
+    pub value: Option<Primitive>,
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub enum Primitive {
     String(String),
@@ -31,15 +37,15 @@ pub enum Primitive {
 #[derive(Debug, Default, Clone, PartialEq)]
 pub struct Block {
     pub attributes: Vec<Attribute>,
-    pub children: Vec<Block>,
-    pub lines: Vec<Line>,
+    pub children: Vec<Child>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Child {
     Block(Block),
     ScriptBlock(ScriptBlock),
-    Line(Line),
+    CommandLine(CommandLine),
+    SystemCallLine(SystemCallLine),
 }
 
 #[derive(Debug, Default, Clone, PartialEq)]
@@ -49,8 +55,16 @@ pub struct ScriptBlock {
 }
 
 #[derive(Debug, Default, Clone, PartialEq)]
-pub struct Line {
-    pub _content: String,
+pub struct CommandLine {
+    pub command: String,
+    pub flags: Vec<String>,
+    pub arguments: Vec<Argument>,
+}
+
+#[derive(Debug, Default, Clone, PartialEq)]
+pub struct SystemCallLine {
+    pub command: String,
+    pub arguments: Vec<Argument>,
 }
 
 #[derive(Debug, Default, Clone, PartialEq)]
