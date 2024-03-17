@@ -34,6 +34,17 @@ pub enum Primitive {
     Boolean(bool),
 }
 
+impl ToString for Primitive {
+    fn to_string(&self) -> String {
+        match self {
+            Primitive::String(s) => s.clone(),
+            Primitive::Integer(i) => i.to_string(),
+            Primitive::Float(f) => f.to_string(),
+            Primitive::Boolean(b) => b.to_string(),
+        }
+    }
+}
+
 #[derive(Debug, Default, Clone, PartialEq)]
 pub struct Variable {
     pub chain: Vec<String>,
