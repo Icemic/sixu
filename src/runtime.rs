@@ -90,6 +90,9 @@ impl Runtime {
                     self.handle_system_call(&systemcall)?;
                 }
             }
+        } else {
+            // end of scene
+            self.stack.pop();
         }
 
         self.stack.last_mut().unwrap().index += 1;
