@@ -1,0 +1,32 @@
+scene entry {
+  // 这是一行文本
+  @xxx flag foo = "bar" abc = 123
+
+  // @{
+  //   let x = 0;
+  //   let global.x = 1;
+  //   let save.x = 1;
+  //   let embed_str = "测试"
+  // }
+
+  // #[if(save.x = 1)]
+  // {
+  //   `这是一行{embed_str}文本` // 这是一行测试文本
+  // }
+
+  #call(paragraphA, name = "def")
+
+  // 这一行会在最后执行
+
+}
+
+scene paragraphA(name) {
+  // 段落A的内容
+  #goto(paragraphB, name = name)  // 如果 name 没有传入，paragraphB 会使用默认值
+
+  // 段落A的剩余内容 // 永远不会执行
+}
+
+scene paragraphB(name = "abc") {
+  // `段落B的内容，局部变量{name}`
+}
