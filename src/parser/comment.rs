@@ -20,6 +20,14 @@ pub fn span0(input: &str) -> SixuResult<&str, ()> {
     )(input)
 }
 
+/// match contiguous comments or whitespaces, which is only one line
+pub fn span0_inline(input: &str) -> SixuResult<&str, ()> {
+    value(
+        (),
+        many0(alt((map(comment, |_| ()), value((), space1)))),
+    )(input)
+}
+
 /// match contiguous comments or whitespaces, which can be multiple lines
 pub fn span1(input: &str) -> SixuResult<&str, ()> {
     value(

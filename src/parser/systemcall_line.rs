@@ -6,18 +6,18 @@ use crate::result::SixuResult;
 
 use super::argument::arguments;
 use super::comment::span0;
+use super::comment::span0_inline;
 use super::identifier::identifier;
 use super::Child;
 use super::SystemCallLine;
 
 pub fn systemcall_line(input: &str) -> SixuResult<&str, Child> {
-    let (input, (command, arguments)) = delimited(
+    let (input, (command, arguments)) = preceded(
         span0,
         tuple((
             preceded(char('#'), cut(identifier)),
-            delimited(span0, cut(arguments), span0),
+            delimited(span0_inline, cut(arguments), span0_inline),
         )),
-        span0,
     )(input)?;
 
     Ok((
