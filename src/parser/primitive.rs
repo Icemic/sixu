@@ -16,7 +16,13 @@ pub fn primitive(input: &str) -> SixuResult<&str, Primitive> {
 }
 
 pub fn string(input: &str) -> SixuResult<&str, Primitive> {
-    let (input, s) = context("string", delimited(tag("\""), take_until("\""), tag("\"")))(input)?;
+    let (input, s) = context(
+        "string",
+        alt((
+            delimited(tag("\""), take_until("\""), tag("\"")),
+            delimited(tag("'"), take_until("'"), tag("'")),
+        )),
+    )(input)?;
     Ok((input, Primitive::String(s.to_string())))
 }
 
@@ -86,9 +92,9 @@ mod tests {
             primitive("\"hello\""),
             Ok(("", Primitive::String("hello".to_string())))
         );
-        // assert_eq!(
-        //     primitive(r#"\"hello\""#),
-        //     Ok(("", Primitive::String("\"hello\"".to_string())))
-        // );
+        assert_eq!(
+            primitive("'hello'"),
+            Ok(("", Primitive::String("hello".to_string())))
+        );
     }
 }
