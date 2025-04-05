@@ -21,6 +21,9 @@ sfssdfdsafdsdsfds
 
 // 这一行会在最后执行
 啊啊啊啊啊
+
+"sdfdsfsd\u6D4B\u8BD5" // 这是一行中文文本
+'sdfdsfsd\u6D4B\u8BD5' // 这是一行中文文本
 }
 
 
