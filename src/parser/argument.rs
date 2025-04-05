@@ -14,7 +14,7 @@ pub fn arguments(input: &str) -> SixuResult<&str, Vec<Argument>> {
     let (input, _) = tag("(")(input)?;
     let (input, _) = span0(input)?;
     let (input, arguments) =
-        cut(separated_list0(delimited(span0, tag(","), span0), cut(argument)))(input)?;
+        cut(separated_list0(delimited(span0, tag(","), span0), argument))(input)?;
     let (input, _) = span0(input)?;
     let (input, _) = tag(")")(input)?;
     Ok((input, arguments))
@@ -79,6 +79,34 @@ mod tests {
                     name: "foo".to_string(),
                     value: Some(RValue::Primitive(Primitive::String("bar".to_string()))),
                 }
+            ))
+        );
+
+        assert_eq!(arguments("()"), Ok(("", vec![])));
+        assert_eq!(
+            arguments("(a=1)"),
+            Ok((
+                "",
+                vec![Argument {
+                    name: "a".to_string(),
+                    value: Some(RValue::Primitive(Primitive::Integer(1))),
+                }]
+            ))
+        );
+        assert_eq!(
+            arguments("(a=1, b='aa')"),
+            Ok((
+                "",
+                vec![
+                    Argument {
+                        name: "a".to_string(),
+                        value: Some(RValue::Primitive(Primitive::Integer(1))),
+                    },
+                    Argument {
+                        name: "b".to_string(),
+                        value: Some(RValue::Primitive(Primitive::String("aa".to_string()))),
+                    }
+                ]
             ))
         );
     }
