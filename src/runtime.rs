@@ -82,7 +82,7 @@ impl Runtime {
         if let Some(child) = scene.block.children.get(current_state.index).cloned() {
             match child {
                 Child::Block(_) => todo!(),
-                Child::ScriptBlock(_) => todo!(),
+                Child::TextLine(_) => todo!(),
                 Child::CommandLine(command) => {
                     self.handle_command(&command)?;
                 }

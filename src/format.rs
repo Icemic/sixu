@@ -65,15 +65,9 @@ pub struct Block {
 #[derive(Debug, Clone, PartialEq)]
 pub enum Child {
     Block(Block),
-    ScriptBlock(ScriptBlock),
+    TextLine(String),
     CommandLine(CommandLine),
     SystemCallLine(SystemCallLine),
-}
-
-#[derive(Debug, Default, Clone, PartialEq)]
-pub struct ScriptBlock {
-    pub attributes: Vec<Attribute>,
-    pub lines: Vec<ScriptLine>,
 }
 
 #[derive(Debug, Default, Clone, PartialEq)]
@@ -87,11 +81,6 @@ pub struct CommandLine {
 pub struct SystemCallLine {
     pub command: String,
     pub arguments: Vec<Argument>,
-}
-
-#[derive(Debug, Default, Clone, PartialEq)]
-pub struct ScriptLine {
-    pub _content: String,
 }
 
 #[derive(Debug, Default, Clone, PartialEq)]

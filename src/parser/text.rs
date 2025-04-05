@@ -6,7 +6,7 @@ use nom::error::{context, FromExternalError, ParseError};
 use nom::sequence::{delimited, preceded};
 use nom::{IResult, Parser};
 
-use crate::format::{Child, ScriptBlock, ScriptLine};
+use crate::format::Child;
 use crate::result::SixuResult;
 
 use super::comment::span0;
@@ -14,13 +14,7 @@ use super::comment::span0;
 pub fn text_line(input: &str) -> SixuResult<&str, Child> {
     let (input, text) = delimited(span0, alt((escaped_text, plain_text)), span0)(input)?;
 
-    Ok((
-        input,
-        Child::ScriptBlock(ScriptBlock {
-            attributes: vec![],
-            lines: vec![ScriptLine { _content: text }],
-        }),
-    ))
+    Ok((input, Child::TextLine(text)))
 }
 
 pub fn plain_text(input: &str) -> SixuResult<&str, String> {
@@ -163,27 +157,11 @@ mod tests {
     fn test_plain_text_line() {
         assert_eq!(
             text_line("foo"),
-            Ok((
-                "",
-                Child::ScriptBlock(ScriptBlock {
-                    attributes: vec![],
-                    lines: vec![ScriptLine {
-                        _content: "foo".to_string()
-                    }],
-                })
-            ))
+            Ok(("", Child::TextLine("foo".to_string())))
         );
         assert_eq!(
             text_line("foo\n  \r"),
-            Ok((
-                "",
-                Child::ScriptBlock(ScriptBlock {
-                    attributes: vec![],
-                    lines: vec![ScriptLine {
-                        _content: "foo".to_string()
-                    }],
-                })
-            ))
+            Ok(("", Child::TextLine("foo".to_string())))
         );
     }
 }
