@@ -4,8 +4,6 @@
 // 这是一行文本
 @xxx flag foo = "bar" abc = 123
 
-sfsdfds
-
 // @{
 //   let x = 0;
 //   let global.x = 1;
@@ -19,9 +17,10 @@ sfsdfds
 // }
 
 #call(paragraphA, name = "def")
+sfssdfdsafdsdsfds
 
 // 这一行会在最后执行
-
+啊啊啊啊啊
 }
 
 
@@ -37,6 +36,7 @@ sfsdfds
 
 
 ::paragraphB(name = "abc") {
+  啊啊啊111
 // `段落B的内容，局部变量{name}`
-
+啊啊啊
 }

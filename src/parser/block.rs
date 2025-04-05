@@ -9,12 +9,13 @@ use crate::result::SixuResult;
 use super::command_line::command_line;
 use super::comment::span0;
 use super::systemcall_line::systemcall_line;
+use super::text::plain_text_line;
 use super::Block;
 
 pub fn block(input: &str) -> SixuResult<&str, Block> {
     let (input, _) = tag("{")(input)?;
     let (input, children) =
-        cut(many0(preceded(span0, alt((command_line, systemcall_line)))))(input)?;
+        cut(many0(preceded(span0, alt((command_line, systemcall_line, plain_text_line)))))(input)?;
     let (input, _) = preceded(span0, tag("}"))(input)?;
     Ok((
         input,
