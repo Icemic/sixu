@@ -6,14 +6,12 @@ use crate::result::SixuResult;
 
 use super::block::block;
 use super::comment::span0;
-use super::comment::span1;
 use super::identifier::identifier;
 use super::parameter::parameters;
 use super::Scene;
 
 pub fn scene(input: &str) -> SixuResult<&str, Scene> {
-    let (input, _) = tag("scene")(input)?;
-    let (input, _) = span1(input)?;
+    let (input, _) = tag("::")(input)?;
     let (input, name) = cut(identifier)(input)?;
     let (input, parameters) = delimited(span0, opt(parameters), span0)(input)?;
     let (input, block) = preceded(span0, cut(block))(input)?;
@@ -36,7 +34,7 @@ mod tests {
     #[test]
     fn test_scene() {
         assert_eq!(
-            scene("scene a {}"),
+            scene("::a {}"),
             Ok((
                 "",
                 Scene {
@@ -47,7 +45,7 @@ mod tests {
             ))
         );
         assert_eq!(
-            scene("scene a { }"),
+            scene("::a { }"),
             Ok((
                 "",
                 Scene {
@@ -58,7 +56,7 @@ mod tests {
             ))
         );
         assert_eq!(
-            scene("scene a { } "),
+            scene("::a { } "),
             Ok((
                 " ",
                 Scene {
@@ -69,7 +67,7 @@ mod tests {
             ))
         );
         assert_eq!(
-            scene("scene a { } // comment"),
+            scene("::a { } // comment"),
             Ok((
                 " // comment",
                 Scene {
@@ -80,7 +78,7 @@ mod tests {
             ))
         );
         assert_eq!(
-            scene("scene\n// comment\n a \n// comment\n { } // comment"),
+            scene("::a \n// comment\n { } // comment"),
             Ok((
                 " // comment",
                 Scene {
@@ -91,7 +89,7 @@ mod tests {
             ))
         );
         assert_eq!(
-            scene("scene a {\n@command\n}"),
+            scene("::a {\n@command\n}"),
             Ok((
                 "",
                 Scene {
