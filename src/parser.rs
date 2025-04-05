@@ -22,7 +22,7 @@ use self::scene::scene;
 
 /// parse a story file which is a sequence of scenes
 pub fn parse(input: &str) -> SixuResult<&str, Story> {
-    let (input, scenes) = all_consuming(many0(preceded(span0, scene)))(input)?;
+    let (input, scenes) = all_consuming(terminated(many0(preceded(span0, scene)), span0))(input)?;
 
     Ok((
         input,
