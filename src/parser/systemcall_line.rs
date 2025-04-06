@@ -79,5 +79,24 @@ mod tests {
                 })
             ))
         );
+        assert_eq!(
+            systemcall_line("#command a=1 b='aa'"),
+            Ok((
+                "",
+                Child::SystemCallLine(SystemCallLine {
+                    command: "command".to_string(),
+                    arguments: vec![
+                        Argument {
+                            name: "a".to_string(),
+                            value: Some(RValue::Primitive(Primitive::Integer(1))),
+                        },
+                        Argument {
+                            name: "b".to_string(),
+                            value: Some(RValue::Primitive(Primitive::String("aa".to_string()))),
+                        }
+                    ],
+                })
+            ))
+        );
     }
 }

@@ -1,13 +1,11 @@
 use nom::character::complete::char;
 use nom::combinator::cut;
-use nom::multi::many0;
 use nom::sequence::*;
 
 use crate::result::SixuResult;
 
-use super::argument::argument;
+use super::argument::arguments;
 use super::comment::span0;
-use super::comment::span0_inline;
 use super::identifier::identifier;
 use super::Child;
 use super::CommandLine;
@@ -15,10 +13,7 @@ use super::CommandLine;
 pub fn command_line(input: &str) -> SixuResult<&str, Child> {
     let (input, (command, arguments)) = preceded(
         span0,
-        tuple((
-            preceded(char('@'), cut(identifier)),
-            cut(many0(delimited(span0_inline, argument, span0_inline))),
-        )),
+        tuple((preceded(char('@'), cut(identifier)), arguments)),
     )(input)?;
 
     Ok((
@@ -119,6 +114,26 @@ mod tests {
         );
         assert_eq!(
             command_line("@command a=1 b = 2 c"),
+            Ok((
+                "",
+                Child::CommandLine(CommandLine {
+                    command: "command".to_string(),
+                    flags: vec!["c".to_string()],
+                    arguments: vec![
+                        Argument {
+                            name: "a".to_string(),
+                            value: Some(RValue::Primitive(Primitive::Integer(1))),
+                        },
+                        Argument {
+                            name: "b".to_string(),
+                            value: Some(RValue::Primitive(Primitive::Integer(2))),
+                        },
+                    ],
+                })
+            ))
+        );
+        assert_eq!(
+            command_line("@command (a=1,b = 2,c)"),
             Ok((
                 "",
                 Child::CommandLine(CommandLine {
