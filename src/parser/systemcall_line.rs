@@ -8,10 +8,10 @@ use super::argument::arguments;
 use super::comment::span0;
 use super::comment::span0_inline;
 use super::identifier::identifier;
-use super::Child;
+use super::ChildContent;
 use super::SystemCallLine;
 
-pub fn systemcall_line(input: &str) -> SixuResult<&str, Child> {
+pub fn systemcall_line(input: &str) -> SixuResult<&str, ChildContent> {
     let (input, (command, arguments)) = preceded(
         span0,
         tuple((
@@ -22,7 +22,7 @@ pub fn systemcall_line(input: &str) -> SixuResult<&str, Child> {
 
     Ok((
         input,
-        Child::SystemCallLine(SystemCallLine {
+        ChildContent::SystemCallLine(SystemCallLine {
             command: command.to_string(),
             arguments,
         }),
@@ -41,7 +41,7 @@ mod tests {
             systemcall_line("#command()"),
             Ok((
                 "",
-                Child::SystemCallLine(SystemCallLine {
+                ChildContent::SystemCallLine(SystemCallLine {
                     command: "command".to_string(),
                     arguments: vec![],
                 })
@@ -51,7 +51,7 @@ mod tests {
             systemcall_line("#command(a=1)"),
             Ok((
                 "",
-                Child::SystemCallLine(SystemCallLine {
+                ChildContent::SystemCallLine(SystemCallLine {
                     command: "command".to_string(),
                     arguments: vec![Argument {
                         name: "a".to_string(),
@@ -64,7 +64,7 @@ mod tests {
             systemcall_line("#command(a=1, b='aa')"),
             Ok((
                 "",
-                Child::SystemCallLine(SystemCallLine {
+                ChildContent::SystemCallLine(SystemCallLine {
                     command: "command".to_string(),
                     arguments: vec![
                         Argument {
@@ -83,7 +83,7 @@ mod tests {
             systemcall_line("#command a=1 b='aa'"),
             Ok((
                 "",
-                Child::SystemCallLine(SystemCallLine {
+                ChildContent::SystemCallLine(SystemCallLine {
                     command: "command".to_string(),
                     arguments: vec![
                         Argument {

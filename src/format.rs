@@ -58,12 +58,17 @@ pub enum RValue {
 
 #[derive(Debug, Default, Clone, PartialEq)]
 pub struct Block {
-    pub attributes: Vec<Attribute>,
     pub children: Vec<Child>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub enum Child {
+pub struct Child {
+    pub attributes: Vec<Attribute>,
+    pub content: ChildContent,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum ChildContent {
     Block(Block),
     TextLine(String),
     CommandLine(CommandLine),

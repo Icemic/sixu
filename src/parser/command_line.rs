@@ -7,10 +7,10 @@ use crate::result::SixuResult;
 use super::argument::arguments;
 use super::comment::span0;
 use super::identifier::identifier;
-use super::Child;
+use super::ChildContent;
 use super::CommandLine;
 
-pub fn command_line(input: &str) -> SixuResult<&str, Child> {
+pub fn command_line(input: &str) -> SixuResult<&str, ChildContent> {
     let (input, (command, arguments)) = preceded(
         span0,
         tuple((preceded(char('@'), cut(identifier)), arguments)),
@@ -18,7 +18,7 @@ pub fn command_line(input: &str) -> SixuResult<&str, Child> {
 
     Ok((
         input,
-        Child::CommandLine(CommandLine {
+        ChildContent::CommandLine(CommandLine {
             command: command.to_string(),
             flags: arguments
                 .iter()
@@ -46,7 +46,7 @@ mod tests {
             command_line("@command"),
             Ok((
                 "",
-                Child::CommandLine(CommandLine {
+                ChildContent::CommandLine(CommandLine {
                     command: "command".to_string(),
                     flags: vec![],
                     arguments: vec![],
@@ -57,7 +57,7 @@ mod tests {
             command_line("@command a"),
             Ok((
                 "",
-                Child::CommandLine(CommandLine {
+                ChildContent::CommandLine(CommandLine {
                     command: "command".to_string(),
                     flags: vec!["a".to_string()],
                     arguments: vec![],
@@ -68,7 +68,7 @@ mod tests {
             command_line("@command a = 1"),
             Ok((
                 "",
-                Child::CommandLine(CommandLine {
+                ChildContent::CommandLine(CommandLine {
                     command: "command".to_string(),
                     flags: vec![],
                     arguments: vec![Argument {
@@ -82,7 +82,7 @@ mod tests {
             command_line("@command a = 1 b"),
             Ok((
                 "",
-                Child::CommandLine(CommandLine {
+                ChildContent::CommandLine(CommandLine {
                     command: "command".to_string(),
                     flags: vec!["b".to_string()],
                     arguments: vec![Argument {
@@ -96,7 +96,7 @@ mod tests {
             command_line("@command a= 1 b = 2"),
             Ok((
                 "",
-                Child::CommandLine(CommandLine {
+                ChildContent::CommandLine(CommandLine {
                     command: "command".to_string(),
                     flags: vec![],
                     arguments: vec![
@@ -116,7 +116,7 @@ mod tests {
             command_line("@command a=1 b = 2 c"),
             Ok((
                 "",
-                Child::CommandLine(CommandLine {
+                ChildContent::CommandLine(CommandLine {
                     command: "command".to_string(),
                     flags: vec!["c".to_string()],
                     arguments: vec![
@@ -136,7 +136,7 @@ mod tests {
             command_line("@command (a=1,b = 2,c)"),
             Ok((
                 "",
-                Child::CommandLine(CommandLine {
+                ChildContent::CommandLine(CommandLine {
                     command: "command".to_string(),
                     flags: vec!["c".to_string()],
                     arguments: vec![

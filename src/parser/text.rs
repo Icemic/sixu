@@ -6,15 +6,15 @@ use nom::error::{context, FromExternalError, ParseError};
 use nom::sequence::{delimited, preceded};
 use nom::{IResult, Parser};
 
-use crate::format::Child;
+use crate::format::ChildContent;
 use crate::result::SixuResult;
 
 use super::comment::span0;
 
-pub fn text_line(input: &str) -> SixuResult<&str, Child> {
+pub fn text_line(input: &str) -> SixuResult<&str, ChildContent> {
     let (input, text) = delimited(span0, alt((escaped_text, plain_text)), span0)(input)?;
 
-    Ok((input, Child::TextLine(text)))
+    Ok((input, ChildContent::TextLine(text)))
 }
 
 pub fn plain_text(input: &str) -> SixuResult<&str, String> {
@@ -157,11 +157,11 @@ mod tests {
     fn test_plain_text_line() {
         assert_eq!(
             text_line("foo"),
-            Ok(("", Child::TextLine("foo".to_string())))
+            Ok(("", ChildContent::TextLine("foo".to_string())))
         );
         assert_eq!(
             text_line("foo\n  \r"),
-            Ok(("", Child::TextLine("foo".to_string())))
+            Ok(("", ChildContent::TextLine("foo".to_string())))
         );
     }
 }

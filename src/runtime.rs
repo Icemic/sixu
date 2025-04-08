@@ -9,7 +9,7 @@ pub use self::callback::*;
 use self::state::SceneState;
 
 use crate::error::{Result, RuntimeError};
-use crate::format::{Child, CommandLine, Primitive, RValue, Scene, Story, SystemCallLine};
+use crate::format::{ChildContent, CommandLine, Primitive, RValue, Scene, Story, SystemCallLine};
 
 /// Sixu scripting language runtime
 pub struct Runtime {
@@ -80,13 +80,14 @@ impl Runtime {
         let scene = self.get_scene(&current_state.story, &current_state.scene)?;
 
         if let Some(child) = scene.block.children.get(current_state.index).cloned() {
-            match child {
-                Child::Block(_) => todo!(),
-                Child::TextLine(_) => todo!(),
-                Child::CommandLine(command) => {
+            let content = child.content;
+            match content {
+                ChildContent::Block(_) => todo!(),
+                ChildContent::TextLine(_) => todo!(),
+                ChildContent::CommandLine(command) => {
                     self.handle_command(&command)?;
                 }
-                Child::SystemCallLine(systemcall) => {
+                ChildContent::SystemCallLine(systemcall) => {
                     self.handle_system_call(&systemcall)?;
                 }
             }
@@ -170,7 +171,7 @@ impl Runtime {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::format::{Block, Scene};
+    use crate::format::{Block, Child, Scene};
 
     #[test]
     fn test_runtime() {
@@ -181,12 +182,14 @@ mod tests {
                 name: "entry".to_string(),
                 parameters: vec![],
                 block: Block {
-                    attributes: vec![],
-                    children: vec![Child::CommandLine(CommandLine {
-                        command: "print".to_string(),
-                        flags: vec![],
-                        arguments: vec![],
-                    })],
+                    children: vec![Child {
+                        attributes: vec![],
+                        content: ChildContent::CommandLine(CommandLine {
+                            command: "print".to_string(),
+                            flags: vec![],
+                            arguments: vec![],
+                        }),
+                    }],
                 },
             }],
         };

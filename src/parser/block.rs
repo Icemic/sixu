@@ -4,7 +4,7 @@ use nom::combinator::cut;
 use nom::multi::many0;
 use nom::sequence::*;
 
-use crate::format::Child;
+use crate::format::{Child, ChildContent};
 use crate::result::SixuResult;
 
 use super::command_line::command_line;
@@ -17,68 +17,52 @@ pub fn block(input: &str) -> SixuResult<&str, Block> {
     let (input, _) = tag("{")(input)?;
     let (input, children) = cut(many0(preceded(span0, child)))(input)?;
     let (input, _) = preceded(span0, tag("}"))(input)?;
-    Ok((
-        input,
-        Block {
-            attributes: vec![],
-            children,
-        },
-    ))
+    Ok((input, Block { children }))
 }
 
-pub fn block_child(input: &str) -> SixuResult<&str, Child> {
+pub fn block_child(input: &str) -> SixuResult<&str, ChildContent> {
     let (input, block) = block(input)?;
-    Ok((input, Child::Block(block)))
+    Ok((input, ChildContent::Block(block)))
 }
 
 pub fn child(input: &str) -> SixuResult<&str, Child> {
     let (input, _) = span0(input)?;
     let (input, child) = alt((block_child, command_line, systemcall_line, text_line))(input)?;
-    Ok((input, child))
+    Ok((
+        input,
+        Child {
+            attributes: vec![],
+            content: child,
+        },
+    ))
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::format::{Argument, Child, CommandLine, Primitive, RValue, SystemCallLine};
+    use crate::format::{Argument, ChildContent, CommandLine, Primitive, RValue, SystemCallLine};
 
     use super::*;
 
     #[test]
     fn test_block() {
-        assert_eq!(
-            block("{}"),
-            Ok((
-                "",
-                Block {
-                    attributes: vec![],
-                    children: vec![],
-                }
-            ))
-        );
-        assert_eq!(
-            block("{\n}"),
-            Ok((
-                "",
-                Block {
-                    attributes: vec![],
-                    children: vec![],
-                }
-            ))
-        );
+        assert_eq!(block("{}"), Ok(("", Block { children: vec![] })));
+        assert_eq!(block("{\n}"), Ok(("", Block { children: vec![] })));
         assert_eq!(
             block("{\n@command foo=false}"),
             Ok((
                 "",
                 Block {
-                    attributes: vec![],
-                    children: vec![Child::CommandLine(CommandLine {
-                        command: "command".to_string(),
-                        flags: vec![],
-                        arguments: vec![Argument {
-                            name: "foo".to_string(),
-                            value: Some(RValue::Primitive(Primitive::Boolean(false))),
-                        }],
-                    })],
+                    children: vec![Child {
+                        attributes: vec![],
+                        content: ChildContent::CommandLine(CommandLine {
+                            command: "command".to_string(),
+                            flags: vec![],
+                            arguments: vec![Argument {
+                                name: "foo".to_string(),
+                                value: Some(RValue::Primitive(Primitive::Boolean(false))),
+                            }],
+                        }),
+                    }],
                 }
             ))
         );
@@ -87,17 +71,22 @@ mod tests {
             Ok((
                 "",
                 Block {
-                    attributes: vec![],
                     children: vec![
-                        Child::CommandLine(CommandLine {
-                            command: "command".to_string(),
-                            flags: vec![],
-                            arguments: vec![Argument {
-                                name: "foo".to_string(),
-                                value: Some(RValue::Primitive(Primitive::Boolean(false))),
-                            }],
-                        }),
-                        Child::TextLine("text".to_string())
+                        Child {
+                            attributes: vec![],
+                            content: ChildContent::CommandLine(CommandLine {
+                                command: "command".to_string(),
+                                flags: vec![],
+                                arguments: vec![Argument {
+                                    name: "foo".to_string(),
+                                    value: Some(RValue::Primitive(Primitive::Boolean(false))),
+                                }],
+                            }),
+                        },
+                        Child {
+                            attributes: vec![],
+                            content: ChildContent::TextLine("text".to_string()),
+                        }
                     ],
                 }
             ))
@@ -107,16 +96,21 @@ mod tests {
             Ok((
                 "",
                 Block {
-                    attributes: vec![],
                     children: vec![
-                        Child::SystemCallLine(SystemCallLine {
-                            command: "command".to_string(),
-                            arguments: vec![Argument {
-                                name: "foo".to_string(),
-                                value: Some(RValue::Primitive(Primitive::Boolean(false))),
-                            }],
-                        }),
-                        Child::TextLine("text".to_string())
+                        Child {
+                            attributes: vec![],
+                            content: ChildContent::SystemCallLine(SystemCallLine {
+                                command: "command".to_string(),
+                                arguments: vec![Argument {
+                                    name: "foo".to_string(),
+                                    value: Some(RValue::Primitive(Primitive::Boolean(false))),
+                                }],
+                            }),
+                        },
+                        Child {
+                            attributes: vec![],
+                            content: ChildContent::TextLine("text".to_string()),
+                        }
                     ],
                 }
             ))
@@ -127,28 +121,40 @@ mod tests {
             Ok((
                 "",
                 Block {
-                    attributes: vec![],
                     children: vec![
-                        Child::CommandLine(CommandLine {
-                            command: "command".to_string(),
-                            flags: vec![],
-                            arguments: vec![Argument {
-                                name: "foo".to_string(),
-                                value: Some(RValue::Primitive(Primitive::Boolean(false))),
-                            }],
-                        }),
-                        Child::TextLine("text".to_string()),
-                        Child::Block(Block {
+                        Child {
                             attributes: vec![],
-                            children: vec![Child::CommandLine(CommandLine {
+                            content: ChildContent::CommandLine(CommandLine {
                                 command: "command".to_string(),
                                 flags: vec![],
                                 arguments: vec![Argument {
-                                    name: "bar".to_string(),
-                                    value: Some(RValue::Primitive(Primitive::Boolean(true))),
+                                    name: "foo".to_string(),
+                                    value: Some(RValue::Primitive(Primitive::Boolean(false))),
                                 }],
-                            })],
-                        })
+                            }),
+                        },
+                        Child {
+                            attributes: vec![],
+                            content: ChildContent::TextLine("text".to_string()),
+                        },
+                        Child {
+                            attributes: vec![],
+                            content: ChildContent::Block(Block {
+                                children: vec![Child {
+                                    attributes: vec![],
+                                    content: ChildContent::CommandLine(CommandLine {
+                                        command: "command".to_string(),
+                                        flags: vec![],
+                                        arguments: vec![Argument {
+                                            name: "bar".to_string(),
+                                            value: Some(RValue::Primitive(Primitive::Boolean(
+                                                true
+                                            ))),
+                                        }],
+                                    }),
+                                }],
+                            }),
+                        }
                     ],
                 }
             ))

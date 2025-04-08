@@ -27,7 +27,7 @@ pub fn scene(input: &str) -> SixuResult<&str, Scene> {
 
 #[cfg(test)]
 mod tests {
-    use crate::format::{Block, Child, CommandLine};
+    use crate::format::{Block, Child, ChildContent, CommandLine};
 
     use super::*;
 
@@ -96,12 +96,14 @@ mod tests {
                     name: "a".to_string(),
                     parameters: vec![],
                     block: Block {
-                        attributes: vec![],
-                        children: vec![Child::CommandLine(CommandLine {
-                            command: "command".to_string(),
-                            flags: vec![],
-                            arguments: vec![],
-                        })]
+                        children: vec![Child {
+                            attributes: vec![],
+                            content: ChildContent::CommandLine(CommandLine {
+                                command: "command".to_string(),
+                                flags: vec![],
+                                arguments: vec![],
+                            }),
+                        }]
                     },
                 }
             ))
