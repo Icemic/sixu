@@ -90,6 +90,7 @@ impl Runtime {
                 ChildContent::SystemCallLine(systemcall) => {
                     self.handle_system_call(&systemcall)?;
                 }
+                ChildContent::EmbeddedCode(_) => todo!(),
             }
         } else {
             // end of scene

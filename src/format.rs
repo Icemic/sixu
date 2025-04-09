@@ -73,6 +73,7 @@ pub enum ChildContent {
     TextLine(String),
     CommandLine(CommandLine),
     SystemCallLine(SystemCallLine),
+    EmbeddedCode(String),
 }
 
 #[derive(Debug, Default, Clone, PartialEq)]
