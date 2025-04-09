@@ -1,6 +1,6 @@
 use nom::branch::alt;
-use nom::bytes::complete::{escaped_transform, take_till, take_while_m_n};
-use nom::character::complete::{char, none_of, one_of};
+use nom::bytes::complete::{escaped_transform, take_while_m_n};
+use nom::character::complete::{char, none_of, not_line_ending, one_of};
 use nom::combinator::{map_opt, map_res, not, value};
 use nom::error::{context, FromExternalError, ParseError};
 use nom::sequence::{delimited, preceded};
@@ -18,10 +18,7 @@ pub fn text_line(input: &str) -> SixuResult<&str, ChildContent> {
 }
 
 pub fn plain_text(input: &str) -> SixuResult<&str, String> {
-    let (input, s) = context(
-        "plain_text",
-        preceded(not(one_of("}@#")), take_till(|c| c == '\n' || c == '\r')),
-    )(input)?;
+    let (input, s) = context("plain_text", preceded(not(one_of("}@#")), not_line_ending))(input)?;
 
     Ok((input, s.to_string()))
 }
