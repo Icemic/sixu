@@ -2,10 +2,10 @@
 ::entry {
 
 // 这是一条指令
-@xxx flag foo = "bar" abc = 123
+@xxx flag foo = "bar" abc = 123 xx = false
 
 // 另一种写法
-@xxx(flag foo = "bar" abc = 123)
+@xxx(flag, foo = "bar", abc = 123, xx = localValue)
 
 /**
  * 这是多行注释

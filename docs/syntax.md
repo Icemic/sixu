@@ -108,9 +108,9 @@
 - 字符串：`"文本"` 或 `'文本'`
 - 整数：`123`, `+456`, `-789`
 - 布尔值：`true`, `false`
-- 变量引用：`{system.current_value}`
+- 变量引用：`system.current_value`
 
 例如：
 ```sixu
-@command text="Hello" number=123 flag=true value={system.current_value}
+@command text="Hello" number=123 flag=true value=system.current_value
 ```

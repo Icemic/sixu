@@ -45,7 +45,7 @@ pub fn argument(input: &str) -> SixuResult<&str, Argument> {
 
 #[cfg(test)]
 mod tests {
-    use crate::format::{Primitive, RValue};
+    use crate::format::{Primitive, RValue, Variable};
 
     use super::*;
 
@@ -88,6 +88,18 @@ mod tests {
                 Argument {
                     name: "foo".to_string(),
                     value: Some(RValue::Primitive(Primitive::String("bar".to_string()))),
+                }
+            ))
+        );
+        assert_eq!(
+            argument(r#"foo = foo.bar "#),
+            Ok((
+                " ",
+                Argument {
+                    name: "foo".to_string(),
+                    value: Some(RValue::Variable(Variable {
+                        chain: vec!["foo".to_string(), "bar".to_string()],
+                    })),
                 }
             ))
         );
