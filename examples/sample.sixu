@@ -1,45 +1,68 @@
 
 ::entry {
 
-// 这是一行文本
+// 这是一条指令
 @xxx flag foo = "bar" abc = 123
 
-// @{
-//   let x = 0;
-//   let global.x = 1;
-//   let save.x = 1;
-//   let embed_str = "测试"
-// }
+// 另一种写法
+@xxx(flag foo = "bar" abc = 123)
+
+/**
+ * 这是多行注释
+ * 这是第二行注释
+ */
+
+// 以下是脚本块，以 ## 开头，内部可以是任意合法的 JavaScript 代码
+##
+  let x = 0;
+  let global.x = 1;
+  let save.x = 1;
+  let embed_str = "测试"
+  if x > 10 {
+    x = 0;
+  } else if x < 0 {
+    x = 10;
+  } else {
+    x = 5;
+  }
+
+  {
+    // do something
+  }
+
+
+  "fdsf##fsdsdsf"
+##
 
 // #[if(save.x = 1)]
 // {
-//   `这是一行{embed_str}文本` // 这是一行测试文本
+//   `这是一行${embed_str}文本` // 这是一行测试文本
 // }
 
 #call(paragraphA, name = "def")
+// 支持另一种写法
+#call paragraphA name = "def"
 sfssdfdsafdsdsfds
 
-// 这一行会在最后执行
+// 这是一行普通文本，不会进行转义
 啊啊啊啊啊
 
-"sdfdsfsd\u6D4B\u8BD5" // 这是一行中文文本
-'sdfdsfsd\u6D4B\u8BD5' // 这是一行中文文本
+// 用引号包裹的文本会进行转义
+"sdfdsfsd\u6D4B\u{8BD5}"
+'sdfdsfsd\u6D4B\u{8BD5}'
 }
 
 
-
-
+// 其他段落
 ::paragraphA(name) {
 // 段落A的内容
 #goto(paragraphB, name = name)  // 如果 name 没有传入，paragraphB 会使用默认值
 
-// 段落A的剩余内容 // 永远不会执行
+// 段落A的剩余内容
+// 永远不会执行
 
 }
 
-
 ::paragraphB(name = "abc") {
-  啊啊啊111
-// `段落B的内容，局部变量{name}`
-啊啊啊
+这里是段落B
 }
