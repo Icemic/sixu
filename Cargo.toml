@@ -1,14 +1,9 @@
-[package]
-name = "sixu"
-version = "0.1.0"
-edition = "2021"
+[workspace]
+default-members = [
+  "sixu",
+]
+members = [
+  "sixu",
+]
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
-[dependencies]
-anyhow = "1"
-arc-swap = "1.7"
-log = "0.4"
-nom = "7.1.3"
-pollster = "0.3"
-thiserror = "1"
+resolver = "2"
