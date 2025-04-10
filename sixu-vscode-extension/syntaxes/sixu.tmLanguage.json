@@ -11,12 +11,18 @@
 	"repository": {
 		"comment-single": {
 			"name": "comment.line.double-slash.sixu",
-			"match": "//.*$"
+			"match": "(?<!:)//.*$"
 		},
 		"comment-multi": {
 			"name": "comment.block.sixu",
 			"begin": "/\\*",
 			"end": "\\*/",
+			"beginCaptures": {
+				"0": { "name": "punctuation.definition.comment.begin.sixu" }
+			},
+			"endCaptures": {
+				"0": { "name": "punctuation.definition.comment.end.sixu" }
+			},
 			"patterns": [
 				{
 					"name": "comment.block.content.sixu",
@@ -29,8 +35,8 @@
 			"begin": "(::)([a-zA-Z_][a-zA-Z0-9_]*)\\s*(\\()?(.*?)(\\))?\\s*({)",
 			"end": "}",
 			"beginCaptures": {
-				"1": { "name": "keyword.control.scene.sixu" },
-				"2": { "name": "entity.name.function.sixu" },
+				"1": { "name": "entity.name.section.sixu" },
+				"2": { "name": "entity.name.section.sixu" },
 				"3": { "name": "punctuation.definition.parameters.begin.sixu" },
 				"4": { "patterns": [{ "include": "#parameters" }] },
 				"5": { "name": "punctuation.definition.parameters.end.sixu" },
@@ -50,14 +56,13 @@
 			]
 		},
 		"block": {
-			"name": "meta.block.sixu",
-			"begin": "{",
-			"end": "}",
+			"begin": "({)",
+			"end": "(})",
 			"beginCaptures": {
-				"0": { "name": "punctuation.section.block.begin.sixu" }
+				"1": { "name": "punctuation.section.block.begin.sixu" }
 			},
 			"endCaptures": {
-				"0": { "name": "punctuation.section.block.end.sixu" }
+				"1": { "name": "punctuation.section.block.end.sixu" }
 			},
 			"patterns": [
 				{ "include": "#comment-single" },
@@ -71,47 +76,47 @@
 		},
 		"embedded-code": {
 			"name": "meta.embedded.block.javascript",
-				"patterns": [
-					{
-						"begin": "##\\s*$",
-						"end": "##\\s*$",
-						"patterns": [
-							{
-								"include": "source.js"
-							}
-						]
-					},
-					{
-						"match": "##\\s*(.+?)\\s*##",
-						"captures": {
-							"1": {
-								"patterns": [
-									{
-										"include": "source.js"
-									}
-								]
-							}
+			"patterns": [
+				{
+					"begin": "^\\s*##\\s*$",
+					"end": "^\\s*##\\s*$",
+					"patterns": [
+						{
+							"include": "source.js"
+						}
+					]
+				},
+				{
+					"match": "^\\s*##\\s*(.+?)\\s*##",
+					"captures": {
+						"1": {
+							"patterns": [
+								{
+									"include": "source.js"
+								}
+							]
 						}
 					}
-				]
+				}
+			]
 		},
 		"command-line": {
 			"patterns": [
 				{
-					"match": "(@)([a-zA-Z_][a-zA-Z0-9_]*)(\\()(.*?)(\\))",
+					"match": "^\\s*(@)([a-zA-Z_][a-zA-Z0-9_]*)(\\()(.*?)(\\))",
 					"captures": {
-						"1": { "name": "keyword.control.command.sixu" },
-						"2": { "name": "entity.name.function.command.sixu" },
+						"1": { "name": "entity.name.tag.command.sixu" },
+						"2": { "name": "entity.name.tag.command.sixu" },
 						"3": { "name": "punctuation.definition.arguments.begin.sixu" },
 						"4": { "patterns": [{ "include": "#arguments" }] },
 						"5": { "name": "punctuation.definition.arguments.end.sixu" }
 					}
 				},
 				{
-					"match": "(@)([a-zA-Z_][a-zA-Z0-9_]*)(\\s+.*)?$",
+					"match": "^\\s*(@)([a-zA-Z_][a-zA-Z0-9_]*)(\\s+.*)?$",
 					"captures": {
-						"1": { "name": "keyword.control.command.sixu" },
-						"2": { "name": "entity.name.function.command.sixu" },
+						"1": { "name": "entity.name.tag.command.sixu" },
+						"2": { "name": "entity.name.tag.command.sixu" },
 						"3": { "patterns": [{ "include": "#arguments" }] }
 					}
 				}
@@ -120,9 +125,9 @@
 		"system-call-line": {
 			"patterns": [
 				{
-					"match": "(#)([a-zA-Z_][a-zA-Z0-9_]*)(\\()(.*?)(\\))",
+					"match": "^\\s*(#)([a-zA-Z_][a-zA-Z0-9_]*)(\\()(.*?)(\\))",
 					"captures": {
-						"1": { "name": "keyword.control.systemcall.sixu" },
+						"1": { "name": "entity.name.function.systemcall.sixu" },
 						"2": { "name": "entity.name.function.systemcall.sixu" },
 						"3": { "name": "punctuation.definition.arguments.begin.sixu" },
 						"4": { "patterns": [{ "include": "#arguments" }] },
@@ -130,9 +135,9 @@
 					}
 				},
 				{
-					"match": "(#)([a-zA-Z_][a-zA-Z0-9_]*)(\\s+.*)?$",
+					"match": "^\\s*(#)([a-zA-Z_][a-zA-Z0-9_]*)(\\s+.*)?$",
 					"captures": {
-						"1": { "name": "keyword.control.systemcall.sixu" },
+						"1": { "name": "entity.name.function.systemcall.sixu" },
 						"2": { "name": "entity.name.function.systemcall.sixu" },
 						"3": { "patterns": [{ "include": "#arguments" }] }
 					}
@@ -143,9 +148,9 @@
 			"patterns": [
 				{ "include": "#quoted-string" },
 				{
-					"match": "(?<![}@#:(),.{])(.+)$",
+					"match": "^\\s*(?<![}@#:(),.{])(.+)$",
 					"captures": {
-						"1": { "name": "string.unquoted.sixu" }
+						"1": { "name": "markup.raw.sixu" }
 					}
 				}
 			]
@@ -181,7 +186,7 @@
 				{
 					"match": "([a-zA-Z_][a-zA-Z0-9_]*)\\s*(=)?",
 					"captures": {
-						"1": { "name": "variable.parameter.sixu" },
+						"1": { "name": "entity.other.attribute-name.sixu" },
 						"2": { "name": "keyword.operator.assignment.sixu" }
 					}
 				},
@@ -197,7 +202,7 @@
 				{
 					"match": "\\b([a-zA-Z_][a-zA-Z0-9_]*)\\s*(=)?",
 					"captures": {
-						"1": { "name": "variable.parameter.sixu" },
+						"1": { "name": "entity.other.attribute-name.sixu" },
 						"2": { "name": "keyword.operator.assignment.sixu" }
 					}
 				},
