@@ -1,0 +1,7 @@
+{
+	"private": true,
+	"workspaces": [
+		"sixu-vscode-extension"
+	],
+	"packageManager": "yarn@4.3.1"
+}

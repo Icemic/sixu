@@ -1,0 +1,34 @@
+{
+  "name": "vscode-extension-sixu",
+  "displayName": "vscode-extension-sixu",
+  "description": "SiXu Language Support",
+  "version": "0.0.1",
+  "engines": {
+    "vscode": "^1.99.0"
+  },
+  "categories": [
+    "Programming Languages"
+  ],
+  "contributes": {
+    "languages": [
+      {
+        "id": "sixu",
+        "aliases": [
+          "SiXu",
+          "sixu"
+        ],
+        "extensions": [
+          ".sixu"
+        ],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "sixu",
+        "scopeName": "source.sixu",
+        "path": "./syntaxes/sixu.tmLanguage.json"
+      }
+    ]
+  }
+}

@@ -1,0 +1,165 @@
+{
+	"$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+	"name": "SiXu",
+	"scopeName": "source.sixu",
+	"fileTypes": [".sixu"],
+	"patterns": [
+		{ "include": "#comment" },
+		{ "include": "#scene" }
+	],
+	"repository": {
+		"comment": {
+			"name": "comment.line.double-slash.sixu",
+			"match": "//.*$",
+			"captures": {
+				"0": { "name": "comment.line.double-slash.sixu" }
+			}
+		},
+		"scene": {
+			"begin": "(::)([a-zA-Z_][a-zA-Z0-9_]*)\\s*(\\()?(.*?)(\\))?\\s*({)",
+			"end": "(})",
+			"beginCaptures": {
+				"1": { "name": "keyword.control.scene.sixu" },
+				"2": { "name": "entity.name.function.sixu" },
+				"3": { "name": "punctuation.definition.parameters.begin.sixu" },
+				"4": { "patterns": [{ "include": "#parameters" }] },
+				"5": { "name": "punctuation.definition.parameters.end.sixu" },
+				"6": { "name": "punctuation.definition.block.begin.sixu" }
+			},
+			"endCaptures": {
+				"1": { "name": "punctuation.definition.block.end.sixu" }
+			},
+			"patterns": [
+				{
+					"include": "#comment"
+				},
+				{
+					"include": "#command-line"
+				},
+				{
+					"include": "#system-call"
+				},
+				{
+					"include": "#text-line"
+				}
+			]
+		},
+		"command-line": {
+			"match": "(@)([a-zA-Z_][a-zA-Z0-9_]*)\\b(.*?)$",
+			"captures": {
+				"1": { "name": "keyword.control.command.sixu" },
+				"2": { "name": "entity.name.function.command.sixu" },
+				"3": { "patterns": [{ "include": "#arguments" }] }
+			}
+		},
+		"system-call": {
+			"match": "(#)([a-zA-Z_][a-zA-Z0-9_]*)\\s*(\\()(.*?)(\\))",
+			"captures": {
+				"1": { "name": "keyword.control.systemcall.sixu" },
+				"2": { "name": "entity.name.function.systemcall.sixu" },
+				"3": { "name": "punctuation.definition.arguments.begin.sixu" },
+				"4": { "patterns": [{ "include": "#arguments" }] },
+				"5": { "name": "punctuation.definition.arguments.end.sixu" }
+			}
+		},
+		"text-line": {
+			"patterns": [
+				{ "include": "#quoted-string" },
+				{
+					"match": "(?<![}@#:(),.{])(.+)$",
+					"captures": {
+						"1": { "name": "string.unquoted.sixu" }
+					}
+				}
+			]
+		},
+		"quoted-string": {
+			"patterns": [
+				{
+					"name": "string.quoted.double.sixu",
+					"begin": "\"",
+					"end": "\"",
+					"patterns": [
+						{
+							"name": "constant.character.escape.sixu",
+							"match": "\\\\(n|r|t|\\\\|/|\"|'|u\\{[0-9a-fA-F]{1,6}\\}|u[0-9a-fA-F]{1,4})"
+						}
+					]
+				},
+				{
+					"name": "string.quoted.single.sixu",
+					"begin": "'",
+					"end": "'",
+					"patterns": [
+						{
+							"name": "constant.character.escape.sixu",
+							"match": "\\\\(n|r|t|\\\\|/|\"|'|u\\{[0-9a-fA-F]{1,6}\\}|u[0-9a-fA-F]{1,4})"
+						}
+					]
+				}
+			]
+		},
+		"parameters": {
+			"patterns": [
+				{
+					"match": "([a-zA-Z_][a-zA-Z0-9_]*)\\s*(=)?",
+					"captures": {
+						"1": { "name": "variable.parameter.sixu" },
+						"2": { "name": "keyword.operator.assignment.sixu" }
+					}
+				},
+				{ "include": "#primitive-value" },
+				{
+					"match": ",",
+					"name": "punctuation.separator.parameter.sixu"
+				}
+			]
+		},
+		"arguments": {
+			"patterns": [
+				{
+					"match": "\\b([a-zA-Z_][a-zA-Z0-9_]*)\\s*(=)?",
+					"captures": {
+						"1": { "name": "variable.parameter.sixu" },
+						"2": { "name": "keyword.operator.assignment.sixu" }
+					}
+				},
+				{ "include": "#rvalue" },
+				{
+					"match": ",",
+					"name": "punctuation.separator.argument.sixu"
+				}
+			]
+		},
+		"rvalue": {
+			"patterns": [
+				{ "include": "#primitive-value" },
+				{ "include": "#variable-reference" }
+			]
+		},
+		"primitive-value": {
+			"patterns": [
+				{ "include": "#quoted-string" },
+				{
+					"name": "constant.numeric.integer.sixu",
+					"match": "[+-]?[0-9][0-9_]*"
+				},
+				{
+					"name": "constant.language.boolean.true.sixu",
+					"match": "\\btrue\\b"
+				},
+				{
+					"name": "constant.language.boolean.false.sixu",
+					"match": "\\bfalse\\b"
+				}
+			]
+		},
+		"variable-reference": {
+			"match": "\\b([a-zA-Z_][a-zA-Z0-9_]*)((?:\\.[a-zA-Z_][a-zA-Z0-9_]*)*)\\b",
+			"captures": {
+				"1": { "name": "variable.other.sixu" },
+				"2": { "name": "variable.other.member.sixu" }
+			}
+		}
+	}
+}
