@@ -148,9 +148,18 @@
 			"patterns": [
 				{ "include": "#quoted-string" },
 				{
-					"match": "^\\s*(?<![}@#:(),.{])(.+)$",
+					"match": "^\\s*(?<![}@#:(),.{])(?:\\[([^\\]]+)\\]\\s+)?(.+)$",
 					"captures": {
-						"1": { "name": "markup.raw.sixu" }
+						"1": {
+							"name": "string.unquoted.leading.sixu",
+							"patterns": [
+								{ "include": "#quoted-string" },
+								{
+									"match": "^\\s*(?<![}@#:(),.{])(.+)$"
+								}
+							]
+						},
+						"2": { "name": "markup.raw.sixu" }
 					}
 				}
 			]

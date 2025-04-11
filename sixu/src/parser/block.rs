@@ -104,7 +104,7 @@ mod tests {
                         },
                         Child {
                             attributes: vec![],
-                            content: ChildContent::TextLine("text".to_string()),
+                            content: ChildContent::TextLine(None, "text".to_string()),
                         }
                     ],
                 }
@@ -128,7 +128,7 @@ mod tests {
                         },
                         Child {
                             attributes: vec![],
-                            content: ChildContent::TextLine("text".to_string()),
+                            content: ChildContent::TextLine(None, "text".to_string()),
                         }
                     ],
                 }
@@ -154,7 +154,7 @@ mod tests {
                         },
                         Child {
                             attributes: vec![],
-                            content: ChildContent::TextLine("text".to_string()),
+                            content: ChildContent::TextLine(None, "text".to_string()),
                         },
                         Child {
                             attributes: vec![],

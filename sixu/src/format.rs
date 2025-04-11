@@ -70,7 +70,7 @@ pub struct Child {
 #[derive(Debug, Clone, PartialEq)]
 pub enum ChildContent {
     Block(Block),
-    TextLine(String),
+    TextLine(Option<String>, String),
     CommandLine(CommandLine),
     SystemCallLine(SystemCallLine),
     EmbeddedCode(String),

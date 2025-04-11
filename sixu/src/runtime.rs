@@ -83,7 +83,7 @@ impl Runtime {
             let content = child.content;
             match content {
                 ChildContent::Block(_) => todo!(),
-                ChildContent::TextLine(_) => todo!(),
+                ChildContent::TextLine(_, _) => todo!(),
                 ChildContent::CommandLine(command) => {
                     self.handle_command(&command)?;
                 }

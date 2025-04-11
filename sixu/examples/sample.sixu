@@ -50,6 +50,9 @@ sfssdfdsafdsdsfds
 // 这是一行普通文本，不会进行转义
 啊啊啊啊啊
 
+// 带前导的文本
+[路人] 发生了什么？？？
+
 // 一个代码块
 {
   #call paragraphA name = "def"
