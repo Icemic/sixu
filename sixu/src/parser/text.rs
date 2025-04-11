@@ -89,8 +89,8 @@ pub fn escaped_text(input: &str) -> SixuResult<&str, String> {
         alt((
             delimited(
                 char('"'),
-                escaped_transform(
-                    none_of("\"\\"),
+                cut(escaped_transform(
+                    none_of("\"\\\n\r"),
                     '\\',
                     alt((
                         parse_unicode,
@@ -103,13 +103,13 @@ pub fn escaped_text(input: &str) -> SixuResult<&str, String> {
                         value('\'', char('\'')),
                         value('`', char('`')),
                     )),
-                ),
+                )),
                 char('"'),
             ),
             delimited(
                 char('\''),
-                escaped_transform(
-                    none_of("\'\\"),
+                cut(escaped_transform(
+                    none_of("\'\\\n\r"),
                     '\\',
                     alt((
                         parse_unicode,
@@ -122,7 +122,7 @@ pub fn escaped_text(input: &str) -> SixuResult<&str, String> {
                         value('\'', char('\'')),
                         value('`', char('`')),
                     )),
-                ),
+                )),
                 char('\''),
             ),
         )),
