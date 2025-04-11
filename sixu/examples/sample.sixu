@@ -13,6 +13,9 @@
  */
 
 // 以下是脚本块，以 ## 开头，内部可以是任意合法的 JavaScript 代码
+
+## console.log(123) ##
+
 ##
   let x = 0;
   let global.x = 1;
@@ -46,6 +49,11 @@ sfssdfdsafdsdsfds
 
 // 这是一行普通文本，不会进行转义
 啊啊啊啊啊
+
+// 一个代码块
+{
+  #call paragraphA name = "def"
+}
 
 // 用引号包裹的文本会进行转义
 "sdfdsfsd\u6D4B\u{8BD5}"
