@@ -84,6 +84,7 @@ impl Runtime {
             match content {
                 ChildContent::Block(_) => todo!(),
                 ChildContent::TextLine(_, _) => todo!(),
+                ChildContent::TemplateLiteral(_) => todo!(),
                 ChildContent::CommandLine(command) => {
                     self.handle_command(&command)?;
                 }

@@ -8,6 +8,7 @@ mod primitive;
 mod rvalue;
 mod scene;
 mod systemcall_line;
+mod template;
 mod text;
 mod variable;
 

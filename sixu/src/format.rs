@@ -70,10 +70,24 @@ pub struct Child {
 #[derive(Debug, Clone, PartialEq)]
 pub enum ChildContent {
     Block(Block),
-    TextLine(Option<String>, String),
+    TextLine(LeadingText, String),
+    TemplateLiteral(TemplateLiteral),
     CommandLine(CommandLine),
     SystemCallLine(SystemCallLine),
     EmbeddedCode(String),
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum LeadingText {
+    None,
+    Text(String),
+    TemplateLiteral(TemplateLiteral),
+}
+
+#[derive(Debug, Default, Clone, PartialEq)]
+pub struct TemplateLiteral {
+    pub strings: Vec<String>,
+    pub values: Vec<RValue>,
 }
 
 #[derive(Debug, Default, Clone, PartialEq)]

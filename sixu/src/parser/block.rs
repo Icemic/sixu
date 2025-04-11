@@ -11,6 +11,7 @@ use crate::result::SixuResult;
 use super::command_line::command_line;
 use super::comment::{span0, span0_inline};
 use super::systemcall_line::systemcall_line;
+use super::template::template_line;
 use super::text::text_line;
 use super::Block;
 
@@ -33,6 +34,7 @@ pub fn child(input: &str) -> SixuResult<&str, Child> {
         block_child,
         command_line,
         systemcall_line,
+        template_line,
         text_line,
     ))(input)?;
     Ok((
@@ -58,7 +60,10 @@ pub fn embedded_code(input: &str) -> SixuResult<&str, ChildContent> {
 
 #[cfg(test)]
 mod tests {
-    use crate::format::{Argument, ChildContent, CommandLine, Primitive, RValue, SystemCallLine};
+    use crate::format::{
+        Argument, ChildContent, CommandLine, LeadingText, Primitive, RValue, SystemCallLine,
+        TemplateLiteral, Variable,
+    };
 
     use super::*;
 
@@ -104,7 +109,7 @@ mod tests {
                         },
                         Child {
                             attributes: vec![],
-                            content: ChildContent::TextLine(None, "text".to_string()),
+                            content: ChildContent::TextLine(LeadingText::None, "text".to_string()),
                         }
                     ],
                 }
@@ -128,7 +133,7 @@ mod tests {
                         },
                         Child {
                             attributes: vec![],
-                            content: ChildContent::TextLine(None, "text".to_string()),
+                            content: ChildContent::TextLine(LeadingText::None, "text".to_string()),
                         }
                     ],
                 }
@@ -154,7 +159,7 @@ mod tests {
                         },
                         Child {
                             attributes: vec![],
-                            content: ChildContent::TextLine(None, "text".to_string()),
+                            content: ChildContent::TextLine(LeadingText::None, "text".to_string()),
                         },
                         Child {
                             attributes: vec![],
@@ -217,5 +222,48 @@ mod tests {
         //         ChildContent::EmbeddedCode("code\n//##\n".to_string())
         //     ))
         // );
+    }
+
+    #[test]
+    fn test_template_line_mix_with_command() {
+        let input = "{`hello \n${world} ${123} world` \n \n@command foo=false\n}";
+
+        assert_eq!(
+            block(input),
+            Ok((
+                "",
+                Block {
+                    children: vec![
+                        Child {
+                            attributes: vec![],
+                            content: ChildContent::TemplateLiteral(TemplateLiteral {
+                                strings: vec![
+                                    "hello \n".to_string(),
+                                    " ".to_string(),
+                                    " world".to_string()
+                                ],
+                                values: vec![
+                                    RValue::Variable(Variable {
+                                        chain: vec!["world".to_string()],
+                                    }),
+                                    RValue::Primitive(Primitive::Integer(123)),
+                                ],
+                            }),
+                        },
+                        Child {
+                            attributes: vec![],
+                            content: ChildContent::CommandLine(CommandLine {
+                                command: "command".to_string(),
+                                flags: vec![],
+                                arguments: vec![Argument {
+                                    name: "foo".to_string(),
+                                    value: Some(RValue::Primitive(Primitive::Boolean(false))),
+                                }],
+                            }),
+                        }
+                    ],
+                }
+            ))
+        );
     }
 }

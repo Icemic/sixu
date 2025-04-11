@@ -1,15 +1,16 @@
 use nom::branch::alt;
 use nom::bytes::complete::{escaped_transform, take_while, take_while_m_n};
 use nom::character::complete::{char, none_of, not_line_ending, one_of};
-use nom::combinator::{map_opt, map_res, not, opt, peek, value};
+use nom::combinator::{map_opt, map_res, not, peek, success, value};
 use nom::error::{context, FromExternalError, ParseError};
 use nom::sequence::{delimited, preceded, tuple};
 use nom::{IResult, Parser};
 
-use crate::format::ChildContent;
+use crate::format::{ChildContent, LeadingText, TemplateLiteral};
 use crate::result::SixuResult;
 
 use super::comment::{span0, span0_inline};
+use super::template::template_literal;
 
 pub fn text_line(input: &str) -> SixuResult<&str, ChildContent> {
     let (input, (_, _, leading, _, text)) = delimited(
@@ -17,7 +18,7 @@ pub fn text_line(input: &str) -> SixuResult<&str, ChildContent> {
         tuple((
             not(one_of("}@#")),
             span0_inline,
-            opt(leading_text),
+            alt((leading_text, success(LeadingText::None))),
             span0_inline,
             text,
         )),
@@ -27,7 +28,7 @@ pub fn text_line(input: &str) -> SixuResult<&str, ChildContent> {
     Ok((input, ChildContent::TextLine(leading, text)))
 }
 
-pub fn leading_text(input: &str) -> SixuResult<&str, String> {
+pub fn leading_text(input: &str) -> SixuResult<&str, LeadingText> {
     context(
         "leading_text",
         delimited(
@@ -37,12 +38,34 @@ pub fn leading_text(input: &str) -> SixuResult<&str, String> {
                     // force quotes to be adjacent to the ] symbol to ensure that
                     // there is only one set of escaped text inside, otherwise it fails,
                     // fallback to plain text
+                    tuple((
+                        span0_inline,
+                        template_literal,
+                        span0_inline,
+                        peek(one_of("]")),
+                    )),
+                    |s: ((), TemplateLiteral, (), char)| {
+                        Ok::<LeadingText, nom::error::VerboseError<&str>>(
+                            LeadingText::TemplateLiteral(s.1),
+                        )
+                    },
+                ),
+                map_res(
+                    // force quotes to be adjacent to the ] symbol to ensure that
+                    // there is only one set of escaped text inside, otherwise it fails,
+                    // fallback to plain text
                     tuple((span0_inline, escaped_text, span0_inline, peek(one_of("]")))),
-                    |s: ((), String, (), char)| Ok::<String, nom::error::VerboseError<&str>>(s.1),
+                    |s: ((), String, (), char)| {
+                        Ok::<LeadingText, nom::error::VerboseError<&str>>(LeadingText::Text(s.1))
+                    },
                 ),
                 map_res(
                     take_while(|c| c != ']' && c != '\n' && c != '\r'),
-                    |s: &str| Ok::<String, nom::error::VerboseError<&str>>(s.to_string()),
+                    |s: &str| {
+                        Ok::<LeadingText, nom::error::VerboseError<&str>>(LeadingText::Text(
+                            s.to_string(),
+                        ))
+                    },
                 ),
             )),
             char(']'),
@@ -78,6 +101,7 @@ pub fn escaped_text(input: &str) -> SixuResult<&str, String> {
                         value('/', char('/')),
                         value('"', char('"')),
                         value('\'', char('\'')),
+                        value('`', char('`')),
                     )),
                 ),
                 char('"'),
@@ -96,6 +120,7 @@ pub fn escaped_text(input: &str) -> SixuResult<&str, String> {
                         value('/', char('/')),
                         value('"', char('"')),
                         value('\'', char('\'')),
+                        value('`', char('`')),
                     )),
                 ),
                 char('\''),
@@ -108,7 +133,7 @@ pub fn escaped_text(input: &str) -> SixuResult<&str, String> {
 
 // from https://github.com/rust-bakery/nom/blob/a44b52ed9052a66f5eb2add9aa5b314f034dc580/examples/string.rs#L30
 // with some modifications
-fn parse_unicode<'a, E>(input: &'a str) -> IResult<&'a str, char, E>
+pub(crate) fn parse_unicode<'a, E>(input: &'a str) -> IResult<&'a str, char, E>
 where
     E: ParseError<&'a str> + FromExternalError<&'a str, std::num::ParseIntError>,
 {
@@ -143,6 +168,8 @@ where
 
 #[cfg(test)]
 mod tests {
+    use crate::format::{RValue, Variable};
+
     use super::*;
 
     #[test]
@@ -189,24 +216,33 @@ mod tests {
 
     #[test]
     fn test_leading_text() {
-        assert_eq!(leading_text("[foo]"), Ok(("", "foo".to_string())));
-        assert_eq!(leading_text("[foo bar ]"), Ok(("", "foo bar ".to_string())));
-        assert_eq!(leading_text("['foo bar']"), Ok(("", "foo bar".to_string())));
+        assert_eq!(
+            leading_text("[foo]"),
+            Ok(("", LeadingText::Text("foo".to_string())))
+        );
+        assert_eq!(
+            leading_text("[foo bar ]"),
+            Ok(("", LeadingText::Text("foo bar ".to_string())))
+        );
+        assert_eq!(
+            leading_text("['foo bar']"),
+            Ok(("", LeadingText::Text("foo bar".to_string())))
+        );
         assert_eq!(
             leading_text(r#"[foo"bar]"#),
-            Ok(("", "foo\"bar".to_string()))
+            Ok(("", LeadingText::Text("foo\"bar".to_string())))
         );
         assert_eq!(
             leading_text(r#"[foo'bar]"#),
-            Ok(("", "foo'bar".to_string()))
+            Ok(("", LeadingText::Text("foo'bar".to_string())))
         );
         assert_eq!(
             leading_text(r#"[foo\\bar]"#),
-            Ok(("", "foo\\\\bar".to_string()))
+            Ok(("", LeadingText::Text("foo\\\\bar".to_string())))
         );
         assert_eq!(
             leading_text(r#"['foo\u6D4B\u{8BD5}']"#),
-            Ok(("", "foo测试".to_string()))
+            Ok(("", LeadingText::Text("foo测试".to_string())))
         );
     }
 
@@ -214,11 +250,17 @@ mod tests {
     fn test_plain_text_line() {
         assert_eq!(
             text_line("foo"),
-            Ok(("", ChildContent::TextLine(None, "foo".to_string())))
+            Ok((
+                "",
+                ChildContent::TextLine(LeadingText::None, "foo".to_string())
+            ))
         );
         assert_eq!(
             text_line("foo\n  \r"),
-            Ok(("", ChildContent::TextLine(None, "foo".to_string())))
+            Ok((
+                "",
+                ChildContent::TextLine(LeadingText::None, "foo".to_string())
+            ))
         );
     }
 
@@ -226,7 +268,10 @@ mod tests {
     fn test_escaped_text_line() {
         assert_eq!(
             text_line(r#""foo\u6D4B\u{8BD5}""#),
-            Ok(("", ChildContent::TextLine(None, "foo测试".to_string())))
+            Ok((
+                "",
+                ChildContent::TextLine(LeadingText::None, "foo测试".to_string())
+            ))
         );
     }
 
@@ -236,14 +281,17 @@ mod tests {
             text_line("[foo] aaaaaa"),
             Ok((
                 "",
-                ChildContent::TextLine(Some("foo".to_string()), "aaaaaa".to_string())
+                ChildContent::TextLine(LeadingText::Text("foo".to_string()), "aaaaaa".to_string())
             ))
         );
         assert_eq!(
             text_line("[foo bar] aaaaaa"),
             Ok((
                 "",
-                ChildContent::TextLine(Some("foo bar".to_string()), "aaaaaa".to_string())
+                ChildContent::TextLine(
+                    LeadingText::Text("foo bar".to_string()),
+                    "aaaaaa".to_string()
+                )
             ))
         );
         // spaces around the plain text will not be trimmed
@@ -251,7 +299,10 @@ mod tests {
             text_line("[ foo bar ] aaaaaa\n"),
             Ok((
                 "",
-                ChildContent::TextLine(Some(" foo bar ".to_string()), "aaaaaa".to_string())
+                ChildContent::TextLine(
+                    LeadingText::Text(" foo bar ".to_string()),
+                    "aaaaaa".to_string()
+                )
             ))
         );
         // spaces around the quoted text are ignored
@@ -259,7 +310,7 @@ mod tests {
             text_line("[ 'foo bar' ] \naaaaaa\r\n"),
             Ok((
                 "aaaaaa\r\n",
-                ChildContent::TextLine(Some("foo bar".to_string()), "".to_string())
+                ChildContent::TextLine(LeadingText::Text("foo bar".to_string()), "".to_string())
             ))
         );
         // only one set of quotes is allowed, or it will fallback to plain text
@@ -267,7 +318,26 @@ mod tests {
             text_line("[ 'foo bar' ''] \naaaaaa\r\n"),
             Ok((
                 "aaaaaa\r\n",
-                ChildContent::TextLine(Some(" 'foo bar' ''".to_string()), "".to_string())
+                ChildContent::TextLine(
+                    LeadingText::Text(" 'foo bar' ''".to_string()),
+                    "".to_string()
+                )
+            ))
+        );
+        // use template literal in leading text
+        assert_eq!(
+            text_line("[ `foo ${bar}` ] \naaaaaa\r\n"),
+            Ok((
+                "aaaaaa\r\n",
+                ChildContent::TextLine(
+                    LeadingText::TemplateLiteral(TemplateLiteral {
+                        strings: vec!["foo ".to_string()],
+                        values: vec![RValue::Variable(Variable {
+                            chain: vec!["bar".to_string()],
+                        }),],
+                    }),
+                    "".to_string()
+                )
             ))
         );
     }
