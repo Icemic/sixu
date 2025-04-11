@@ -5,6 +5,7 @@ use nom::combinator::{cut, map_res, value};
 use nom::error::context;
 use nom::multi::many0;
 use nom::sequence::{delimited, preceded};
+use nom::Parser;
 
 use crate::format::{ChildContent, RValue, TemplateLiteral};
 use crate::result::SixuResult;
@@ -19,7 +20,7 @@ enum TemplateLiteralPart {
 }
 
 pub fn template_line(input: &str) -> SixuResult<&str, ChildContent> {
-    let (input, template) = preceded(span0, template_literal)(input)?;
+    let (input, template) = preceded(span0, template_literal).parse(input)?;
 
     Ok((input, ChildContent::TemplateLiteral(template)))
 }
@@ -46,9 +47,7 @@ pub fn template_literal(input: &str) -> SixuResult<&str, TemplateLiteral> {
                 )),
             ),
             |s: String| {
-                Ok::<TemplateLiteralPart, nom::error::VerboseError<&str>>(
-                    TemplateLiteralPart::Text(s),
-                )
+                Ok::<TemplateLiteralPart, nom::error::Error<&str>>(TemplateLiteralPart::Text(s))
             },
         ),
     );
@@ -56,14 +55,15 @@ pub fn template_literal(input: &str) -> SixuResult<&str, TemplateLiteral> {
     let value = context(
         "expression",
         map_res(delimited(tag("${"), cut(rvalue), char('}')), |v| {
-            Ok::<TemplateLiteralPart, nom::error::VerboseError<&str>>(TemplateLiteralPart::Value(v))
+            Ok::<TemplateLiteralPart, nom::error::Error<&str>>(TemplateLiteralPart::Value(v))
         }),
     );
 
     let (input, s) = context(
         "template_literal",
         delimited(char('`'), cut(many0(alt((escaped_text, value)))), char('`')),
-    )(input)?;
+    )
+    .parse(input)?;
 
     let mut strings = vec![];
     let mut values = vec![];
@@ -87,7 +87,7 @@ mod tests {
     #[test]
     fn test_template_literal() {
         let input = "`hello \n${world} ${123} world`";
-        let (remaining, result) = template_literal(input).unwrap();
+        let (remaining, result) = template_literal.parse(input).unwrap();
         assert_eq!(remaining, "");
         assert_eq!(result.strings, vec!["hello \n", " ", " world"]);
         assert_eq!(
@@ -104,7 +104,7 @@ mod tests {
     #[test]
     fn test_template_line() {
         let input = "  \n `hello \n${world} ${123} world` \n";
-        let (remaining, result) = template_line(input).unwrap();
+        let (remaining, result) = template_line.parse(input).unwrap();
         assert_eq!(remaining, " \n");
         assert_eq!(
             result,

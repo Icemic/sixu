@@ -3,6 +3,7 @@ use nom::bytes::complete::*;
 use nom::combinator::*;
 use nom::multi::{many0, separated_list0};
 use nom::sequence::*;
+use nom::Parser;
 
 use crate::result::SixuResult;
 
@@ -12,28 +13,29 @@ use super::rvalue::rvalue;
 use super::Argument;
 
 pub fn arguments(input: &str) -> SixuResult<&str, Vec<Argument>> {
-    let (input, _) = span0(input)?;
-    let (input, arguments) = cut(alt((arguments_type_a, arguments_type_b)))(input)?;
+    let (input, _) = span0.parse(input)?;
+    let (input, arguments) = cut(alt((arguments_type_a, arguments_type_b))).parse(input)?;
     Ok((input, arguments))
 }
 
 pub fn arguments_type_a(input: &str) -> SixuResult<&str, Vec<Argument>> {
-    let (input, _) = tag("(")(input)?;
-    let (input, _) = span0(input)?;
-    let (input, arguments) = separated_list0(delimited(span0, tag(","), span0), argument)(input)?;
-    let (input, _) = span0(input)?;
-    let (input, _) = tag(")")(input)?;
+    let (input, _) = tag("(").parse(input)?;
+    let (input, _) = span0.parse(input)?;
+    let (input, arguments) =
+        separated_list0(delimited(span0, tag(","), span0), argument).parse(input)?;
+    let (input, _) = span0.parse(input)?;
+    let (input, _) = tag(")").parse(input)?;
     Ok((input, arguments))
 }
 
 pub fn arguments_type_b(input: &str) -> SixuResult<&str, Vec<Argument>> {
-    many0(delimited(span0_inline, argument, span0_inline))(input)
+    many0(delimited(span0_inline, argument, span0_inline)).parse(input)
 }
 
 pub fn argument(input: &str) -> SixuResult<&str, Argument> {
-    let (input, name) = identifier(input)?;
-    let (input, _) = span0(input)?;
-    let (input, value) = cut(opt(preceded(tag("="), preceded(span0, cut(rvalue)))))(input)?;
+    let (input, name) = identifier.parse(input)?;
+    let (input, _) = span0.parse(input)?;
+    let (input, value) = cut(opt(preceded(tag("="), preceded(span0, cut(rvalue))))).parse(input)?;
     Ok((
         input,
         Argument {

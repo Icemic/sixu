@@ -4,6 +4,7 @@ use nom::character::complete::*;
 use nom::combinator::*;
 use nom::multi::*;
 use nom::sequence::*;
+use nom::Parser;
 
 use crate::result::SixuResult;
 
@@ -11,13 +12,15 @@ pub fn identifier(input: &str) -> SixuResult<&str, &str> {
     recognize(pair(
         alt((alpha1, tag("_"))),
         cut(many0(alt((alphanumeric1, tag("_"))))),
-    ))(input)
+    ))
+    .parse(input)
 }
 
 #[cfg(test)]
 mod tests {
-    use nom::error::{ErrorKind, VerboseError, VerboseErrorKind};
+    use nom::error::ErrorKind;
     use nom::Err;
+    use nom_language::error::{VerboseError, VerboseErrorKind};
 
     use super::*;
 

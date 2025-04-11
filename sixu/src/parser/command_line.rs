@@ -1,6 +1,7 @@
 use nom::character::complete::char;
 use nom::combinator::cut;
 use nom::sequence::*;
+use nom::Parser;
 
 use crate::result::SixuResult;
 
@@ -11,10 +12,8 @@ use super::ChildContent;
 use super::CommandLine;
 
 pub fn command_line(input: &str) -> SixuResult<&str, ChildContent> {
-    let (input, (command, arguments)) = preceded(
-        span0,
-        tuple((preceded(char('@'), cut(identifier)), arguments)),
-    )(input)?;
+    let (input, (command, arguments)) =
+        preceded(span0, (preceded(char('@'), cut(identifier)), arguments)).parse(input)?;
 
     Ok((
         input,

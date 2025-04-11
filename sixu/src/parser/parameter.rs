@@ -2,6 +2,7 @@ use nom::bytes::complete::*;
 use nom::combinator::*;
 use nom::multi::*;
 use nom::sequence::*;
+use nom::Parser;
 
 use crate::result::SixuResult;
 
@@ -11,22 +12,23 @@ use super::primitive::primitive;
 use super::Parameter;
 
 pub fn parameters(input: &str) -> SixuResult<&str, Vec<Parameter>> {
-    let (input, _) = tag("(")(input)?;
-    let (input, _) = span0(input)?;
+    let (input, _) = tag("(").parse(input)?;
+    let (input, _) = span0.parse(input)?;
     let (input, parameters) = cut(separated_list0(
         delimited(span0, tag(","), span0),
         cut(parameter),
-    ))(input)?;
-    let (input, _) = span0(input)?;
-    let (input, _) = tag(")")(input)?;
+    ))
+    .parse(input)?;
+    let (input, _) = span0.parse(input)?;
+    let (input, _) = tag(")").parse(input)?;
     Ok((input, parameters))
 }
 
 pub fn parameter(input: &str) -> SixuResult<&str, Parameter> {
-    let (input, name) = identifier(input)?;
-    let (input, _) = span0(input)?;
+    let (input, name) = identifier.parse(input)?;
+    let (input, _) = span0.parse(input)?;
     let (input, default_value) =
-        cut(opt(preceded(tag("="), preceded(span0, cut(primitive)))))(input)?;
+        cut(opt(preceded(tag("="), preceded(span0, cut(primitive))))).parse(input)?;
     Ok((
         input,
         Parameter {

@@ -12,7 +12,7 @@ use crate::result::SixuResult;
 use super::Primitive;
 
 pub fn primitive(input: &str) -> SixuResult<&str, Primitive> {
-    context("primitive", alt((string, number, boolean)))(input)
+    context("primitive", alt((string, number, boolean))).parse(input)
 }
 
 pub fn string(input: &str) -> SixuResult<&str, Primitive> {
@@ -22,20 +22,21 @@ pub fn string(input: &str) -> SixuResult<&str, Primitive> {
             delimited(tag("\""), take_until("\""), tag("\"")),
             delimited(tag("'"), take_until("'"), tag("'")),
         )),
-    )(input)?;
+    )
+    .parse(input)?;
     Ok((input, Primitive::String(s.to_string())))
 }
 
 // all integer, which should not start with 0
 pub fn number(input: &str) -> SixuResult<&str, Primitive> {
-    // let (input, n) = recognize(many1(terminated(digit1, many0(char('_'))))).parse(input)?;
+    // let (input, n) = recognize(many1(terminated(digit1, many0(char('_'))))).parse.parse(input)?;
     let (input, n) = context(
         "number",
         map_res(
-            tuple((
+            (
                 opt(alt((tag("-"), tag("+")))),
                 recognize(many1(terminated(digit1, many0(char('_'))))),
-            )),
+            ),
             |(sign, value)| {
                 let value = &str::replace(value, "_", "");
                 value
@@ -52,14 +53,15 @@ pub fn boolean(input: &str) -> SixuResult<&str, Primitive> {
     let (input, b) = context(
         "boolean",
         alt((value(true, tag("true")), value(false, tag("false")))),
-    )(input)?;
+    )
+    .parse(input)?;
     Ok((input, Primitive::Boolean(b)))
 }
 
 #[cfg(test)]
 mod tests {
-    use nom::error::{VerboseError, VerboseErrorKind};
     use nom::Err;
+    use nom_language::error::{VerboseError, VerboseErrorKind};
 
     use super::*;
 

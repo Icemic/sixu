@@ -1,6 +1,7 @@
 use nom::bytes::complete::*;
 use nom::combinator::*;
 use nom::sequence::*;
+use nom::Parser;
 
 use crate::result::SixuResult;
 
@@ -11,10 +12,10 @@ use super::parameter::parameters;
 use super::Scene;
 
 pub fn scene(input: &str) -> SixuResult<&str, Scene> {
-    let (input, _) = tag("::")(input)?;
-    let (input, name) = cut(identifier)(input)?;
-    let (input, parameters) = delimited(span0, opt(parameters), span0)(input)?;
-    let (input, block) = preceded(span0, cut(block))(input)?;
+    let (input, _) = tag("::").parse(input)?;
+    let (input, name) = cut(identifier).parse(input)?;
+    let (input, parameters) = delimited(span0, opt(parameters), span0).parse(input)?;
+    let (input, block) = preceded(span0, cut(block)).parse(input)?;
     Ok((
         input,
         Scene {

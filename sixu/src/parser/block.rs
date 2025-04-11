@@ -4,6 +4,7 @@ use nom::character::complete::{anychar, line_ending};
 use nom::combinator::{cut, opt};
 use nom::multi::{many0, many_till};
 use nom::sequence::*;
+use nom::Parser;
 
 use crate::format::{Child, ChildContent};
 use crate::result::SixuResult;
@@ -16,19 +17,19 @@ use super::text::text_line;
 use super::Block;
 
 pub fn block(input: &str) -> SixuResult<&str, Block> {
-    let (input, _) = tag("{")(input)?;
-    let (input, children) = cut(many0(preceded(span0, child)))(input)?;
-    let (input, _) = preceded(span0, tag("}"))(input)?;
+    let (input, _) = tag("{").parse(input)?;
+    let (input, children) = cut(many0(preceded(span0, child))).parse(input)?;
+    let (input, _) = preceded(span0, tag("}")).parse(input)?;
     Ok((input, Block { children }))
 }
 
 pub fn block_child(input: &str) -> SixuResult<&str, ChildContent> {
-    let (input, block) = block(input)?;
+    let (input, block) = block.parse(input)?;
     Ok((input, ChildContent::Block(block)))
 }
 
 pub fn child(input: &str) -> SixuResult<&str, Child> {
-    let (input, _) = span0(input)?;
+    let (input, _) = span0.parse(input)?;
     let (input, child) = alt((
         embedded_code,
         block_child,
@@ -36,7 +37,8 @@ pub fn child(input: &str) -> SixuResult<&str, Child> {
         systemcall_line,
         template_line,
         text_line,
-    ))(input)?;
+    ))
+    .parse(input)?;
     Ok((
         input,
         Child {
@@ -47,11 +49,9 @@ pub fn child(input: &str) -> SixuResult<&str, Child> {
 }
 
 pub fn embedded_code(input: &str) -> SixuResult<&str, ChildContent> {
-    let (input, _) = tuple((tag("##"), span0_inline, opt(line_ending)))(input)?;
-    let (input, (content, _)) = cut(many_till(
-        anychar,
-        tuple((tag("##"), span0_inline, line_ending)),
-    ))(input)?;
+    let (input, _) = (tag("##"), span0_inline, opt(line_ending)).parse(input)?;
+    let (input, (content, _)) =
+        cut(many_till(anychar, (tag("##"), span0_inline, line_ending))).parse(input)?;
     Ok((
         input,
         ChildContent::EmbeddedCode(content.into_iter().collect::<String>()),
@@ -229,7 +229,7 @@ mod tests {
         let input = "{`hello \n${world} ${123} world` \n \n@command foo=false\n}";
 
         assert_eq!(
-            block(input),
+            block.parse(input),
             Ok((
                 "",
                 Block {

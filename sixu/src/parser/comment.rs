@@ -4,17 +4,18 @@ use nom::character::complete::*;
 use nom::combinator::*;
 use nom::multi::*;
 use nom::sequence::*;
+use nom::Parser;
 
 use crate::result::SixuResult;
 
 /// parse comment like `// C++/EOL-style comments`
 pub fn comment(input: &str) -> SixuResult<&str, &str> {
-    alt((comment_single, comment_multi))(input)
+    alt((comment_single, comment_multi)).parse(input)
 }
 
 /// parse comment like `// C++/EOL-style comments`
 pub fn comment_single(input: &str) -> SixuResult<&str, &str> {
-    preceded(tag("//"), cut(is_not("\r\n")))(input)
+    preceded(tag("//"), cut(is_not("\r\n"))).parse(input)
 }
 
 /**
@@ -25,7 +26,7 @@ pub fn comment_single(input: &str) -> SixuResult<&str, &str> {
  * returns purely the comment content, without `/*` and `*/`
 */
 pub fn comment_multi(input: &str) -> SixuResult<&str, &str> {
-    delimited(tag("/*"), take_until("*/"), tag("*/"))(input)
+    delimited(tag("/*"), take_until("*/"), tag("*/")).parse(input)
 }
 
 /// match contiguous comments or whitespaces, which can be multiple lines
@@ -33,12 +34,13 @@ pub fn span0(input: &str) -> SixuResult<&str, ()> {
     value(
         (),
         many0(alt((map(comment, |_| ()), value((), multispace1)))),
-    )(input)
+    )
+    .parse(input)
 }
 
 /// match contiguous comments or whitespaces, which is only one line
 pub fn span0_inline(input: &str) -> SixuResult<&str, ()> {
-    value((), many0(alt((map(comment, |_| ()), value((), space1)))))(input)
+    value((), many0(alt((map(comment, |_| ()), value((), space1))))).parse(input)
 }
 
 #[cfg(test)]

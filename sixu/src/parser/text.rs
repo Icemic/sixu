@@ -1,9 +1,9 @@
 use nom::branch::alt;
 use nom::bytes::complete::{escaped_transform, take_while, take_while_m_n};
 use nom::character::complete::{char, none_of, not_line_ending, one_of};
-use nom::combinator::{map_opt, map_res, not, peek, success, value};
+use nom::combinator::{cut, map_opt, map_res, not, peek, success, value};
 use nom::error::{context, FromExternalError, ParseError};
-use nom::sequence::{delimited, preceded, tuple};
+use nom::sequence::{delimited, preceded};
 use nom::{IResult, Parser};
 
 use crate::format::{ChildContent, LeadingText, TemplateLiteral};
@@ -15,15 +15,16 @@ use super::template::template_literal;
 pub fn text_line(input: &str) -> SixuResult<&str, ChildContent> {
     let (input, (_, _, leading, _, text)) = delimited(
         span0,
-        tuple((
+        (
             not(one_of("}@#")),
             span0_inline,
             alt((leading_text, success(LeadingText::None))),
             span0_inline,
             text,
-        )),
+        ),
         span0,
-    )(input)?;
+    )
+    .parse(input)?;
 
     Ok((input, ChildContent::TextLine(leading, text)))
 }
@@ -38,47 +39,46 @@ pub fn leading_text(input: &str) -> SixuResult<&str, LeadingText> {
                     // force quotes to be adjacent to the ] symbol to ensure that
                     // there is only one set of escaped text inside, otherwise it fails,
                     // fallback to plain text
-                    tuple((
+                    (
                         span0_inline,
                         template_literal,
                         span0_inline,
                         peek(one_of("]")),
-                    )),
+                    ),
                     |s: ((), TemplateLiteral, (), char)| {
-                        Ok::<LeadingText, nom::error::VerboseError<&str>>(
-                            LeadingText::TemplateLiteral(s.1),
-                        )
+                        Ok::<LeadingText, nom::error::Error<&str>>(LeadingText::TemplateLiteral(
+                            s.1,
+                        ))
                     },
                 ),
                 map_res(
                     // force quotes to be adjacent to the ] symbol to ensure that
                     // there is only one set of escaped text inside, otherwise it fails,
                     // fallback to plain text
-                    tuple((span0_inline, escaped_text, span0_inline, peek(one_of("]")))),
+                    (span0_inline, escaped_text, span0_inline, peek(one_of("]"))),
                     |s: ((), String, (), char)| {
-                        Ok::<LeadingText, nom::error::VerboseError<&str>>(LeadingText::Text(s.1))
+                        Ok::<LeadingText, nom::error::Error<&str>>(LeadingText::Text(s.1))
                     },
                 ),
                 map_res(
                     take_while(|c| c != ']' && c != '\n' && c != '\r'),
                     |s: &str| {
-                        Ok::<LeadingText, nom::error::VerboseError<&str>>(LeadingText::Text(
-                            s.to_string(),
-                        ))
+                        Ok::<LeadingText, nom::error::Error<&str>>(LeadingText::Text(s.to_string()))
                     },
                 ),
             )),
             char(']'),
         ),
-    )(input)
+    )
+    .parse(input)
 }
 
 pub fn text(input: &str) -> SixuResult<&str, String> {
-    context("text", alt((escaped_text, plain_text)))(input)
+    context("text", alt((escaped_text, plain_text))).parse(input)
 }
 
 pub fn plain_text(input: &str) -> SixuResult<&str, String> {
-    let (input, s) = context("plain_text", not_line_ending)(input)?;
+    let (input, s) = context("plain_text", not_line_ending).parse(input)?;
 
     Ok((input, s.to_string()))
 }
@@ -126,7 +126,8 @@ pub fn escaped_text(input: &str) -> SixuResult<&str, String> {
                 char('\''),
             ),
         )),
-    )(input)?;
+    )
+    .parse(input)?;
 
     Ok((input, s.to_string()))
 }

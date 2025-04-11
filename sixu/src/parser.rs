@@ -15,6 +15,7 @@ mod variable;
 use nom::combinator::all_consuming;
 use nom::multi::*;
 use nom::sequence::*;
+use nom::Parser;
 
 use crate::format::*;
 use crate::result::SixuResult;
@@ -24,7 +25,8 @@ use self::scene::scene;
 
 /// parse a story file which is a sequence of scenes
 pub fn parse(input: &str) -> SixuResult<&str, Story> {
-    let (input, scenes) = all_consuming(terminated(many0(preceded(span0, scene)), span0))(input)?;
+    let (input, scenes) =
+        all_consuming(terminated(many0(preceded(span0, scene)), span0)).parse(input)?;
 
     Ok((
         input,

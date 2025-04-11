@@ -1,6 +1,6 @@
-use nom::error::convert_error;
 use nom::lib::std::result::Result::Err;
 use nom::Finish;
+use nom_language::error::convert_error;
 use sixu::parser;
 
 fn main() {

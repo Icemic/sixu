@@ -1,6 +1,7 @@
 use nom::character::complete::char;
 use nom::combinator::cut;
 use nom::sequence::*;
+use nom::Parser;
 
 use crate::result::SixuResult;
 
@@ -14,11 +15,12 @@ use super::SystemCallLine;
 pub fn systemcall_line(input: &str) -> SixuResult<&str, ChildContent> {
     let (input, (command, arguments)) = preceded(
         span0,
-        tuple((
+        (
             preceded(char('#'), cut(identifier)),
             delimited(span0_inline, cut(arguments), span0_inline),
-        )),
-    )(input)?;
+        ),
+    )
+    .parse(input)?;
 
     Ok((
         input,
