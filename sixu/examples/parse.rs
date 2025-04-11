@@ -4,7 +4,7 @@ use nom::Finish;
 use sixu::parser;
 
 fn main() {
-    let input = std::fs::read_to_string("examples/sample.sixu").unwrap();
+    let input = std::fs::read_to_string("sixu/examples/sample.sixu").unwrap();
 
     match parser::parse(&input).finish() {
         Ok((rest, result)) => {

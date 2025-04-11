@@ -53,6 +53,11 @@ sfssdfdsafdsdsfds
 // 带前导的文本
 [路人] 发生了什么？？？
 
+// 多行带变量引用的文本
+`发生了什么？？？
+${name} 去调查一下
+`
+
 // 一个代码块
 {
   #call paragraphA name = "def"
