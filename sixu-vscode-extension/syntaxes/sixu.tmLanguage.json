@@ -52,6 +52,7 @@
 				{ "include": "#block" },
 				{ "include": "#command-line" },
 				{ "include": "#system-call-line" },
+				{ "include": "#template-line" },
 				{ "include": "#text-line" }
 			]
 		},
@@ -78,23 +79,39 @@
 			"name": "meta.embedded.block.javascript",
 			"patterns": [
 				{
-					"begin": "^\\s*##\\s*$",
-					"end": "^\\s*##\\s*$",
+					"begin": "^\\s*(##)\\s*$",
+					"end": "^\\s*(##)\\s*$",
 					"patterns": [
 						{
 							"include": "source.js"
 						}
-					]
+					],
+					"beginCaptures": {
+						"1": {
+							"name": "punctuation.definition.embedded.javascript"
+						}
+					},
+					"endCaptures": {
+						"1": {
+							"name": "punctuation.definition.embedded.javascript"
+						}
+					}
 				},
 				{
-					"match": "^\\s*##\\s*(.+?)\\s*##",
+					"match": "^\\s*(##)\\s*(.+?)\\s*(##)",
 					"captures": {
 						"1": {
+							"name": "punctuation.definition.embedded.javascript"
+						},
+						"2": {
 							"patterns": [
 								{
 									"include": "source.js"
 								}
 							]
+						},
+						"3": {
+							"name": "punctuation.definition.embedded.javascript"
 						}
 					}
 				}
@@ -144,6 +161,9 @@
 				}
 			]
 		},
+		"template-line": {
+			"patterns": [{ "include": "#template-literal" }]
+		},
 		"text-line": {
 			"patterns": [
 				{ "include": "#quoted-string" },
@@ -154,6 +174,7 @@
 							"name": "string.unquoted.leading.sixu",
 							"patterns": [
 								{ "include": "#quoted-string" },
+								{ "include": "#template-literal" },
 								{
 									"match": "^\\s*(?<![}@#:(),.{])(.+)$"
 								}
@@ -173,7 +194,7 @@
 					"patterns": [
 						{
 							"name": "constant.character.escape.sixu",
-							"match": "\\\\(n|r|t|\\\\|/|\"|'|u\\{[0-9a-fA-F]{1,6}\\}|u[0-9a-fA-F]{1,4})"
+							"match": "\\\\(n|r|t|\\\\|/|\"|'|`|u\\{[0-9a-fA-F]{1,6}\\}|u[0-9a-fA-F]{1,4})"
 						}
 					]
 				},
@@ -184,9 +205,36 @@
 					"patterns": [
 						{
 							"name": "constant.character.escape.sixu",
-							"match": "\\\\(n|r|t|\\\\|/|\"|'|u\\{[0-9a-fA-F]{1,6}\\}|u[0-9a-fA-F]{1,4})"
+							"match": "\\\\(n|r|t|\\\\|/|\"|'|`|u\\{[0-9a-fA-F]{1,6}\\}|u[0-9a-fA-F]{1,4})"
 						}
 					]
+				}
+			]
+		},
+		"template-literal": {
+			"name": "string.template.sixu",
+			"begin": "`",
+			"end": "`",
+			"patterns": [
+				{
+					"name": "constant.character.escape.sixu",
+					"match": "\\\\(n|r|t|\\\\|/|\"|'|`|u\\{[0-9a-fA-F]{1,6}\\}|u[0-9a-fA-F]{1,4})"
+				},
+				{
+					"name": "meta.template.expression.sixu",
+					"begin": "\\${",
+					"end": "}",
+					"beginCaptures": {
+						"0": {
+							"name": "punctuation.definition.template-expression.begin.sixu"
+						}
+					},
+					"endCaptures": {
+						"0": {
+							"name": "punctuation.definition.template-expression.end.sixu"
+						}
+					},
+					"patterns": [{ "include": "#rvalue" }]
 				}
 			]
 		},
