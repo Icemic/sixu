@@ -1,8 +1,8 @@
 {
-  "name": "vscode-extension-sixu",
-  "displayName": "vscode-extension-sixu",
+  "name": "sixu-vscode-extension",
+  "displayName": "SiXu Language Support",
   "description": "SiXu Language Support",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "engines": {
     "vscode": "^1.99.0"
   },
