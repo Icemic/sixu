@@ -169,7 +169,7 @@ where
 
 #[cfg(test)]
 mod tests {
-    use crate::format::{RValue, Variable};
+    use crate::format::{RValue, TemplateLiteralPart, Variable};
 
     use super::*;
 
@@ -332,10 +332,12 @@ mod tests {
                 "aaaaaa\r\n",
                 ChildContent::TextLine(
                     LeadingText::TemplateLiteral(TemplateLiteral {
-                        strings: vec!["foo ".to_string()],
-                        values: vec![RValue::Variable(Variable {
-                            chain: vec!["bar".to_string()],
-                        }),],
+                        parts: vec![
+                            TemplateLiteralPart::Text("foo ".to_string()),
+                            TemplateLiteralPart::Value(RValue::Variable(Variable {
+                                chain: vec!["bar".to_string()],
+                            })),
+                        ],
                     }),
                     "".to_string()
                 )

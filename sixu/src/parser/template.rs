@@ -7,17 +7,12 @@ use nom::multi::many0;
 use nom::sequence::{delimited, preceded};
 use nom::Parser;
 
-use crate::format::{ChildContent, RValue, TemplateLiteral};
+use crate::format::{ChildContent, TemplateLiteral, TemplateLiteralPart};
 use crate::result::ParseResult;
 
 use super::comment::span0;
 use super::rvalue::rvalue;
 use super::text::parse_unicode;
-
-enum TemplateLiteralPart {
-    Text(String),
-    Value(RValue),
-}
 
 pub fn template_line(input: &str) -> ParseResult<&str, ChildContent> {
     let (input, template) = preceded(span0, template_literal).parse(input)?;
@@ -59,28 +54,18 @@ pub fn template_literal(input: &str) -> ParseResult<&str, TemplateLiteral> {
         }),
     );
 
-    let (input, s) = context(
+    let (input, parts) = context(
         "template_literal",
         delimited(char('`'), cut(many0(alt((escaped_text, value)))), char('`')),
     )
     .parse(input)?;
 
-    let mut strings = vec![];
-    let mut values = vec![];
-
-    for part in s {
-        match part {
-            TemplateLiteralPart::Text(s) => strings.push(s),
-            TemplateLiteralPart::Value(v) => values.push(v),
-        }
-    }
-
-    Ok((input, TemplateLiteral { strings, values }))
+    Ok((input, TemplateLiteral { parts }))
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::format::{Primitive, Variable};
+    use crate::format::{Primitive, RValue, Variable};
 
     use super::*;
 
@@ -89,9 +74,9 @@ mod tests {
         let input = "`hello \n${world} ${123} world`";
         let (remaining, result) = template_literal.parse(input).unwrap();
         assert_eq!(remaining, "");
-        assert_eq!(result.strings, vec!["hello \n", " ", " world"]);
+        assert_eq!(result.get_strings(), vec!["hello \n", " ", " world"]);
         assert_eq!(
-            result.values,
+            result.get_values(),
             vec![
                 RValue::Variable(Variable {
                     chain: vec!["world".to_string()],
@@ -109,16 +94,14 @@ mod tests {
         assert_eq!(
             result,
             ChildContent::TemplateLiteral(TemplateLiteral {
-                strings: vec![
-                    "hello \n".to_string(),
-                    " ".to_string(),
-                    " world".to_string()
-                ],
-                values: vec![
-                    RValue::Variable(Variable {
+                parts: vec![
+                    TemplateLiteralPart::Text("hello \n".to_string()),
+                    TemplateLiteralPart::Value(RValue::Variable(Variable {
                         chain: vec!["world".to_string()],
-                    }),
-                    RValue::Primitive(Primitive::Integer(123)),
+                    })),
+                    TemplateLiteralPart::Text(" ".to_string()),
+                    TemplateLiteralPart::Value(RValue::Primitive(Primitive::Integer(123))),
+                    TemplateLiteralPart::Text(" world".to_string()),
                 ],
             })
         );

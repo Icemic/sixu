@@ -86,8 +86,34 @@ pub enum LeadingText {
 
 #[derive(Debug, Default, Clone, PartialEq)]
 pub struct TemplateLiteral {
-    pub strings: Vec<String>,
-    pub values: Vec<RValue>,
+    pub parts: Vec<TemplateLiteralPart>,
+}
+
+impl TemplateLiteral {
+    pub fn get_strings(&self) -> Vec<String> {
+        self.parts
+            .iter()
+            .filter_map(|part| match part {
+                TemplateLiteralPart::Text(text) => Some(text.clone()),
+                TemplateLiteralPart::Value(_) => None,
+            })
+            .collect()
+    }
+    pub fn get_values(&self) -> Vec<RValue> {
+        self.parts
+            .iter()
+            .filter_map(|part| match part {
+                TemplateLiteralPart::Text(_) => None,
+                TemplateLiteralPart::Value(value) => Some(value.clone()),
+            })
+            .collect()
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum TemplateLiteralPart {
+    Text(String),
+    Value(RValue),
 }
 
 #[derive(Debug, Default, Clone, PartialEq)]

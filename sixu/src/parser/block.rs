@@ -62,7 +62,7 @@ pub fn embedded_code(input: &str) -> ParseResult<&str, ChildContent> {
 mod tests {
     use crate::format::{
         Argument, ChildContent, CommandLine, LeadingText, Primitive, RValue, SystemCallLine,
-        TemplateLiteral, Variable,
+        TemplateLiteral, TemplateLiteralPart, Variable,
     };
 
     use super::*;
@@ -237,16 +237,16 @@ mod tests {
                         Child {
                             attributes: vec![],
                             content: ChildContent::TemplateLiteral(TemplateLiteral {
-                                strings: vec![
-                                    "hello \n".to_string(),
-                                    " ".to_string(),
-                                    " world".to_string()
-                                ],
-                                values: vec![
-                                    RValue::Variable(Variable {
+                                parts: vec![
+                                    TemplateLiteralPart::Text("hello \n".to_string()),
+                                    TemplateLiteralPart::Value(RValue::Variable(Variable {
                                         chain: vec!["world".to_string()],
-                                    }),
-                                    RValue::Primitive(Primitive::Integer(123)),
+                                    })),
+                                    TemplateLiteralPart::Text(" ".to_string()),
+                                    TemplateLiteralPart::Value(RValue::Primitive(
+                                        Primitive::Integer(123)
+                                    )),
+                                    TemplateLiteralPart::Text(" world".to_string()),
                                 ],
                             }),
                         },
