@@ -70,8 +70,7 @@ pub struct Child {
 #[derive(Debug, Clone, PartialEq)]
 pub enum ChildContent {
     Block(Block),
-    TextLine(LeadingText, String),
-    TemplateLiteral(TemplateLiteral),
+    TextLine(LeadingText, Text),
     CommandLine(CommandLine),
     SystemCallLine(SystemCallLine),
     EmbeddedCode(String),
@@ -79,6 +78,13 @@ pub enum ChildContent {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum LeadingText {
+    None,
+    Text(String),
+    TemplateLiteral(TemplateLiteral),
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum Text {
     None,
     Text(String),
     TemplateLiteral(TemplateLiteral),

@@ -4,21 +4,14 @@ use nom::character::complete::{char, none_of};
 use nom::combinator::{cut, map_res, value};
 use nom::error::context;
 use nom::multi::many0;
-use nom::sequence::{delimited, preceded};
+use nom::sequence::delimited;
 use nom::Parser;
 
-use crate::format::{ChildContent, TemplateLiteral, TemplateLiteralPart};
+use crate::format::{TemplateLiteral, TemplateLiteralPart};
 use crate::result::ParseResult;
 
-use super::comment::span0;
 use super::rvalue::rvalue;
 use super::text::parse_unicode;
-
-pub fn template_line(input: &str) -> ParseResult<&str, ChildContent> {
-    let (input, template) = preceded(span0, template_literal).parse(input)?;
-
-    Ok((input, ChildContent::TemplateLiteral(template)))
-}
 
 /// parse template literals like the same as JS, but only support primitive types or variable reference,
 /// expression is not supported yet.
@@ -83,27 +76,6 @@ mod tests {
                 }),
                 RValue::Primitive(Primitive::Integer(123)),
             ]
-        );
-    }
-
-    #[test]
-    fn test_template_line() {
-        let input = "  \n `hello \n${world} ${123} world` \n";
-        let (remaining, result) = template_line.parse(input).unwrap();
-        assert_eq!(remaining, " \n");
-        assert_eq!(
-            result,
-            ChildContent::TemplateLiteral(TemplateLiteral {
-                parts: vec![
-                    TemplateLiteralPart::Text("hello \n".to_string()),
-                    TemplateLiteralPart::Value(RValue::Variable(Variable {
-                        chain: vec!["world".to_string()],
-                    })),
-                    TemplateLiteralPart::Text(" ".to_string()),
-                    TemplateLiteralPart::Value(RValue::Primitive(Primitive::Integer(123))),
-                    TemplateLiteralPart::Text(" world".to_string()),
-                ],
-            })
         );
     }
 }

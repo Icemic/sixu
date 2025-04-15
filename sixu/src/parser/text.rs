@@ -6,7 +6,7 @@ use nom::error::{context, FromExternalError, ParseError};
 use nom::sequence::{delimited, preceded};
 use nom::{IResult, Parser};
 
-use crate::format::{ChildContent, LeadingText, TemplateLiteral};
+use crate::format::{ChildContent, LeadingText, TemplateLiteral, Text};
 use crate::result::ParseResult;
 
 use super::comment::{span0, span0_inline};
@@ -73,8 +73,22 @@ pub fn leading_text(input: &str) -> ParseResult<&str, LeadingText> {
     .parse(input)
 }
 
-pub fn text(input: &str) -> ParseResult<&str, String> {
-    context("text", alt((escaped_text, plain_text))).parse(input)
+pub fn text(input: &str) -> ParseResult<&str, Text> {
+    context(
+        "text",
+        alt((
+            map_res(template_literal, |s| {
+                Ok::<Text, nom::error::Error<&str>>(Text::TemplateLiteral(s))
+            }),
+            map_res(escaped_text, |s| {
+                Ok::<Text, nom::error::Error<&str>>(Text::Text(s))
+            }),
+            map_res(plain_text, |s| {
+                Ok::<Text, nom::error::Error<&str>>(Text::Text(s))
+            }),
+        )),
+    )
+    .parse(input)
 }
 
 pub fn plain_text(input: &str) -> ParseResult<&str, String> {
@@ -169,7 +183,7 @@ where
 
 #[cfg(test)]
 mod tests {
-    use crate::format::{RValue, TemplateLiteralPart, Variable};
+    use crate::format::{Primitive, RValue, TemplateLiteralPart, Text, Variable};
 
     use super::*;
 
@@ -253,14 +267,14 @@ mod tests {
             text_line("foo"),
             Ok((
                 "",
-                ChildContent::TextLine(LeadingText::None, "foo".to_string())
+                ChildContent::TextLine(LeadingText::None, Text::Text("foo".to_string()))
             ))
         );
         assert_eq!(
             text_line("foo\n  \r"),
             Ok((
                 "",
-                ChildContent::TextLine(LeadingText::None, "foo".to_string())
+                ChildContent::TextLine(LeadingText::None, Text::Text("foo".to_string()))
             ))
         );
     }
@@ -271,7 +285,7 @@ mod tests {
             text_line(r#""foo\u6D4B\u{8BD5}""#),
             Ok((
                 "",
-                ChildContent::TextLine(LeadingText::None, "foo测试".to_string())
+                ChildContent::TextLine(LeadingText::None, Text::Text("foo测试".to_string()))
             ))
         );
     }
@@ -282,7 +296,10 @@ mod tests {
             text_line("[foo] aaaaaa"),
             Ok((
                 "",
-                ChildContent::TextLine(LeadingText::Text("foo".to_string()), "aaaaaa".to_string())
+                ChildContent::TextLine(
+                    LeadingText::Text("foo".to_string()),
+                    Text::Text("aaaaaa".to_string())
+                )
             ))
         );
         assert_eq!(
@@ -291,7 +308,7 @@ mod tests {
                 "",
                 ChildContent::TextLine(
                     LeadingText::Text("foo bar".to_string()),
-                    "aaaaaa".to_string()
+                    Text::Text("aaaaaa".to_string())
                 )
             ))
         );
@@ -302,7 +319,7 @@ mod tests {
                 "",
                 ChildContent::TextLine(
                     LeadingText::Text(" foo bar ".to_string()),
-                    "aaaaaa".to_string()
+                    Text::Text("aaaaaa".to_string())
                 )
             ))
         );
@@ -311,7 +328,10 @@ mod tests {
             text_line("[ 'foo bar' ] \naaaaaa\r\n"),
             Ok((
                 "aaaaaa\r\n",
-                ChildContent::TextLine(LeadingText::Text("foo bar".to_string()), "".to_string())
+                ChildContent::TextLine(
+                    LeadingText::Text("foo bar".to_string()),
+                    Text::Text("".to_string())
+                )
             ))
         );
         // only one set of quotes is allowed, or it will fallback to plain text
@@ -321,7 +341,7 @@ mod tests {
                 "aaaaaa\r\n",
                 ChildContent::TextLine(
                     LeadingText::Text(" 'foo bar' ''".to_string()),
-                    "".to_string()
+                    Text::Text("".to_string())
                 )
             ))
         );
@@ -339,9 +359,33 @@ mod tests {
                             })),
                         ],
                     }),
-                    "".to_string()
+                    Text::Text("".to_string())
                 )
             ))
+        );
+    }
+
+    #[test]
+    fn test_template_line() {
+        let input = "  \n `hello \n${world} ${123} world` \n";
+        let (remaining, result) = text_line.parse(input).unwrap();
+        assert_eq!(remaining, "");
+        assert_eq!(
+            result,
+            ChildContent::TextLine(
+                LeadingText::None,
+                Text::TemplateLiteral(TemplateLiteral {
+                    parts: vec![
+                        TemplateLiteralPart::Text("hello \n".to_string()),
+                        TemplateLiteralPart::Value(RValue::Variable(Variable {
+                            chain: vec!["world".to_string()],
+                        })),
+                        TemplateLiteralPart::Text(" ".to_string()),
+                        TemplateLiteralPart::Value(RValue::Primitive(Primitive::Integer(123))),
+                        TemplateLiteralPart::Text(" world".to_string()),
+                    ],
+                })
+            )
         );
     }
 }

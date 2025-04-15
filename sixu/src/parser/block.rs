@@ -12,7 +12,6 @@ use crate::result::ParseResult;
 use super::command_line::command_line;
 use super::comment::{span0, span0_inline};
 use super::systemcall_line::systemcall_line;
-use super::template::template_line;
 use super::text::text_line;
 use super::Block;
 
@@ -35,7 +34,6 @@ pub fn child(input: &str) -> ParseResult<&str, Child> {
         block_child,
         command_line,
         systemcall_line,
-        template_line,
         text_line,
     ))
     .parse(input)?;
@@ -62,7 +60,7 @@ pub fn embedded_code(input: &str) -> ParseResult<&str, ChildContent> {
 mod tests {
     use crate::format::{
         Argument, ChildContent, CommandLine, LeadingText, Primitive, RValue, SystemCallLine,
-        TemplateLiteral, TemplateLiteralPart, Variable,
+        TemplateLiteral, TemplateLiteralPart, Text, Variable,
     };
 
     use super::*;
@@ -109,7 +107,10 @@ mod tests {
                         },
                         Child {
                             attributes: vec![],
-                            content: ChildContent::TextLine(LeadingText::None, "text".to_string()),
+                            content: ChildContent::TextLine(
+                                LeadingText::None,
+                                Text::Text("text".to_string())
+                            ),
                         }
                     ],
                 }
@@ -133,7 +134,10 @@ mod tests {
                         },
                         Child {
                             attributes: vec![],
-                            content: ChildContent::TextLine(LeadingText::None, "text".to_string()),
+                            content: ChildContent::TextLine(
+                                LeadingText::None,
+                                Text::Text("text".to_string())
+                            ),
                         }
                     ],
                 }
@@ -159,7 +163,10 @@ mod tests {
                         },
                         Child {
                             attributes: vec![],
-                            content: ChildContent::TextLine(LeadingText::None, "text".to_string()),
+                            content: ChildContent::TextLine(
+                                LeadingText::None,
+                                Text::Text("text".to_string())
+                            ),
                         },
                         Child {
                             attributes: vec![],
@@ -236,19 +243,22 @@ mod tests {
                     children: vec![
                         Child {
                             attributes: vec![],
-                            content: ChildContent::TemplateLiteral(TemplateLiteral {
-                                parts: vec![
-                                    TemplateLiteralPart::Text("hello \n".to_string()),
-                                    TemplateLiteralPart::Value(RValue::Variable(Variable {
-                                        chain: vec!["world".to_string()],
-                                    })),
-                                    TemplateLiteralPart::Text(" ".to_string()),
-                                    TemplateLiteralPart::Value(RValue::Primitive(
-                                        Primitive::Integer(123)
-                                    )),
-                                    TemplateLiteralPart::Text(" world".to_string()),
-                                ],
-                            }),
+                            content: ChildContent::TextLine(
+                                LeadingText::None,
+                                Text::TemplateLiteral(TemplateLiteral {
+                                    parts: vec![
+                                        TemplateLiteralPart::Text("hello \n".to_string()),
+                                        TemplateLiteralPart::Value(RValue::Variable(Variable {
+                                            chain: vec!["world".to_string()],
+                                        })),
+                                        TemplateLiteralPart::Text(" ".to_string()),
+                                        TemplateLiteralPart::Value(RValue::Primitive(
+                                            Primitive::Integer(123)
+                                        )),
+                                        TemplateLiteralPart::Text(" world".to_string()),
+                                    ],
+                                })
+                            ),
                         },
                         Child {
                             attributes: vec![],
