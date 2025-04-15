@@ -44,6 +44,16 @@ impl<T: Executor> Runtime<T> {
             .ok_or(RuntimeError::SceneNotFound(name.to_string()))
     }
 
+    pub fn save(&self) -> Result<Vec<SceneState>> {
+        let stack = self.stack.clone();
+        Ok(stack)
+    }
+
+    pub fn restore(&mut self, states: Vec<SceneState>) -> Result<()> {
+        self.stack = states;
+        Ok(())
+    }
+
     pub fn start(&mut self, story_name: &str) -> Result<()> {
         if self.stories.is_empty() {
             return Err(RuntimeError::NoStory);

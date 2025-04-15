@@ -1,5 +1,9 @@
+#[cfg(feature = "serde")]
+use serde::{Deserialize, Serialize};
+
 /// The format represents the structure of a `story`, which is commonly came from a single file.
 #[derive(Debug, Default, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct Story {
     pub filename: String,
     pub scenes: Vec<Scene>,
@@ -7,6 +11,7 @@ pub struct Story {
 
 /// The format represents the structure of a `scene` inside a `story`.
 #[derive(Debug, Default, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct Scene {
     pub name: String,
     pub parameters: Vec<Parameter>,
@@ -15,18 +20,21 @@ pub struct Scene {
 }
 
 #[derive(Debug, Default, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct Parameter {
     pub name: String,
     pub default_value: Option<Primitive>,
 }
 
 #[derive(Debug, Default, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct Argument {
     pub name: String,
     pub value: Option<RValue>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum Primitive {
     String(String),
     Integer(i64),
@@ -96,28 +104,33 @@ impl ToString for Primitive {
 }
 
 #[derive(Debug, Default, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct Variable {
     pub chain: Vec<String>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum RValue {
     Primitive(Primitive),
     Variable(Variable),
 }
 
 #[derive(Debug, Default, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct Block {
     pub children: Vec<Child>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct Child {
     pub attributes: Vec<Attribute>,
     pub content: ChildContent,
 }
 
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum ChildContent {
     Block(Block),
     TextLine(LeadingText, Text),
@@ -127,6 +140,7 @@ pub enum ChildContent {
 }
 
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum LeadingText {
     None,
     Text(String),
@@ -134,6 +148,7 @@ pub enum LeadingText {
 }
 
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum Text {
     None,
     Text(String),
@@ -141,6 +156,7 @@ pub enum Text {
 }
 
 #[derive(Debug, Default, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct TemplateLiteral {
     pub parts: Vec<TemplateLiteralPart>,
 }
@@ -167,12 +183,14 @@ impl TemplateLiteral {
 }
 
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum TemplateLiteralPart {
     Text(String),
     Value(RValue),
 }
 
 #[derive(Debug, Default, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct CommandLine {
     pub command: String,
     pub flags: Vec<String>,
@@ -193,6 +211,7 @@ impl CommandLine {
 }
 
 #[derive(Debug, Default, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct SystemCallLine {
     pub command: String,
     pub arguments: Vec<Argument>,
@@ -208,6 +227,7 @@ impl SystemCallLine {
 }
 
 #[derive(Debug, Default, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct Attribute {
     pub _content: String,
 }

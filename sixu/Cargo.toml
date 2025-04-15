@@ -3,7 +3,8 @@ edition = "2021"
 name = "sixu"
 version = "0.1.0"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[features]
+serde = ["dep:serde"]
 
 [dependencies]
 anyhow = "1"
@@ -13,3 +14,5 @@ nom = "8.0"
 nom-language = "0.1"
 pollster = "0.4"
 thiserror = "2"
+
+serde = {version = "1", features = ["derive"], optional = true}
