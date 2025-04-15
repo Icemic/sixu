@@ -81,6 +81,35 @@ impl<T: Executor> Runtime<T> {
         self.stack.last_mut().ok_or(RuntimeError::StoryNotStarted)
     }
 
+    fn break_current_block(&mut self) -> Result<()> {
+        if let Some(state) = self.stack.pop() {
+            // if the stack is empty, try to load the next scene of the current story
+            if self.stack.is_empty() {
+                if let Some(next_scene) = {
+                    let story = self.get_story(&state.story)?;
+                    let mut scene_iter = story.scenes.iter();
+                    scene_iter.position(|s| s.name == state.scene);
+
+                    scene_iter.next()
+                } {
+                    self.stack.push(SceneState::new(
+                        state.story.clone(),
+                        next_scene.name.clone(),
+                        next_scene.block.clone(),
+                    ));
+                } else {
+                    self.executor.finished();
+                }
+            }
+
+            Ok(())
+        } else {
+            // Use this error to tell the user that the story is finished, who should
+            // break the loop or stop the execution
+            Err(RuntimeError::StoryFinished)
+        }
+    }
+
     pub fn next(&mut self) -> Result<()> {
         let current_state = self.get_current_state_mut()?;
 
@@ -130,30 +159,7 @@ impl<T: Executor> Runtime<T> {
                 }
             }
         } else {
-            if let Some(state) = self.stack.pop() {
-                // if the stack is empty, try to load the next scene of the current story
-                if self.stack.is_empty() {
-                    if let Some(next_scene) = {
-                        let story = self.get_story(&state.story)?;
-                        let mut scene_iter = story.scenes.iter();
-                        scene_iter.position(|s| s.name == state.scene);
-
-                        scene_iter.next()
-                    } {
-                        self.stack.push(SceneState::new(
-                            state.story.clone(),
-                            next_scene.name.clone(),
-                            next_scene.block.clone(),
-                        ));
-                    } else {
-                        self.executor.finished();
-                    }
-                }
-            } else {
-                // Use this error to tell the user that the story is finished, who should
-                // break the loop or stop the execution
-                return Err(RuntimeError::StoryFinished);
-            }
+            self.break_current_block()?;
         }
 
         Ok(())
@@ -303,6 +309,10 @@ impl<T: Executor> Runtime<T> {
                         "Scene name not provided".to_string(),
                     ));
                 }
+            }
+            // This method will quit the current scene and return to the previous one
+            "break" => {
+                self.break_current_block()?;
             }
             "finish" => {
                 self.stack.clear();
