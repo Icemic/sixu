@@ -1,3 +1,4 @@
+use nom_language::error::VerboseError;
 use thiserror::Error;
 
 pub type Result<T, E = RuntimeError> = std::result::Result<T, E>;
@@ -10,12 +11,17 @@ pub enum RuntimeError {
     StoryNotStarted,
     #[error("Story has started")]
     StoryStarted,
+    #[error("Story finished")]
+    StoryFinished,
     #[error("Story {0} not found")]
     StoryNotFound(String),
     #[error("Scene {0} not found")]
     SceneNotFound(String),
-    #[error("Wrong argument(s) provided to system call line")]
-    WrongArgumentSystemCallLine,
-    #[error("Wrong argument(s) provided to command line")]
-    WrongArgumentCommandLine,
+    #[error("Wrong argument(s) provided to system call line: {0}")]
+    WrongArgumentSystemCallLine(String),
+    #[error("Wrong argument(s) provided to command line: {0}")]
+    WrongArgumentCommandLine(String),
+
+    #[error("Parse error: {0}")]
+    ParseError(#[from] VerboseError<&'static str>),
 }

@@ -1,39 +1,31 @@
 mod callback;
 mod state;
 
-use std::sync::{Arc, Mutex};
-
-use arc_swap::ArcSwapOption;
-
 pub use self::callback::*;
 use self::state::SceneState;
 
 use crate::error::{Result, RuntimeError};
-use crate::format::{ChildContent, CommandLine, Primitive, RValue, Scene, Story, SystemCallLine};
+use crate::executor::Executor;
+use crate::format::*;
 
 /// Sixu scripting language runtime
-pub struct Runtime {
+pub struct Runtime<T: Executor> {
     stories: Vec<Story>,
     stack: Vec<SceneState>,
-    command_handler: Arc<ArcSwapOption<Mutex<OnCommandHandler>>>,
+    executor: T,
 }
 
-impl Runtime {
-    pub fn new() -> Self {
+impl<T: Executor> Runtime<T> {
+    pub fn new(executor: T) -> Self {
         Self {
             stories: Vec::new(),
             stack: Vec::new(),
-            command_handler: Arc::new(ArcSwapOption::new(None)),
+            executor,
         }
     }
 
     pub fn add_story(&mut self, story: Story) {
         self.stories.push(story);
-    }
-
-    pub fn set_command_handler(&self, handler: OnCommandHandler) {
-        self.command_handler
-            .store(Some(Arc::new(Mutex::new(handler))));
     }
 
     pub fn get_story(&self, name: &str) -> Result<&Story> {
@@ -58,8 +50,12 @@ impl Runtime {
         }
 
         if self.stack.is_empty() {
-            self.stack
-                .push(SceneState::new(story_name.to_string(), "entry".to_string()));
+            let scene = self.get_scene(story_name, "entry")?;
+            self.stack.push(SceneState::new(
+                story_name.to_string(),
+                "entry".to_string(),
+                scene.block.clone(),
+            ));
         } else {
             return Err(RuntimeError::StoryStarted);
         }
@@ -67,7 +63,7 @@ impl Runtime {
         Ok(())
     }
 
-    pub fn get_current_state(&self) -> Result<&SceneState> {
+    fn get_current_state(&self) -> Result<&SceneState> {
         self.stack.last().ok_or(RuntimeError::StoryNotStarted)
     }
 
@@ -76,40 +72,78 @@ impl Runtime {
     }
 
     pub fn next(&mut self) -> Result<()> {
-        let current_state = self.get_current_state()?;
-        let scene = self.get_scene(&current_state.story, &current_state.scene)?;
+        let current_state = self.get_current_state_mut()?;
 
-        if let Some(child) = scene.block.children.get(current_state.index).cloned() {
+        if let Some(child) = current_state.next_line() {
             let content = child.content;
             match content {
-                ChildContent::Block(_) => todo!(),
-                ChildContent::TextLine(_, _) => todo!(),
-                ChildContent::TemplateLiteral(_) => todo!(),
+                ChildContent::Block(block) => {
+                    let current_state = self.get_current_state()?;
+                    self.stack.push(SceneState::new(
+                        current_state.story.clone(),
+                        current_state.scene.clone(),
+                        block.clone(),
+                    ));
+                }
+                ChildContent::TextLine(leading, text) => {
+                    let leading = match leading {
+                        LeadingText::None => None,
+                        LeadingText::Text(t) => Some(t),
+                        LeadingText::TemplateLiteral(template_literal) => {
+                            let text = self
+                                .executor
+                                .calculate_template_literal(&template_literal)?;
+                            Some(text)
+                        }
+                    };
+                    let text = match text {
+                        Text::None => None,
+                        Text::Text(t) => Some(t),
+                        Text::TemplateLiteral(template_literal) => {
+                            let text = self
+                                .executor
+                                .calculate_template_literal(&template_literal)?;
+                            Some(text)
+                        }
+                    };
+                    self.executor
+                        .handle_text(leading.as_deref(), text.as_deref())?;
+                }
                 ChildContent::CommandLine(command) => {
-                    self.handle_command(&command)?;
+                    self.executor.handle_command(&command)?;
                 }
                 ChildContent::SystemCallLine(systemcall) => {
                     self.handle_system_call(&systemcall)?;
                 }
-                ChildContent::EmbeddedCode(_) => todo!(),
+                ChildContent::EmbeddedCode(script) => {
+                    self.executor.eval_script(&script)?;
+                }
             }
         } else {
-            // end of scene
-            self.stack.pop();
-        }
+            if let Some(state) = self.stack.pop() {
+                // if the stack is empty, try to load the next scene of the current story
+                if self.stack.is_empty() {
+                    if let Some(next_scene) = {
+                        let story = self.get_story(&state.story)?;
+                        let mut scene_iter = story.scenes.iter();
+                        scene_iter.position(|s| s.name == state.scene);
 
-        self.stack.last_mut().unwrap().index += 1;
-
-        Ok(())
-    }
-
-    pub fn handle_command(&self, command_line: &CommandLine) -> Result<()> {
-        if let Some(handler) = self.command_handler.load().as_ref() {
-            let mut handler = handler.lock().unwrap();
-            let future = handler(command_line);
-            pollster::block_on(future);
-        } else {
-            log::warn!("No command handler set");
+                        scene_iter.next()
+                    } {
+                        self.stack.push(SceneState::new(
+                            state.story.clone(),
+                            next_scene.name.clone(),
+                            next_scene.block.clone(),
+                        ));
+                    } else {
+                        self.executor.finished();
+                    }
+                }
+            } else {
+                // Use this error to tell the user that the story is finished, who should
+                // break the loop or stop the execution
+                return Err(RuntimeError::StoryFinished);
+            }
         }
 
         Ok(())
@@ -117,92 +151,158 @@ impl Runtime {
 
     pub fn handle_system_call(&mut self, systemcall_line: &SystemCallLine) -> Result<()> {
         match systemcall_line.command.as_str() {
+            // This method will clear the stack and push a new state with the story and scene name
             "goto" => {
-                if let Some(scene_name) = systemcall_line
-                    .arguments
-                    .iter()
-                    .find(|arg| arg.name == "scene")
-                {
-                    let scene_name = scene_name
-                        .value
-                        .as_ref()
-                        .ok_or(RuntimeError::WrongArgumentSystemCallLine)?;
-                    let scene_name = self.get_rvalue(scene_name)?.to_owned();
+                let story_name = match systemcall_line.get_argument("story") {
+                    Some(v) => {
+                        let v = self.executor.get_rvalue(v)?;
+                        if v.is_string() {
+                            v.to_string()
+                        } else {
+                            return Err(RuntimeError::WrongArgumentSystemCallLine(
+                                "Expected a string argument".to_string(),
+                            ));
+                        }
+                    }
+                    None => self.get_current_state().unwrap().story.clone(),
+                };
 
-                    let current = self.get_current_state_mut()?;
-                    current.scene = scene_name.to_string();
-                    current.index = 0;
-                } else {
-                    return Err(RuntimeError::WrongArgumentSystemCallLine);
-                }
-            }
-            "call" => {
-                if let Some(scene_name) = systemcall_line
-                    .arguments
-                    .iter()
-                    .find(|arg| arg.name == "scene")
-                {
-                    let scene_name = scene_name
-                        .value
-                        .as_ref()
-                        .ok_or(RuntimeError::WrongArgumentSystemCallLine)?;
-                    let scene_name = self.get_rvalue(&scene_name)?;
-                    let current = self.get_current_state()?;
+                if let Some(scene_name) = systemcall_line.get_argument("scene") {
+                    let scene_name = self.executor.get_rvalue(scene_name)?.to_owned();
+                    let scene_name = if scene_name.is_string() {
+                        scene_name.to_string()
+                    } else {
+                        return Err(RuntimeError::WrongArgumentSystemCallLine(
+                            "Expected a string argument".to_string(),
+                        ));
+                    };
+
+                    self.stack.clear();
+
+                    let scene = self.get_scene(&scene_name, &scene_name)?;
+
                     self.stack.push(SceneState::new(
-                        current.story.clone(),
+                        story_name,
                         scene_name.to_string(),
+                        scene.block.clone(),
                     ));
                 } else {
-                    return Err(RuntimeError::WrongArgumentSystemCallLine);
+                    return Err(RuntimeError::WrongArgumentSystemCallLine(
+                        "Scene name not provided".to_string(),
+                    ));
                 }
             }
-            _ => todo!(),
+            // This method will replace the current state with a new state with the story and scene name
+            // once this new state is ended, it will return to the previous state
+            "replace" => {
+                let story_name = match systemcall_line.get_argument("story") {
+                    Some(v) => {
+                        let v = self.executor.get_rvalue(v)?;
+                        if v.is_string() {
+                            v.to_string()
+                        } else {
+                            return Err(RuntimeError::WrongArgumentSystemCallLine(
+                                "Expected a string argument".to_string(),
+                            ));
+                        }
+                    }
+                    None => self.get_current_state().unwrap().story.clone(),
+                };
+
+                if let Some(scene_name) = systemcall_line.get_argument("scene") {
+                    let scene_name = self.executor.get_rvalue(scene_name)?.to_owned();
+                    let scene_name = if scene_name.is_string() {
+                        scene_name.to_string()
+                    } else {
+                        return Err(RuntimeError::WrongArgumentSystemCallLine(
+                            "Expected a string argument".to_string(),
+                        ));
+                    };
+
+                    let current_scene = self
+                        .stack
+                        .pop()
+                        .expect("No scene in stack to replace, this should not happen.");
+
+                    loop {
+                        if self.stack.is_empty() {
+                            break;
+                        }
+
+                        // pop the stack until the last state is not the same on story and scene
+                        // to remove all sub-blocks on the same scene
+                        let last_state = self.stack.last().unwrap();
+                        if last_state.story == current_scene.story
+                            && last_state.scene == current_scene.scene
+                        {
+                            self.stack.pop();
+                        } else {
+                            break;
+                        }
+                    }
+
+                    let scene = self.get_scene(&story_name, &scene_name)?;
+
+                    self.stack.push(SceneState::new(
+                        story_name,
+                        scene_name.to_string(),
+                        scene.block.clone(),
+                    ));
+                } else {
+                    return Err(RuntimeError::WrongArgumentSystemCallLine(
+                        "Scene name not provided".to_string(),
+                    ));
+                }
+            }
+            // This method will push a new state with the story and scene name,
+            // once this new state is ended, it will return to the previous state
+            "call" => {
+                let story_name = match systemcall_line.get_argument("story") {
+                    Some(v) => {
+                        let v = self.executor.get_rvalue(v)?;
+                        if v.is_string() {
+                            v.to_string()
+                        } else {
+                            return Err(RuntimeError::WrongArgumentSystemCallLine(
+                                "Expected a string argument".to_string(),
+                            ));
+                        }
+                    }
+                    None => self.get_current_state().unwrap().story.clone(),
+                };
+
+                if let Some(scene_name) = systemcall_line.get_argument("scene") {
+                    let scene_name = self.executor.get_rvalue(scene_name)?.to_owned();
+                    let scene_name = if scene_name.is_string() {
+                        scene_name.to_string()
+                    } else {
+                        return Err(RuntimeError::WrongArgumentSystemCallLine(
+                            "Expected a string argument".to_string(),
+                        ));
+                    };
+
+                    let scene = self.get_scene(&story_name, &scene_name)?;
+
+                    self.stack.push(SceneState::new(
+                        story_name,
+                        scene_name.to_string(),
+                        scene.block.clone(),
+                    ));
+                } else {
+                    return Err(RuntimeError::WrongArgumentSystemCallLine(
+                        "Scene name not provided".to_string(),
+                    ));
+                }
+            }
+            "finish" => {
+                self.stack.clear();
+                self.executor.finished();
+            }
+            _ => {
+                self.executor.handle_system_call(systemcall_line)?;
+            }
         }
 
         Ok(())
-    }
-
-    pub fn get_rvalue<'a>(&self, value: &'a RValue) -> Result<&'a Primitive> {
-        match value {
-            RValue::Primitive(s) => Ok(s),
-            RValue::Variable(_) => todo!(),
-        }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::format::{Block, Child, Scene};
-
-    #[test]
-    fn test_runtime() {
-        let mut runtime = Runtime::new();
-        let story = Story {
-            filename: "test".to_string(),
-            scenes: vec![Scene {
-                name: "entry".to_string(),
-                parameters: vec![],
-                block: Block {
-                    children: vec![Child {
-                        attributes: vec![],
-                        content: ChildContent::CommandLine(CommandLine {
-                            command: "print".to_string(),
-                            flags: vec![],
-                            arguments: vec![],
-                        }),
-                    }],
-                },
-            }],
-        };
-
-        runtime.set_command_handler(Box::new(|command_line| {
-            assert_eq!(command_line.command, "print");
-            Box::pin(async {})
-        }));
-
-        runtime.add_story(story);
-        runtime.start("test").unwrap();
-        runtime.next().unwrap();
     }
 }

@@ -6,7 +6,7 @@ use sixu::parser;
 fn main() {
     let input = std::fs::read_to_string("sixu/examples/sample.sixu").unwrap();
 
-    match parser::parse(&input).finish() {
+    match parser::parse("example", &input).finish() {
         Ok((rest, result)) => {
             println!("rest: {:?}", rest);
             println!("result: {:#?}", result);

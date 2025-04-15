@@ -24,14 +24,14 @@ use self::comment::span0;
 use self::scene::scene;
 
 /// parse a story file which is a sequence of scenes
-pub fn parse(input: &str) -> ParseResult<&str, Story> {
+pub fn parse<'a>(name: &'a str, input: &'a str) -> ParseResult<&'a str, Story> {
     let (input, scenes) =
         all_consuming(terminated(many0(preceded(span0, scene)), span0)).parse(input)?;
 
     Ok((
         input,
         Story {
-            filename: "unknown".to_string(),
+            filename: name.to_string(),
             scenes,
         },
     ))

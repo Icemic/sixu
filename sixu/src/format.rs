@@ -34,6 +34,56 @@ pub enum Primitive {
     Boolean(bool),
 }
 
+impl Primitive {
+    pub fn is_string(&self) -> bool {
+        matches!(self, Primitive::String(_))
+    }
+
+    pub fn is_integer(&self) -> bool {
+        matches!(self, Primitive::Integer(_))
+    }
+
+    pub fn is_float(&self) -> bool {
+        matches!(self, Primitive::Float(_))
+    }
+
+    pub fn is_boolean(&self) -> bool {
+        matches!(self, Primitive::Boolean(_))
+    }
+
+    pub fn as_string(&self) -> Option<&String> {
+        if let Primitive::String(ref s) = self {
+            Some(s)
+        } else {
+            None
+        }
+    }
+
+    pub fn as_integer(&self) -> Option<&i64> {
+        if let Primitive::Integer(ref i) = self {
+            Some(i)
+        } else {
+            None
+        }
+    }
+
+    pub fn as_float(&self) -> Option<&f64> {
+        if let Primitive::Float(ref f) = self {
+            Some(f)
+        } else {
+            None
+        }
+    }
+
+    pub fn as_boolean(&self) -> Option<&bool> {
+        if let Primitive::Boolean(ref b) = self {
+            Some(b)
+        } else {
+            None
+        }
+    }
+}
+
 impl ToString for Primitive {
     fn to_string(&self) -> String {
         match self {
@@ -129,10 +179,32 @@ pub struct CommandLine {
     pub arguments: Vec<Argument>,
 }
 
+impl CommandLine {
+    pub fn has_flag(&self, flag: &str) -> bool {
+        self.flags.iter().any(|f| f == flag)
+    }
+
+    pub fn get_argument(&self, name: &str) -> Option<&RValue> {
+        self.arguments
+            .iter()
+            .find(|arg| arg.name == name)
+            .and_then(|arg| arg.value.as_ref())
+    }
+}
+
 #[derive(Debug, Default, Clone, PartialEq)]
 pub struct SystemCallLine {
     pub command: String,
     pub arguments: Vec<Argument>,
+}
+
+impl SystemCallLine {
+    pub fn get_argument(&self, name: &str) -> Option<&RValue> {
+        self.arguments
+            .iter()
+            .find(|arg| arg.name == name)
+            .and_then(|arg| arg.value.as_ref())
+    }
 }
 
 #[derive(Debug, Default, Clone, PartialEq)]
