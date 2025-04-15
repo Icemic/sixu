@@ -7,15 +7,15 @@ use nom::multi::*;
 use nom::sequence::*;
 use nom::Parser;
 
-use crate::result::SixuResult;
+use crate::result::ParseResult;
 
 use super::Primitive;
 
-pub fn primitive(input: &str) -> SixuResult<&str, Primitive> {
+pub fn primitive(input: &str) -> ParseResult<&str, Primitive> {
     context("primitive", alt((string, number, boolean))).parse(input)
 }
 
-pub fn string(input: &str) -> SixuResult<&str, Primitive> {
+pub fn string(input: &str) -> ParseResult<&str, Primitive> {
     let (input, s) = context(
         "string",
         alt((
@@ -28,7 +28,7 @@ pub fn string(input: &str) -> SixuResult<&str, Primitive> {
 }
 
 // all integer, which should not start with 0
-pub fn number(input: &str) -> SixuResult<&str, Primitive> {
+pub fn number(input: &str) -> ParseResult<&str, Primitive> {
     // let (input, n) = recognize(many1(terminated(digit1, many0(char('_'))))).parse.parse(input)?;
     let (input, n) = context(
         "number",
@@ -49,7 +49,7 @@ pub fn number(input: &str) -> SixuResult<&str, Primitive> {
     Ok((input, Primitive::Integer(n)))
 }
 
-pub fn boolean(input: &str) -> SixuResult<&str, Primitive> {
+pub fn boolean(input: &str) -> ParseResult<&str, Primitive> {
     let (input, b) = context(
         "boolean",
         alt((value(true, tag("true")), value(false, tag("false")))),

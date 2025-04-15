@@ -6,9 +6,9 @@ use nom::multi::*;
 use nom::sequence::*;
 use nom::Parser;
 
-use crate::result::SixuResult;
+use crate::result::ParseResult;
 
-pub fn identifier(input: &str) -> SixuResult<&str, &str> {
+pub fn identifier(input: &str) -> ParseResult<&str, &str> {
     recognize(pair(
         alt((alpha1, tag("_"))),
         cut(many0(alt((alphanumeric1, tag("_"))))),

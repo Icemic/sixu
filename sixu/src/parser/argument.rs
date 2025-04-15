@@ -5,20 +5,20 @@ use nom::multi::{many0, separated_list0};
 use nom::sequence::*;
 use nom::Parser;
 
-use crate::result::SixuResult;
+use crate::result::ParseResult;
 
 use super::comment::{span0, span0_inline};
 use super::identifier::identifier;
 use super::rvalue::rvalue;
 use super::Argument;
 
-pub fn arguments(input: &str) -> SixuResult<&str, Vec<Argument>> {
+pub fn arguments(input: &str) -> ParseResult<&str, Vec<Argument>> {
     let (input, _) = span0.parse(input)?;
     let (input, arguments) = cut(alt((arguments_type_a, arguments_type_b))).parse(input)?;
     Ok((input, arguments))
 }
 
-pub fn arguments_type_a(input: &str) -> SixuResult<&str, Vec<Argument>> {
+pub fn arguments_type_a(input: &str) -> ParseResult<&str, Vec<Argument>> {
     let (input, _) = tag("(").parse(input)?;
     let (input, _) = span0.parse(input)?;
     let (input, arguments) =
@@ -28,11 +28,11 @@ pub fn arguments_type_a(input: &str) -> SixuResult<&str, Vec<Argument>> {
     Ok((input, arguments))
 }
 
-pub fn arguments_type_b(input: &str) -> SixuResult<&str, Vec<Argument>> {
+pub fn arguments_type_b(input: &str) -> ParseResult<&str, Vec<Argument>> {
     many0(delimited(span0_inline, argument, span0_inline)).parse(input)
 }
 
-pub fn argument(input: &str) -> SixuResult<&str, Argument> {
+pub fn argument(input: &str) -> ParseResult<&str, Argument> {
     let (input, name) = identifier.parse(input)?;
     let (input, _) = span0.parse(input)?;
     let (input, value) = cut(opt(preceded(tag("="), preceded(span0, cut(rvalue))))).parse(input)?;

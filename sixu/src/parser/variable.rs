@@ -3,13 +3,13 @@ use nom::combinator::*;
 use nom::multi::*;
 use nom::Parser;
 
-use crate::result::SixuResult;
+use crate::result::ParseResult;
 
 use super::identifier::identifier;
 use super::Variable;
 
 /// parse a variable like "foo" or "foo.bar.a.b"
-pub fn variable(input: &str) -> SixuResult<&str, Variable> {
+pub fn variable(input: &str) -> ParseResult<&str, Variable> {
     let (input, chain) = map_res(
         separated_list1(tag("."), cut(identifier)),
         |v: Vec<&str>| -> Result<Vec<String>, std::convert::Infallible> {

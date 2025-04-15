@@ -3,7 +3,7 @@ use nom::combinator::*;
 use nom::sequence::*;
 use nom::Parser;
 
-use crate::result::SixuResult;
+use crate::result::ParseResult;
 
 use super::block::block;
 use super::comment::span0;
@@ -11,7 +11,7 @@ use super::identifier::identifier;
 use super::parameter::parameters;
 use super::Scene;
 
-pub fn scene(input: &str) -> SixuResult<&str, Scene> {
+pub fn scene(input: &str) -> ParseResult<&str, Scene> {
     let (input, _) = tag("::").parse(input)?;
     let (input, name) = cut(identifier).parse(input)?;
     let (input, parameters) = delimited(span0, opt(parameters), span0).parse(input)?;

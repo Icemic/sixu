@@ -8,7 +8,7 @@ use nom::sequence::{delimited, preceded};
 use nom::Parser;
 
 use crate::format::{ChildContent, RValue, TemplateLiteral};
-use crate::result::SixuResult;
+use crate::result::ParseResult;
 
 use super::comment::span0;
 use super::rvalue::rvalue;
@@ -19,7 +19,7 @@ enum TemplateLiteralPart {
     Value(RValue),
 }
 
-pub fn template_line(input: &str) -> SixuResult<&str, ChildContent> {
+pub fn template_line(input: &str) -> ParseResult<&str, ChildContent> {
     let (input, template) = preceded(span0, template_literal).parse(input)?;
 
     Ok((input, ChildContent::TemplateLiteral(template)))
@@ -27,7 +27,7 @@ pub fn template_line(input: &str) -> SixuResult<&str, ChildContent> {
 
 /// parse template literals like the same as JS, but only support primitive types or variable reference,
 /// expression is not supported yet.
-pub fn template_literal(input: &str) -> SixuResult<&str, TemplateLiteral> {
+pub fn template_literal(input: &str) -> ParseResult<&str, TemplateLiteral> {
     let escaped_text = context(
         "escaped_text",
         map_res(

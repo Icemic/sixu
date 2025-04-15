@@ -7,12 +7,12 @@ use nom::sequence::{delimited, preceded};
 use nom::{IResult, Parser};
 
 use crate::format::{ChildContent, LeadingText, TemplateLiteral};
-use crate::result::SixuResult;
+use crate::result::ParseResult;
 
 use super::comment::{span0, span0_inline};
 use super::template::template_literal;
 
-pub fn text_line(input: &str) -> SixuResult<&str, ChildContent> {
+pub fn text_line(input: &str) -> ParseResult<&str, ChildContent> {
     let (input, (_, _, leading, _, text)) = delimited(
         span0,
         (
@@ -29,7 +29,7 @@ pub fn text_line(input: &str) -> SixuResult<&str, ChildContent> {
     Ok((input, ChildContent::TextLine(leading, text)))
 }
 
-pub fn leading_text(input: &str) -> SixuResult<&str, LeadingText> {
+pub fn leading_text(input: &str) -> ParseResult<&str, LeadingText> {
     context(
         "leading_text",
         delimited(
@@ -73,17 +73,17 @@ pub fn leading_text(input: &str) -> SixuResult<&str, LeadingText> {
     .parse(input)
 }
 
-pub fn text(input: &str) -> SixuResult<&str, String> {
+pub fn text(input: &str) -> ParseResult<&str, String> {
     context("text", alt((escaped_text, plain_text))).parse(input)
 }
 
-pub fn plain_text(input: &str) -> SixuResult<&str, String> {
+pub fn plain_text(input: &str) -> ParseResult<&str, String> {
     let (input, s) = context("plain_text", not_line_ending).parse(input)?;
 
     Ok((input, s.to_string()))
 }
 
-pub fn escaped_text(input: &str) -> SixuResult<&str, String> {
+pub fn escaped_text(input: &str) -> ParseResult<&str, String> {
     let (input, s) = context(
         "escaped_text",
         alt((

@@ -18,13 +18,13 @@ use nom::sequence::*;
 use nom::Parser;
 
 use crate::format::*;
-use crate::result::SixuResult;
+use crate::result::ParseResult;
 
 use self::comment::span0;
 use self::scene::scene;
 
 /// parse a story file which is a sequence of scenes
-pub fn parse(input: &str) -> SixuResult<&str, Story> {
+pub fn parse(input: &str) -> ParseResult<&str, Story> {
     let (input, scenes) =
         all_consuming(terminated(many0(preceded(span0, scene)), span0)).parse(input)?;
 

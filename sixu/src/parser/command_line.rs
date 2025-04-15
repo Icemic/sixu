@@ -3,7 +3,7 @@ use nom::combinator::cut;
 use nom::sequence::*;
 use nom::Parser;
 
-use crate::result::SixuResult;
+use crate::result::ParseResult;
 
 use super::argument::arguments;
 use super::comment::span0;
@@ -11,7 +11,7 @@ use super::identifier::identifier;
 use super::ChildContent;
 use super::CommandLine;
 
-pub fn command_line(input: &str) -> SixuResult<&str, ChildContent> {
+pub fn command_line(input: &str) -> ParseResult<&str, ChildContent> {
     let (input, (command, arguments)) =
         preceded(span0, (preceded(char('@'), cut(identifier)), arguments)).parse(input)?;
 

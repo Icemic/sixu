@@ -7,7 +7,7 @@ use nom::sequence::*;
 use nom::Parser;
 
 use crate::format::{Child, ChildContent};
-use crate::result::SixuResult;
+use crate::result::ParseResult;
 
 use super::command_line::command_line;
 use super::comment::{span0, span0_inline};
@@ -16,19 +16,19 @@ use super::template::template_line;
 use super::text::text_line;
 use super::Block;
 
-pub fn block(input: &str) -> SixuResult<&str, Block> {
+pub fn block(input: &str) -> ParseResult<&str, Block> {
     let (input, _) = tag("{").parse(input)?;
     let (input, children) = cut(many0(preceded(span0, child))).parse(input)?;
     let (input, _) = preceded(span0, tag("}")).parse(input)?;
     Ok((input, Block { children }))
 }
 
-pub fn block_child(input: &str) -> SixuResult<&str, ChildContent> {
+pub fn block_child(input: &str) -> ParseResult<&str, ChildContent> {
     let (input, block) = block.parse(input)?;
     Ok((input, ChildContent::Block(block)))
 }
 
-pub fn child(input: &str) -> SixuResult<&str, Child> {
+pub fn child(input: &str) -> ParseResult<&str, Child> {
     let (input, _) = span0.parse(input)?;
     let (input, child) = alt((
         embedded_code,
@@ -48,7 +48,7 @@ pub fn child(input: &str) -> SixuResult<&str, Child> {
     ))
 }
 
-pub fn embedded_code(input: &str) -> SixuResult<&str, ChildContent> {
+pub fn embedded_code(input: &str) -> ParseResult<&str, ChildContent> {
     let (input, _) = (tag("##"), span0_inline, opt(line_ending)).parse(input)?;
     let (input, (content, _)) =
         cut(many_till(anychar, (tag("##"), span0_inline, line_ending))).parse(input)?;

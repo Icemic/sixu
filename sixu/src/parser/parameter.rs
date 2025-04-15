@@ -4,14 +4,14 @@ use nom::multi::*;
 use nom::sequence::*;
 use nom::Parser;
 
-use crate::result::SixuResult;
+use crate::result::ParseResult;
 
 use super::comment::span0;
 use super::identifier::identifier;
 use super::primitive::primitive;
 use super::Parameter;
 
-pub fn parameters(input: &str) -> SixuResult<&str, Vec<Parameter>> {
+pub fn parameters(input: &str) -> ParseResult<&str, Vec<Parameter>> {
     let (input, _) = tag("(").parse(input)?;
     let (input, _) = span0.parse(input)?;
     let (input, parameters) = cut(separated_list0(
@@ -24,7 +24,7 @@ pub fn parameters(input: &str) -> SixuResult<&str, Vec<Parameter>> {
     Ok((input, parameters))
 }
 
-pub fn parameter(input: &str) -> SixuResult<&str, Parameter> {
+pub fn parameter(input: &str) -> ParseResult<&str, Parameter> {
     let (input, name) = identifier.parse(input)?;
     let (input, _) = span0.parse(input)?;
     let (input, default_value) =
