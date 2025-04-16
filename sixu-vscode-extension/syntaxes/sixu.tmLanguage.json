@@ -6,6 +6,7 @@
 	"patterns": [
 		{ "include": "#comment-single" },
 		{ "include": "#comment-multi" },
+		{ "include": "#attribute" },
 		{ "include": "#scene" }
 	],
 	"repository": {
@@ -29,6 +30,34 @@
 					"match": "."
 				}
 			]
+			},
+		"attribute": {
+			"name": "meta.attribute.sixu",
+			"begin": "(#\\[)([a-zA-Z_][a-zA-Z0-9_]*)\\s*(?=(\\()|\\])",
+			"end": "\\]",
+			"beginCaptures": {
+				"1": { "name": "punctuation.definition.attribute.begin.sixu" },
+				"2": { "name": "entity.name.tag.attribute.sixu" }
+			},
+			"endCaptures": {
+				"0": { "name": "punctuation.definition.attribute.end.sixu" }
+			},
+			"patterns": [
+				{
+					"begin": "\\(",
+					"end": "\\)",
+					"beginCaptures": {
+						"0": { "name": "punctuation.definition.condition.begin.sixu" }
+					},
+					"endCaptures": {
+						"0": { "name": "punctuation.definition.condition.end.sixu" }
+					},
+					"contentName": "source.js.embedded.sixu",
+					"patterns": [
+						{ "include": "source.js" }
+					]
+				}
+			]
 		},
 		"scene": {
 			"name": "meta.scene.sixu",
@@ -49,6 +78,7 @@
 				{ "include": "#comment-single" },
 				{ "include": "#comment-multi" },
 				{ "include": "#embedded-code" },
+				{ "include": "#attribute" },
 				{ "include": "#block" },
 				{ "include": "#command-line" },
 				{ "include": "#system-call-line" },
@@ -69,6 +99,7 @@
 				{ "include": "#comment-single" },
 				{ "include": "#comment-multi" },
 				{ "include": "#embedded-code" },
+				{ "include": "#attribute" },
 				{ "include": "#block" },
 				{ "include": "#command-line" },
 				{ "include": "#system-call-line" },
