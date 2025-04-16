@@ -1,4 +1,5 @@
 mod argument;
+mod attribute;
 mod block;
 mod command_line;
 mod comment;

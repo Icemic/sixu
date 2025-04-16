@@ -9,6 +9,7 @@ use nom::Parser;
 use crate::format::{Child, ChildContent};
 use crate::result::ParseResult;
 
+use super::attribute::attribute;
 use super::command_line::command_line;
 use super::comment::{span0, span0_inline};
 use super::systemcall_line::systemcall_line;
@@ -29,6 +30,7 @@ pub fn block_child(input: &str) -> ParseResult<&str, ChildContent> {
 
 pub fn child(input: &str) -> ParseResult<&str, Child> {
     let (input, _) = span0.parse(input)?;
+    let (input, attributes) = many0(attribute).parse(input)?;
     let (input, child) = alt((
         embedded_code,
         block_child,
@@ -40,7 +42,7 @@ pub fn child(input: &str) -> ParseResult<&str, Child> {
     Ok((
         input,
         Child {
-            attributes: vec![],
+            attributes,
             content: child,
         },
     ))
@@ -59,8 +61,8 @@ pub fn embedded_code(input: &str) -> ParseResult<&str, ChildContent> {
 #[cfg(test)]
 mod tests {
     use crate::format::{
-        Argument, ChildContent, CommandLine, LeadingText, Primitive, RValue, SystemCallLine,
-        TemplateLiteral, TemplateLiteralPart, Text, Variable,
+        Argument, Attribute, ChildContent, CommandLine, LeadingText, Primitive, RValue,
+        SystemCallLine, TemplateLiteral, TemplateLiteralPart, Text, Variable,
     };
 
     use super::*;
@@ -272,6 +274,61 @@ mod tests {
                             }),
                         }
                     ],
+                }
+            ))
+        );
+    }
+
+    #[test]
+    fn test_line_with_attribute() {
+        let input = "{#[attribute_name(a = 123 )]\ntext\n}";
+
+        assert_eq!(
+            block.parse(input),
+            Ok((
+                "",
+                Block {
+                    children: vec![Child {
+                        attributes: vec![Attribute {
+                            keyword: "attribute_name".to_string(),
+                            condition: Some("a = 123 ".to_string()),
+                        }],
+                        content: ChildContent::TextLine(
+                            LeadingText::None,
+                            Text::Text("text".to_string())
+                        ),
+                    }],
+                }
+            ))
+        );
+    }
+
+    #[test]
+    fn test_line_with_multiple_attributes() {
+        let input =
+            "{#[attribute_name(a = 123 )]\n#[attribute_name(a && (b + 1) > '])'.length)]\ntext\n}";
+
+        assert_eq!(
+            block.parse(input),
+            Ok((
+                "",
+                Block {
+                    children: vec![Child {
+                        attributes: vec![
+                            Attribute {
+                                keyword: "attribute_name".to_string(),
+                                condition: Some("a = 123 ".to_string()),
+                            },
+                            Attribute {
+                                keyword: "attribute_name".to_string(),
+                                condition: Some("a && (b + 1) > '])'.length".to_string()),
+                            }
+                        ],
+                        content: ChildContent::TextLine(
+                            LeadingText::None,
+                            Text::Text("text".to_string())
+                        ),
+                    }],
                 }
             ))
         );

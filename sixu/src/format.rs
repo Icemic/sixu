@@ -229,5 +229,6 @@ impl SystemCallLine {
 #[derive(Debug, Default, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct Attribute {
-    pub _content: String,
+    pub keyword: String,
+    pub condition: Option<String>,
 }
