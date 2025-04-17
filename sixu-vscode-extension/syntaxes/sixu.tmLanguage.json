@@ -110,8 +110,8 @@
 			"name": "meta.embedded.block.javascript",
 			"patterns": [
 				{
-					"begin": "^\\s*(##)\\s*$",
-					"end": "^\\s*(##)\\s*$",
+					"begin": "^\\s*(##|@{)\\s*$",
+					"end": "^\\s*(##|})\\s*$",
 					"patterns": [
 						{
 							"include": "source.js"
@@ -129,7 +129,7 @@
 					}
 				},
 				{
-					"match": "^\\s*(##)\\s*(.+?)\\s*(##)",
+					"match": "^\\s*(##|@{)\\s*(.+?)\\s*(##|})\\s*$",
 					"captures": {
 						"1": {
 							"name": "punctuation.definition.embedded.javascript"
