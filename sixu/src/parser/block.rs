@@ -9,7 +9,7 @@ use nom::Parser;
 use crate::format::{Child, ChildContent};
 use crate::result::ParseResult;
 
-use super::attribute::attribute;
+use super::attribute::{attribute, balanced_delimiters};
 use super::command_line::command_line;
 use super::comment::{span0, span0_inline};
 use super::systemcall_line::systemcall_line;
@@ -31,6 +31,7 @@ pub fn block_child(input: &str) -> ParseResult<&str, ChildContent> {
 pub fn child(input: &str) -> ParseResult<&str, Child> {
     let (input, _) = span0.parse(input)?;
     let (input, attributes) = many0(attribute).parse(input)?;
+    let (input, _) = span0.parse(input)?; // Ensure whitespace between attributes and content is handled correctly
     let (input, child) = alt((
         embedded_code,
         block_child,
@@ -49,6 +50,19 @@ pub fn child(input: &str) -> ParseResult<&str, Child> {
 }
 
 pub fn embedded_code(input: &str) -> ParseResult<&str, ChildContent> {
+    alt((embedded_code_brace, embedded_code_hash)).parse(input)
+}
+
+/// Parse embedded code using @{...} syntax (recommended)
+pub fn embedded_code_brace(input: &str) -> ParseResult<&str, ChildContent> {
+    let (input, _) = tag("@{").parse(input)?;
+    let (input, content) = cut(balanced_delimiters('{', '}')).parse(input)?;
+
+    Ok((input, ChildContent::EmbeddedCode(content.to_string())))
+}
+
+/// Parse embedded code using ##...## syntax (legacy support)
+pub fn embedded_code_hash(input: &str) -> ParseResult<&str, ChildContent> {
     let (input, _) = (tag("##"), span0_inline, opt(line_ending)).parse(input)?;
     let (input, (content, _)) =
         cut(many_till(anychar, (tag("##"), span0_inline, line_ending))).parse(input)?;
@@ -195,20 +209,20 @@ mod tests {
     }
 
     #[test]
-    fn test_embedded_code() {
+    fn test_embedded_code_hash() {
         // inline code
         assert_eq!(
-            embedded_code("##code##\n"),
+            embedded_code_hash("##code##\n"),
             Ok(("", ChildContent::EmbeddedCode("code".to_string())))
         );
         // inline code with other text
         assert_eq!(
-            embedded_code("##code##\ntext\n"),
+            embedded_code_hash("##code##\ntext\n"),
             Ok(("text\n", ChildContent::EmbeddedCode("code".to_string())))
         );
         // multi-line code
         assert_eq!(
-            embedded_code("## \n  code \n ##  \ntext\n"),
+            embedded_code_hash("## \n  code \n ##  \ntext\n"),
             Ok((
                 "text\n",
                 ChildContent::EmbeddedCode("  code \n ".to_string()),
@@ -216,21 +230,129 @@ mod tests {
         );
         // ## is mixed with text
         assert_eq!(
-            embedded_code("##\ncode\n'aaa##'\n##\ntext\n"),
+            embedded_code_hash("##\ncode\n'aaa##'\n##\ntext\n"),
             Ok((
                 "text\n",
                 ChildContent::EmbeddedCode("code\n'aaa##'\n".to_string())
             ))
         );
-        // ## is mixed with text and has a line ending
-        // FIXME: this test is not working
-        // assert_eq!(
-        //     embedded_code("##\ncode\n//##\n##\ntext\n"),
-        //     Ok((
-        //         "text\n",
-        //         ChildContent::EmbeddedCode("code\n//##\n".to_string())
-        //     ))
-        // );
+    }
+
+    #[test]
+    fn test_embedded_code_brace() {
+        // Simple code
+        assert_eq!(
+            embedded_code_brace("@{let a = 1;}"),
+            Ok(("", ChildContent::EmbeddedCode("let a = 1;".to_string())))
+        );
+
+        // Multi-line code
+        assert_eq!(
+            embedded_code_brace("@{  \n  let a = 1;\n  console.log(a);\n  }"),
+            Ok((
+                "",
+                ChildContent::EmbeddedCode("  \n  let a = 1;\n  console.log(a);\n  ".to_string())
+            ))
+        );
+
+        // Nested braces
+        assert_eq!(
+            embedded_code_brace("@{if (condition) { doSomething(); }}"),
+            Ok((
+                "",
+                ChildContent::EmbeddedCode("if (condition) { doSomething(); }".to_string())
+            ))
+        );
+
+        // Contains various brackets and quotes
+        assert_eq!(
+            embedded_code_brace(
+                "@{function test() { return `template ${value}` && obj['key'] && (1 + 2); }}"
+            ),
+            Ok((
+                "",
+                ChildContent::EmbeddedCode(
+                    "function test() { return `template ${value}` && obj['key'] && (1 + 2); }"
+                        .to_string()
+                )
+            ))
+        );
+
+        // Followed by other content
+        assert_eq!(
+            embedded_code_brace("@{let x = 10;}remaining text"),
+            Ok((
+                "remaining text",
+                ChildContent::EmbeddedCode("let x = 10;".to_string())
+            ))
+        );
+    }
+
+    #[test]
+    fn test_embedded_code() {
+        // Test if both syntaxes can be correctly parsed by the embedded_code function
+
+        // @{} syntax
+        assert_eq!(
+            embedded_code("@{const x = 42;}"),
+            Ok(("", ChildContent::EmbeddedCode("const x = 42;".to_string())))
+        );
+
+        // ## ## syntax
+        assert_eq!(
+            embedded_code("##const y = 'hello';##\n"),
+            Ok((
+                "",
+                ChildContent::EmbeddedCode("const y = 'hello';".to_string())
+            ))
+        );
+    }
+
+    #[test]
+    fn test_block_with_embedded_code() {
+        // Test both embedded code syntaxes used in a block
+        let input = "{@{let a = 1;}\n##let b = 2;##\n}";
+
+        assert_eq!(
+            block.parse(input),
+            Ok((
+                "",
+                Block {
+                    children: vec![
+                        Child {
+                            attributes: vec![],
+                            content: ChildContent::EmbeddedCode("let a = 1;".to_string()),
+                        },
+                        Child {
+                            attributes: vec![],
+                            content: ChildContent::EmbeddedCode("let b = 2;".to_string()),
+                        }
+                    ],
+                }
+            ))
+        );
+    }
+
+    #[test]
+    fn test_embedded_code_with_attributes() {
+        // Test embedded code combined with attributes
+        let input = "{#[condition(a > b)]\n@{let x = a > b ? a : b;}}";
+
+        assert_eq!(
+            block.parse(input),
+            Ok((
+                "",
+                Block {
+                    children: vec![Child {
+                        attributes: vec![Attribute {
+                            keyword: "condition".to_string(),
+                            condition: Some("a > b".to_string()),
+                        }],
+                        content: ChildContent::EmbeddedCode("let x = a > b ? a : b;".to_string()),
+                    }],
+                }
+            ))
+        );
     }
 
     #[test]

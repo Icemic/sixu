@@ -11,69 +11,93 @@ use crate::result::ParseResult;
 use super::comment::{span0, span0_inline};
 use super::identifier::identifier;
 
+/// Parse content with balanced delimiters, handling nested delimiters and quoted content
+///
+/// # Parameters
+/// * `open_delim` - The opening delimiter character
+/// * `close_delim` - The closing delimiter character
+///
+/// # Returns
+/// Returns a closure that takes an input string and returns a tuple `(remaining_input, content)`, where:
+/// * `remaining_input` - The remaining input string after parsing
+/// * `content` - The content between the two delimiters (excluding the delimiters)
+pub fn balanced_delimiters<'a>(
+    open_delim: char,
+    close_delim: char,
+) -> impl FnMut(&'a str) -> Result<(&'a str, &'a str), Err<VerboseError<&'a str>>> {
+    move |input: &'a str| {
+        let mut depth = 1;
+        let mut end = 0;
+        let chars: Vec<char> = input.chars().collect();
+        let mut in_single_quote = false;
+        let mut in_double_quote = false;
+        let mut in_backtick = false;
+        let mut escape_next = false;
+
+        while end < chars.len() && depth > 0 {
+            let ch = chars[end];
+
+            if escape_next {
+                // If previous character was an escape, ignore special meaning of current character
+                escape_next = false;
+            } else if ch == '\\' {
+                // Mark the next character as being escaped
+                escape_next = true;
+            } else if !in_single_quote && !in_double_quote && !in_backtick {
+                // Only process delimiter counting when not inside quotes
+                if ch == open_delim {
+                    depth += 1;
+                } else if ch == close_delim {
+                    depth -= 1;
+                } else if ch == '\'' {
+                    in_single_quote = true;
+                } else if ch == '"' {
+                    in_double_quote = true;
+                } else if ch == '`' {
+                    in_backtick = true;
+                }
+            } else if ch == '\'' && in_single_quote {
+                in_single_quote = false;
+            } else if ch == '"' && in_double_quote {
+                in_double_quote = false;
+            } else if ch == '`' && in_backtick {
+                in_backtick = false;
+            }
+
+            end += 1;
+        }
+
+        if depth != 0 {
+            return Err(Err::Error(VerboseError::from_error_kind(
+                input,
+                ErrorKind::Tag,
+            )));
+        }
+
+        // Extract content (minus 1 because we don't include the closing delimiter)
+        let content = &input[..end - 1];
+        let remaining = &input[end..];
+
+        // Return remaining input and content
+        Ok((remaining, content))
+    }
+}
+
 pub fn attribute(input: &str) -> ParseResult<&str, Attribute> {
     let (input, _) = span0.parse(input)?;
 
     let (input, _) = tag("#[").parse(input)?;
     let (input, _) = span0_inline.parse(input)?;
 
-    // 解析属性名
+    // Parse attribute name
     let (input, keyword) = identifier.parse(input)?;
     let (input, _) = span0_inline.parse(input)?;
 
-    // 处理有条件的情况
+    // Handle conditional case
     let (input, condition) =
         if let Ok((input, _)) = tag::<&str, &str, VerboseError<&str>>("(").parse(input) {
-            // 解析嵌套括号内的内容
-            let mut depth = 1;
-            let mut end = 0;
-            let chars: Vec<char> = input.chars().collect();
-            let mut in_single_quote = false;
-            let mut in_double_quote = false;
-            let mut in_backtick = false;
-            let mut escape_next = false;
-
-            while end < chars.len() && depth > 0 {
-                let ch = chars[end];
-
-                if escape_next {
-                    // 如果前一个字符是转义符，忽略当前字符的特殊意义
-                    escape_next = false;
-                } else if ch == '\\' {
-                    // 标记下一个字符被转义
-                    escape_next = true;
-                } else if !in_single_quote && !in_double_quote && !in_backtick {
-                    // 只有不在引号内时，才处理括号计数
-                    match ch {
-                        '(' => depth += 1,
-                        ')' => depth -= 1,
-                        '\'' => in_single_quote = true,
-                        '"' => in_double_quote = true,
-                        '`' => in_backtick = true,
-                        _ => {}
-                    }
-                } else if ch == '\'' && in_single_quote {
-                    in_single_quote = false;
-                } else if ch == '"' && in_double_quote {
-                    in_double_quote = false;
-                } else if ch == '`' && in_backtick {
-                    in_backtick = false;
-                }
-
-                end += 1;
-            }
-
-            if depth != 0 {
-                return Err(Err::Error(VerboseError::from_error_kind(
-                    input,
-                    ErrorKind::Tag,
-                )));
-            }
-
-            // 提取条件内容 (减1是因为我们不包括匹配的右括号)
-            let condition = &input[..end - 1];
-            let input = &input[end..];
-
+            // Use balanced delimiters function to parse parenthesized content
+            let (input, condition) = balanced_delimiters('(', ')').parse(input)?;
             (input, Some(condition.to_string()))
         } else {
             (input, None)
