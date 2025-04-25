@@ -114,7 +114,23 @@ impl<T: Executor> Runtime<T> {
         let current_state = self.get_current_state_mut()?;
 
         if let Some(child) = current_state.next_line() {
+            let attributes = child.attributes;
             let content = child.content;
+
+            for attr in attributes {
+                let keyword = &attr.keyword;
+                let condition = &attr.condition;
+
+                match (keyword.as_str(), condition) {
+                    ("cond", Some(script)) => todo!(),
+                    ("while", Some(script)) => todo!(),
+                    ("loop", None) => todo!(),
+                    _ => {
+                        return Err(RuntimeError::UnknownAttribute(attr));
+                    }
+                }
+            }
+
             match content {
                 ChildContent::Block(block) => {
                     let current_state = self.get_current_state()?;

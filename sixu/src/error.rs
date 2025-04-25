@@ -1,6 +1,8 @@
 use nom_language::error::VerboseError;
 use thiserror::Error;
 
+use crate::format::Attribute;
+
 pub type Result<T, E = RuntimeError> = std::result::Result<T, E>;
 
 #[derive(Debug, Error)]
@@ -21,6 +23,8 @@ pub enum RuntimeError {
     WrongArgumentSystemCallLine(String),
     #[error("Wrong argument(s) provided to command line: {0}")]
     WrongArgumentCommandLine(String),
+    #[error("Unsupported attribute: {0}")]
+    UnknownAttribute(Attribute),
 
     #[error("Parse error: {0}")]
     ParseError(#[from] VerboseError<&'static str>),

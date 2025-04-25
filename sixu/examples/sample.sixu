@@ -37,10 +37,25 @@
   "fdsf##fsdsdsf"
 ##
 
-// #[if(save.x = 1)]
-// {
-//   `这是一行${embed_str}文本` // 这是一行测试文本
-// }
+// #[loop]
+// #[while(x > 0)]
+// #[cond(x > 0)]
+// #break
+
+#[cond(x > 0)]
+当符合条件的时候这句才会执行
+
+#[while(x > 0)]
+@{
+  x += 1;
+}
+
+
+#[loop]
+{
+  `这是一行${embed_str}文本` // 这是一行测试文本
+  #break
+}
 
 #call(paragraphA, name = "def")
 // 支持另一种写法

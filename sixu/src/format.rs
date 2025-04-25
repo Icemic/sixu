@@ -232,3 +232,13 @@ pub struct Attribute {
     pub keyword: String,
     pub condition: Option<String>,
 }
+
+impl std::fmt::Display for Attribute {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        if let Some(ref condition) = self.condition {
+            write!(f, "{}({})", self.keyword, condition)
+        } else {
+            write!(f, "{}", self.keyword)
+        }
+    }
+}
