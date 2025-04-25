@@ -139,14 +139,14 @@ impl Executor for TestExecutor {
         unreachable!()
     }
 
-    fn eval_script(&mut self, script: &String) -> sixu::error::Result<()> {
+    fn eval_script(&mut self, script: &String) -> sixu::error::Result<Option<RValue>> {
         let force_parse_int = script.trim().parse::<u32>().unwrap();
         assert_eq!(force_parse_int, 512, "script should be 512");
 
         println!("force_parse_int: {}", force_parse_int);
         self.last_value += force_parse_int;
 
-        Ok(())
+        Ok(None)
     }
 
     fn finished(&mut self) {
