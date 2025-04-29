@@ -1,6 +1,10 @@
 [package]
+authors = ["Icemic <bingfeng.web@gmail.com>"]
+description = "Experimental Visual Novel Scripting Language"
 edition = "2021"
+license = "MPL-2.0"
 name = "sixu"
+repository = "https://github.com/Icemic/sixu"
 version = "0.1.0"
 
 [features]
