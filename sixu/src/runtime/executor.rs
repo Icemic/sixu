@@ -1,9 +1,9 @@
 use crate::error::Result;
 use crate::format::*;
 
-pub trait Executor: Send + Sync {
+pub trait RuntimeExecutor: Send + Sync {
     fn handle_command(&mut self, command_line: &CommandLine) -> Result<()>;
-    fn handle_system_call(&mut self, systemcall_line: &SystemCallLine) -> Result<()>;
+    fn handle_extra_system_call(&mut self, systemcall_line: &SystemCallLine) -> Result<()>;
     fn handle_text(&mut self, leading: Option<&str>, text: Option<&str>) -> Result<()>;
     fn get_variable<'a>(&self, value: &'a Variable) -> Result<&'a Primitive>;
     fn eval_script(&mut self, script: &String) -> Result<Option<RValue>>;

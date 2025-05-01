@@ -1,8 +1,7 @@
 use sixu::error::RuntimeError;
-use sixu::executor::Executor;
 use sixu::format::*;
 use sixu::parser::parse;
-use sixu::runtime::Runtime;
+use sixu::runtime::{Runtime, RuntimeDataSource, RuntimeExecutor, SceneState};
 
 const SAMPLE: &str = r#"
 ::entry {
@@ -51,15 +50,11 @@ first line1
 
 #[test]
 fn main() {
-    let executor = TestExecutor { last_value: 0 };
-    let mut runtime = Runtime::new(executor);
-    let (_, story) = parse("test", SAMPLE).unwrap();
-
-    runtime.add_story(story);
-    runtime.start("test").unwrap();
+    let mut sample = Sample::new();
+    sample.init();
 
     loop {
-        match runtime.next() {
+        match sample.next() {
             Ok(()) => {
                 // do nothing
             }
@@ -75,11 +70,49 @@ fn main() {
     }
 }
 
-struct TestExecutor {
+struct Sample {
+    stories: Vec<Story>,
+    stack: Vec<SceneState>,
+
     last_value: u32,
 }
 
-impl Executor for TestExecutor {
+impl RuntimeDataSource for Sample {
+    fn get_stories(&self) -> &Vec<Story> {
+        &self.stories
+    }
+
+    fn get_stories_mut(&mut self) -> &mut Vec<Story> {
+        &mut self.stories
+    }
+
+    fn get_stack(&self) -> &Vec<SceneState> {
+        &self.stack
+    }
+
+    fn get_stack_mut(&mut self) -> &mut Vec<SceneState> {
+        &mut self.stack
+    }
+}
+
+impl Sample {
+    pub fn new() -> Self {
+        Self {
+            stories: Vec::new(),
+            stack: Vec::new(),
+            last_value: 0,
+        }
+    }
+
+    pub fn init(&mut self) {
+        let (_, story) = parse("test", SAMPLE).unwrap();
+
+        self.add_story(story);
+        self.start("test").unwrap();
+    }
+}
+
+impl RuntimeExecutor for Sample {
     fn handle_command(&mut self, command_line: &CommandLine) -> sixu::error::Result<()> {
         if command_line.command == "tttt" {
             let foo = command_line.get_argument("foo").unwrap();
@@ -116,7 +149,10 @@ impl Executor for TestExecutor {
         Ok(())
     }
 
-    fn handle_system_call(&mut self, _systemcall_line: &SystemCallLine) -> sixu::error::Result<()> {
+    fn handle_extra_system_call(
+        &mut self,
+        _systemcall_line: &SystemCallLine,
+    ) -> sixu::error::Result<()> {
         unreachable!()
     }
 
@@ -153,3 +189,5 @@ impl Executor for TestExecutor {
         assert_eq!(self.last_value, 1023, "last value should be 1023");
     }
 }
+
+impl Runtime for Sample {}

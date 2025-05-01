@@ -1,41 +1,29 @@
 mod callback;
+mod datasource;
+mod executor;
 mod state;
 
 pub use self::callback::*;
-use self::state::SceneState;
+pub use self::datasource::RuntimeDataSource;
+pub use self::executor::RuntimeExecutor;
+pub use self::state::SceneState;
 
 use crate::error::{Result, RuntimeError};
-use crate::executor::Executor;
 use crate::format::*;
 
-/// Sixu scripting language runtime
-pub struct Runtime<T: Executor> {
-    stories: Vec<Story>,
-    stack: Vec<SceneState>,
-    executor: T,
-}
-
-impl<T: Executor> Runtime<T> {
-    pub fn new(executor: T) -> Self {
-        Self {
-            stories: Vec::new(),
-            stack: Vec::new(),
-            executor,
-        }
+pub trait Runtime: RuntimeDataSource + RuntimeExecutor {
+    fn add_story(&mut self, story: Story) {
+        self.get_stories_mut().push(story);
     }
 
-    pub fn add_story(&mut self, story: Story) {
-        self.stories.push(story);
-    }
-
-    pub fn get_story(&self, name: &str) -> Result<&Story> {
-        self.stories
+    fn get_story(&self, name: &str) -> Result<&Story> {
+        self.get_stories()
             .iter()
             .find(|s| s.filename == name)
             .ok_or(RuntimeError::StoryNotFound(name.to_string()))
     }
 
-    pub fn get_scene(&self, story_name: &str, name: &str) -> Result<&Scene> {
+    fn get_scene(&self, story_name: &str, name: &str) -> Result<&Scene> {
         let story = self.get_story(story_name)?;
         story
             .scenes
@@ -44,27 +32,29 @@ impl<T: Executor> Runtime<T> {
             .ok_or(RuntimeError::SceneNotFound(name.to_string()))
     }
 
-    pub fn save(&self) -> Result<Vec<SceneState>> {
-        let stack = self.stack.clone();
+    fn save(&self) -> Result<Vec<SceneState>> {
+        let stack = self.get_stack().clone();
         Ok(stack)
     }
 
-    pub fn restore(&mut self, states: Vec<SceneState>) -> Result<()> {
-        self.stack = states;
+    fn restore(&mut self, states: Vec<SceneState>) -> Result<()> {
+        *self.get_stack_mut() = states;
         Ok(())
     }
 
-    pub fn start(&mut self, story_name: &str) -> Result<()> {
-        if self.stories.is_empty() {
+    fn start(&mut self, story_name: &str) -> Result<()> {
+        if self.get_stories().is_empty() {
             return Err(RuntimeError::NoStory);
         }
 
-        if self.stack.is_empty() {
+        let is_empty = self.get_stack().is_empty();
+        if is_empty {
             let scene = self.get_scene(story_name, "entry")?;
-            self.stack.push(SceneState::new(
+            let block = scene.block.clone();
+            self.get_stack_mut().push(SceneState::new(
                 story_name.to_string(),
                 "entry".to_string(),
-                scene.block.clone(),
+                block,
             ));
         } else {
             return Err(RuntimeError::StoryStarted);
@@ -73,43 +63,45 @@ impl<T: Executor> Runtime<T> {
         Ok(())
     }
 
-    pub fn terminate(&mut self) -> Result<()> {
-        if self.stack.is_empty() {
+    fn terminate(&mut self) -> Result<()> {
+        if self.get_stack().is_empty() {
             return Err(RuntimeError::StoryNotStarted);
         }
 
-        self.stack.clear();
-        self.executor.finished();
+        self.get_stack_mut().clear();
+        self.finished();
 
         Ok(())
     }
 
     fn get_current_state(&self) -> Result<&SceneState> {
-        self.stack.last().ok_or(RuntimeError::StoryNotStarted)
+        self.get_stack().last().ok_or(RuntimeError::StoryNotStarted)
     }
 
-    pub fn get_current_state_mut(&mut self) -> Result<&mut SceneState> {
-        self.stack.last_mut().ok_or(RuntimeError::StoryNotStarted)
+    fn get_current_state_mut(&mut self) -> Result<&mut SceneState> {
+        self.get_stack_mut()
+            .last_mut()
+            .ok_or(RuntimeError::StoryNotStarted)
     }
 
     fn break_current_block(&mut self) -> Result<()> {
-        if let Some(state) = self.stack.pop() {
+        if let Some(state) = self.get_stack_mut().pop() {
             // if the stack is empty, try to load the next scene of the current story
-            if self.stack.is_empty() {
+            if self.get_stack().is_empty() {
                 if let Some(next_scene) = {
                     let story = self.get_story(&state.story)?;
                     let mut scene_iter = story.scenes.iter();
                     scene_iter.position(|s| s.name == state.scene);
 
-                    scene_iter.next()
+                    scene_iter.next().cloned()
                 } {
-                    self.stack.push(SceneState::new(
+                    self.get_stack_mut().push(SceneState::new(
                         state.story.clone(),
-                        next_scene.name.clone(),
-                        next_scene.block.clone(),
+                        next_scene.name,
+                        next_scene.block,
                     ));
                 } else {
-                    self.executor.finished();
+                    self.finished();
                 }
             }
 
@@ -121,17 +113,17 @@ impl<T: Executor> Runtime<T> {
         }
     }
 
-    pub fn next(&mut self) -> Result<()> {
+    fn next(&mut self) -> Result<()> {
         let current_state = self.get_current_state_mut()?;
 
         if let Some(child) = current_state.next_line() {
             let content = child.content;
             match content {
                 ChildContent::Block(block) => {
-                    let current_state = self.get_current_state()?;
-                    self.stack.push(SceneState::new(
-                        current_state.story.clone(),
-                        current_state.scene.clone(),
+                    let current_state = self.get_current_state()?.clone();
+                    self.get_stack_mut().push(SceneState::new(
+                        current_state.story,
+                        current_state.scene,
                         block.clone(),
                     ));
                 }
@@ -140,9 +132,7 @@ impl<T: Executor> Runtime<T> {
                         LeadingText::None => None,
                         LeadingText::Text(t) => Some(t),
                         LeadingText::TemplateLiteral(template_literal) => {
-                            let text = self
-                                .executor
-                                .calculate_template_literal(&template_literal)?;
+                            let text = self.calculate_template_literal(&template_literal)?;
                             Some(text)
                         }
                     };
@@ -150,23 +140,20 @@ impl<T: Executor> Runtime<T> {
                         Text::None => None,
                         Text::Text(t) => Some(t),
                         Text::TemplateLiteral(template_literal) => {
-                            let text = self
-                                .executor
-                                .calculate_template_literal(&template_literal)?;
+                            let text = self.calculate_template_literal(&template_literal)?;
                             Some(text)
                         }
                     };
-                    self.executor
-                        .handle_text(leading.as_deref(), text.as_deref())?;
+                    self.handle_text(leading.as_deref(), text.as_deref())?;
                 }
                 ChildContent::CommandLine(command) => {
-                    self.executor.handle_command(&command)?;
+                    self.handle_command(&command)?;
                 }
                 ChildContent::SystemCallLine(systemcall) => {
                     self.handle_system_call(&systemcall)?;
                 }
                 ChildContent::EmbeddedCode(script) => {
-                    self.executor.eval_script(&script)?;
+                    self.eval_script(&script)?;
                 }
             }
         } else {
@@ -176,13 +163,13 @@ impl<T: Executor> Runtime<T> {
         Ok(())
     }
 
-    pub fn handle_system_call(&mut self, systemcall_line: &SystemCallLine) -> Result<()> {
+    fn handle_system_call(&mut self, systemcall_line: &SystemCallLine) -> Result<()> {
         match systemcall_line.command.as_str() {
             // This method will clear the stack and push a new state with the story and scene name
             "goto" => {
                 let story_name = match systemcall_line.get_argument("story") {
                     Some(v) => {
-                        let v = self.executor.get_rvalue(v)?;
+                        let v = self.get_rvalue(v)?;
                         if v.is_string() {
                             v.to_string()
                         } else {
@@ -195,7 +182,7 @@ impl<T: Executor> Runtime<T> {
                 };
 
                 if let Some(scene_name) = systemcall_line.get_argument("scene") {
-                    let scene_name = self.executor.get_rvalue(scene_name)?.to_owned();
+                    let scene_name = self.get_rvalue(scene_name)?.to_owned();
                     let scene_name = if scene_name.is_string() {
                         scene_name.to_string()
                     } else {
@@ -204,14 +191,14 @@ impl<T: Executor> Runtime<T> {
                         ));
                     };
 
-                    self.stack.clear();
+                    self.get_stack_mut().clear();
 
-                    let scene = self.get_scene(&scene_name, &scene_name)?;
+                    let scene = self.get_scene(&scene_name, &scene_name)?.clone();
 
-                    self.stack.push(SceneState::new(
+                    self.get_stack_mut().push(SceneState::new(
                         story_name,
                         scene_name.to_string(),
-                        scene.block.clone(),
+                        scene.block,
                     ));
                 } else {
                     return Err(RuntimeError::WrongArgumentSystemCallLine(
@@ -224,7 +211,7 @@ impl<T: Executor> Runtime<T> {
             "replace" => {
                 let story_name = match systemcall_line.get_argument("story") {
                     Some(v) => {
-                        let v = self.executor.get_rvalue(v)?;
+                        let v = self.get_rvalue(v)?;
                         if v.is_string() {
                             v.to_string()
                         } else {
@@ -237,7 +224,7 @@ impl<T: Executor> Runtime<T> {
                 };
 
                 if let Some(scene_name) = systemcall_line.get_argument("scene") {
-                    let scene_name = self.executor.get_rvalue(scene_name)?.to_owned();
+                    let scene_name = self.get_rvalue(scene_name)?.to_owned();
                     let scene_name = if scene_name.is_string() {
                         scene_name.to_string()
                     } else {
@@ -247,33 +234,33 @@ impl<T: Executor> Runtime<T> {
                     };
 
                     let current_scene = self
-                        .stack
+                        .get_stack_mut()
                         .pop()
                         .expect("No scene in stack to replace, this should not happen.");
 
                     loop {
-                        if self.stack.is_empty() {
+                        if self.get_stack().is_empty() {
                             break;
                         }
 
                         // pop the stack until the last state is not the same on story and scene
                         // to remove all sub-blocks on the same scene
-                        let last_state = self.stack.last().unwrap();
+                        let last_state = self.get_stack().last().unwrap();
                         if last_state.story == current_scene.story
                             && last_state.scene == current_scene.scene
                         {
-                            self.stack.pop();
+                            self.get_stack_mut().pop();
                         } else {
                             break;
                         }
                     }
 
-                    let scene = self.get_scene(&story_name, &scene_name)?;
+                    let scene = self.get_scene(&story_name, &scene_name)?.clone();
 
-                    self.stack.push(SceneState::new(
+                    self.get_stack_mut().push(SceneState::new(
                         story_name,
                         scene_name.to_string(),
-                        scene.block.clone(),
+                        scene.block,
                     ));
                 } else {
                     return Err(RuntimeError::WrongArgumentSystemCallLine(
@@ -286,7 +273,7 @@ impl<T: Executor> Runtime<T> {
             "call" => {
                 let story_name = match systemcall_line.get_argument("story") {
                     Some(v) => {
-                        let v = self.executor.get_rvalue(v)?;
+                        let v = self.get_rvalue(v)?;
                         if v.is_string() {
                             v.to_string()
                         } else {
@@ -299,7 +286,7 @@ impl<T: Executor> Runtime<T> {
                 };
 
                 if let Some(scene_name) = systemcall_line.get_argument("scene") {
-                    let scene_name = self.executor.get_rvalue(scene_name)?.to_owned();
+                    let scene_name = self.get_rvalue(scene_name)?.to_owned();
                     let scene_name = if scene_name.is_string() {
                         scene_name.to_string()
                     } else {
@@ -308,12 +295,12 @@ impl<T: Executor> Runtime<T> {
                         ));
                     };
 
-                    let scene = self.get_scene(&story_name, &scene_name)?;
+                    let scene = self.get_scene(&story_name, &scene_name)?.clone();
 
-                    self.stack.push(SceneState::new(
+                    self.get_stack_mut().push(SceneState::new(
                         story_name,
                         scene_name.to_string(),
-                        scene.block.clone(),
+                        scene.block,
                     ));
                 } else {
                     return Err(RuntimeError::WrongArgumentSystemCallLine(
@@ -326,11 +313,11 @@ impl<T: Executor> Runtime<T> {
                 self.break_current_block()?;
             }
             "finish" => {
-                self.stack.clear();
-                self.executor.finished();
+                self.get_stack_mut().clear();
+                self.finished();
             }
             _ => {
-                self.executor.handle_system_call(systemcall_line)?;
+                self.handle_extra_system_call(systemcall_line)?;
             }
         }
 
