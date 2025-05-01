@@ -73,6 +73,17 @@ impl<T: Executor> Runtime<T> {
         Ok(())
     }
 
+    pub fn terminate(&mut self) -> Result<()> {
+        if self.stack.is_empty() {
+            return Err(RuntimeError::StoryNotStarted);
+        }
+
+        self.stack.clear();
+        self.executor.finished();
+
+        Ok(())
+    }
+
     fn get_current_state(&self) -> Result<&SceneState> {
         self.stack.last().ok_or(RuntimeError::StoryNotStarted)
     }
