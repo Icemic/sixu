@@ -6,7 +6,7 @@ mod state;
 pub use self::callback::*;
 pub use self::datasource::RuntimeDataSource;
 pub use self::executor::RuntimeExecutor;
-pub use self::state::ParagraphState;
+pub use self::state::ExecutionState;
 
 use crate::error::{Result, RuntimeError};
 use crate::format::*;
@@ -32,12 +32,12 @@ pub trait Runtime: RuntimeDataSource + RuntimeExecutor {
             .ok_or(RuntimeError::ParagraphNotFound(name.to_string()))
     }
 
-    fn save(&self) -> Result<Vec<ParagraphState>> {
+    fn save(&self) -> Result<Vec<ExecutionState>> {
         let stack = self.get_stack().clone();
         Ok(stack)
     }
 
-    fn restore(&mut self, states: Vec<ParagraphState>) -> Result<()> {
+    fn restore(&mut self, states: Vec<ExecutionState>) -> Result<()> {
         *self.get_stack_mut() = states;
         Ok(())
     }
@@ -51,7 +51,7 @@ pub trait Runtime: RuntimeDataSource + RuntimeExecutor {
         if is_empty {
             let paragraph = self.get_paragraph(story_name, "entry")?;
             let block = paragraph.block.clone();
-            self.get_stack_mut().push(ParagraphState::new(
+            self.get_stack_mut().push(ExecutionState::new(
                 story_name.to_string(),
                 "entry".to_string(),
                 block,
@@ -74,11 +74,11 @@ pub trait Runtime: RuntimeDataSource + RuntimeExecutor {
         Ok(())
     }
 
-    fn get_current_state(&self) -> Result<&ParagraphState> {
+    fn get_current_state(&self) -> Result<&ExecutionState> {
         self.get_stack().last().ok_or(RuntimeError::StoryNotStarted)
     }
 
-    fn get_current_state_mut(&mut self) -> Result<&mut ParagraphState> {
+    fn get_current_state_mut(&mut self) -> Result<&mut ExecutionState> {
         self.get_stack_mut()
             .last_mut()
             .ok_or(RuntimeError::StoryNotStarted)
@@ -95,7 +95,7 @@ pub trait Runtime: RuntimeDataSource + RuntimeExecutor {
 
                     paragraph_iter.next().cloned()
                 } {
-                    self.get_stack_mut().push(ParagraphState::new(
+                    self.get_stack_mut().push(ExecutionState::new(
                         state.story.clone(),
                         next_paragraph.name,
                         next_paragraph.block,
@@ -121,7 +121,7 @@ pub trait Runtime: RuntimeDataSource + RuntimeExecutor {
             match content {
                 ChildContent::Block(block) => {
                     let current_state = self.get_current_state()?.clone();
-                    self.get_stack_mut().push(ParagraphState::new(
+                    self.get_stack_mut().push(ExecutionState::new(
                         current_state.story,
                         current_state.paragraph,
                         block.clone(),
@@ -197,7 +197,7 @@ pub trait Runtime: RuntimeDataSource + RuntimeExecutor {
                         .get_paragraph(&paragraph_name, &paragraph_name)?
                         .clone();
 
-                    self.get_stack_mut().push(ParagraphState::new(
+                    self.get_stack_mut().push(ExecutionState::new(
                         story_name,
                         paragraph_name.to_string(),
                         paragraph.block,
@@ -259,7 +259,7 @@ pub trait Runtime: RuntimeDataSource + RuntimeExecutor {
 
                     let paragraph = self.get_paragraph(&story_name, &paragraph_name)?.clone();
 
-                    self.get_stack_mut().push(ParagraphState::new(
+                    self.get_stack_mut().push(ExecutionState::new(
                         story_name,
                         paragraph_name.to_string(),
                         paragraph.block,
@@ -299,7 +299,7 @@ pub trait Runtime: RuntimeDataSource + RuntimeExecutor {
 
                     let paragraph = self.get_paragraph(&story_name, &paragraph_name)?.clone();
 
-                    self.get_stack_mut().push(ParagraphState::new(
+                    self.get_stack_mut().push(ExecutionState::new(
                         story_name,
                         paragraph_name.to_string(),
                         paragraph.block,

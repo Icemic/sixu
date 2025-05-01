@@ -6,7 +6,7 @@ use crate::format::{Block, Child};
 /// Represents a state in the stack of the runtime.
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-pub struct ParagraphState {
+pub struct ExecutionState {
     /// Story name
     pub story: String,
     /// Paragraph name
@@ -17,7 +17,7 @@ pub struct ParagraphState {
     pub index: usize,
 }
 
-impl ParagraphState {
+impl ExecutionState {
     pub fn new(story: String, paragraph: String, block: Block) -> Self {
         Self {
             story,
