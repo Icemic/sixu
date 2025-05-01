@@ -189,5 +189,3 @@ impl RuntimeExecutor for Sample {
         assert_eq!(self.last_value, 1023, "last value should be 1023");
     }
 }
-
-impl Runtime for Sample {}

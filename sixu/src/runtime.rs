@@ -326,3 +326,5 @@ pub trait Runtime: RuntimeDataSource + RuntimeExecutor {
         Ok(())
     }
 }
+
+impl<T: RuntimeDataSource + RuntimeExecutor> Runtime for T {}
