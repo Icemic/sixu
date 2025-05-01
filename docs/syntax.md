@@ -6,7 +6,7 @@
 
 ```sixu
 ::first_day {
-    // 这是一个场景，用于描述故事的一个片段
+    // 这是一个段落，用于描述故事的一个片段
     @set_bg image="classroom.jpg" fade_in
 
     "终于到了新学期了..."
@@ -23,13 +23,13 @@
 
 ## 基本概念
 
-### 场景（Scene）
+### 段落（Paragraph）
 
-场景是剧本的基本组织单位，使用 `::` 开头声明。场景名称只能使用英文、数字和下划线，且必须以字母或下划线开头：
+段落是剧本的基本组织单位，使用 `::` 开头声明。段落名称只能使用英文、数字和下划线，且必须以字母或下划线开头：
 
 ```sixu
-::scene_name(param1, param2="default") {
-    场景内容
+::paragraph_name(param1, param2="default") {
+    段落内容
 }
 ```
 
@@ -102,8 +102,8 @@
 以 `#` 开头，用于流程控制：
 
 ```sixu
-#call(scene_name, param="value")
-#goto next_scene param="value"
+#call(paragraph_name, param="value")
+#goto next_paragraph param="value"
 ```
 
 ### 代码块

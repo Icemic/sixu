@@ -15,8 +15,8 @@ pub enum RuntimeError {
     StoryFinished,
     #[error("Story {0} not found")]
     StoryNotFound(String),
-    #[error("Scene {0} not found")]
-    SceneNotFound(String),
+    #[error("Paragraph {0} not found")]
+    ParagraphNotFound(String),
     #[error("Wrong argument(s) provided to system call line: {0}")]
     WrongArgumentSystemCallLine(String),
     #[error("Wrong argument(s) provided to command line: {0}")]

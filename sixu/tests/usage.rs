@@ -1,7 +1,7 @@
 use sixu::error::RuntimeError;
 use sixu::format::*;
 use sixu::parser::parse;
-use sixu::runtime::{Runtime, RuntimeDataSource, RuntimeExecutor, SceneState};
+use sixu::runtime::{ParagraphState, Runtime, RuntimeDataSource, RuntimeExecutor};
 
 const SAMPLE: &str = r#"
 ::entry {
@@ -15,7 +15,7 @@ first line1
 {
 @tttt foo=16
 
-#replace scene="abc"
+#replace paragraph="abc"
 
 }
 
@@ -29,7 +29,7 @@ first line1
 
 {
 @tttt foo=64
-#call scene="def"
+#call paragraph="def"
 }
 
 @tttt foo=128
@@ -72,7 +72,7 @@ fn main() {
 
 struct Sample {
     stories: Vec<Story>,
-    stack: Vec<SceneState>,
+    stack: Vec<ParagraphState>,
 
     last_value: u32,
 }
@@ -86,11 +86,11 @@ impl RuntimeDataSource for Sample {
         &mut self.stories
     }
 
-    fn get_stack(&self) -> &Vec<SceneState> {
+    fn get_stack(&self) -> &Vec<ParagraphState> {
         &self.stack
     }
 
-    fn get_stack_mut(&mut self) -> &mut Vec<SceneState> {
+    fn get_stack_mut(&mut self) -> &mut Vec<ParagraphState> {
         &mut self.stack
     }
 }

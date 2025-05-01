@@ -6,22 +6,22 @@ use crate::format::{Block, Child};
 /// Represents a state in the stack of the runtime.
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-pub struct SceneState {
+pub struct ParagraphState {
     /// Story name
     pub story: String,
-    /// Scene name
-    pub scene: String,
-    /// Current block in the scene
+    /// Paragraph name
+    pub paragraph: String,
+    /// Current block in the paragraph
     pub block: Block,
-    /// line index of the current block in the scene
+    /// line index of the current block in the paragraph
     pub index: usize,
 }
 
-impl SceneState {
-    pub fn new(story: String, scene: String, block: Block) -> Self {
+impl ParagraphState {
+    pub fn new(story: String, paragraph: String, block: Block) -> Self {
         Self {
             story,
-            scene,
+            paragraph,
             block,
             index: 0,
         }

@@ -6,7 +6,7 @@ mod state;
 pub use self::callback::*;
 pub use self::datasource::RuntimeDataSource;
 pub use self::executor::RuntimeExecutor;
-pub use self::state::SceneState;
+pub use self::state::ParagraphState;
 
 use crate::error::{Result, RuntimeError};
 use crate::format::*;
@@ -23,21 +23,21 @@ pub trait Runtime: RuntimeDataSource + RuntimeExecutor {
             .ok_or(RuntimeError::StoryNotFound(name.to_string()))
     }
 
-    fn get_scene(&self, story_name: &str, name: &str) -> Result<&Scene> {
+    fn get_paragraph(&self, story_name: &str, name: &str) -> Result<&Paragraph> {
         let story = self.get_story(story_name)?;
         story
-            .scenes
+            .paragraphs
             .iter()
             .find(|s| s.name == name)
-            .ok_or(RuntimeError::SceneNotFound(name.to_string()))
+            .ok_or(RuntimeError::ParagraphNotFound(name.to_string()))
     }
 
-    fn save(&self) -> Result<Vec<SceneState>> {
+    fn save(&self) -> Result<Vec<ParagraphState>> {
         let stack = self.get_stack().clone();
         Ok(stack)
     }
 
-    fn restore(&mut self, states: Vec<SceneState>) -> Result<()> {
+    fn restore(&mut self, states: Vec<ParagraphState>) -> Result<()> {
         *self.get_stack_mut() = states;
         Ok(())
     }
@@ -49,9 +49,9 @@ pub trait Runtime: RuntimeDataSource + RuntimeExecutor {
 
         let is_empty = self.get_stack().is_empty();
         if is_empty {
-            let scene = self.get_scene(story_name, "entry")?;
-            let block = scene.block.clone();
-            self.get_stack_mut().push(SceneState::new(
+            let paragraph = self.get_paragraph(story_name, "entry")?;
+            let block = paragraph.block.clone();
+            self.get_stack_mut().push(ParagraphState::new(
                 story_name.to_string(),
                 "entry".to_string(),
                 block,
@@ -74,11 +74,11 @@ pub trait Runtime: RuntimeDataSource + RuntimeExecutor {
         Ok(())
     }
 
-    fn get_current_state(&self) -> Result<&SceneState> {
+    fn get_current_state(&self) -> Result<&ParagraphState> {
         self.get_stack().last().ok_or(RuntimeError::StoryNotStarted)
     }
 
-    fn get_current_state_mut(&mut self) -> Result<&mut SceneState> {
+    fn get_current_state_mut(&mut self) -> Result<&mut ParagraphState> {
         self.get_stack_mut()
             .last_mut()
             .ok_or(RuntimeError::StoryNotStarted)
@@ -86,19 +86,19 @@ pub trait Runtime: RuntimeDataSource + RuntimeExecutor {
 
     fn break_current_block(&mut self) -> Result<()> {
         if let Some(state) = self.get_stack_mut().pop() {
-            // if the stack is empty, try to load the next scene of the current story
+            // if the stack is empty, try to load the next paragraph of the current story
             if self.get_stack().is_empty() {
-                if let Some(next_scene) = {
+                if let Some(next_paragraph) = {
                     let story = self.get_story(&state.story)?;
-                    let mut scene_iter = story.scenes.iter();
-                    scene_iter.position(|s| s.name == state.scene);
+                    let mut paragraph_iter = story.paragraphs.iter();
+                    paragraph_iter.position(|s| s.name == state.paragraph);
 
-                    scene_iter.next().cloned()
+                    paragraph_iter.next().cloned()
                 } {
-                    self.get_stack_mut().push(SceneState::new(
+                    self.get_stack_mut().push(ParagraphState::new(
                         state.story.clone(),
-                        next_scene.name,
-                        next_scene.block,
+                        next_paragraph.name,
+                        next_paragraph.block,
                     ));
                 } else {
                     self.finished();
@@ -121,9 +121,9 @@ pub trait Runtime: RuntimeDataSource + RuntimeExecutor {
             match content {
                 ChildContent::Block(block) => {
                     let current_state = self.get_current_state()?.clone();
-                    self.get_stack_mut().push(SceneState::new(
+                    self.get_stack_mut().push(ParagraphState::new(
                         current_state.story,
-                        current_state.scene,
+                        current_state.paragraph,
                         block.clone(),
                     ));
                 }
@@ -165,7 +165,7 @@ pub trait Runtime: RuntimeDataSource + RuntimeExecutor {
 
     fn handle_system_call(&mut self, systemcall_line: &SystemCallLine) -> Result<()> {
         match systemcall_line.command.as_str() {
-            // This method will clear the stack and push a new state with the story and scene name
+            // This method will clear the stack and push a new state with the story and paragraph name
             "goto" => {
                 let story_name = match systemcall_line.get_argument("story") {
                     Some(v) => {
@@ -181,10 +181,10 @@ pub trait Runtime: RuntimeDataSource + RuntimeExecutor {
                     None => self.get_current_state().unwrap().story.clone(),
                 };
 
-                if let Some(scene_name) = systemcall_line.get_argument("scene") {
-                    let scene_name = self.get_rvalue(scene_name)?.to_owned();
-                    let scene_name = if scene_name.is_string() {
-                        scene_name.to_string()
+                if let Some(paragraph_name) = systemcall_line.get_argument("paragraph") {
+                    let paragraph_name = self.get_rvalue(paragraph_name)?.to_owned();
+                    let paragraph_name = if paragraph_name.is_string() {
+                        paragraph_name.to_string()
                     } else {
                         return Err(RuntimeError::WrongArgumentSystemCallLine(
                             "Expected a string argument".to_string(),
@@ -193,20 +193,22 @@ pub trait Runtime: RuntimeDataSource + RuntimeExecutor {
 
                     self.get_stack_mut().clear();
 
-                    let scene = self.get_scene(&scene_name, &scene_name)?.clone();
+                    let paragraph = self
+                        .get_paragraph(&paragraph_name, &paragraph_name)?
+                        .clone();
 
-                    self.get_stack_mut().push(SceneState::new(
+                    self.get_stack_mut().push(ParagraphState::new(
                         story_name,
-                        scene_name.to_string(),
-                        scene.block,
+                        paragraph_name.to_string(),
+                        paragraph.block,
                     ));
                 } else {
                     return Err(RuntimeError::WrongArgumentSystemCallLine(
-                        "Scene name not provided".to_string(),
+                        "Paragraph name not provided".to_string(),
                     ));
                 }
             }
-            // This method will replace the current state with a new state with the story and scene name
+            // This method will replace the current state with a new state with the story and paragraph name
             // once this new state is ended, it will return to the previous state
             "replace" => {
                 let story_name = match systemcall_line.get_argument("story") {
@@ -223,31 +225,31 @@ pub trait Runtime: RuntimeDataSource + RuntimeExecutor {
                     None => self.get_current_state().unwrap().story.clone(),
                 };
 
-                if let Some(scene_name) = systemcall_line.get_argument("scene") {
-                    let scene_name = self.get_rvalue(scene_name)?.to_owned();
-                    let scene_name = if scene_name.is_string() {
-                        scene_name.to_string()
+                if let Some(paragraph_name) = systemcall_line.get_argument("paragraph") {
+                    let paragraph_name = self.get_rvalue(paragraph_name)?.to_owned();
+                    let paragraph_name = if paragraph_name.is_string() {
+                        paragraph_name.to_string()
                     } else {
                         return Err(RuntimeError::WrongArgumentSystemCallLine(
                             "Expected a string argument".to_string(),
                         ));
                     };
 
-                    let current_scene = self
+                    let current_paragraph = self
                         .get_stack_mut()
                         .pop()
-                        .expect("No scene in stack to replace, this should not happen.");
+                        .expect("No paragraph in stack to replace, this should not happen.");
 
                     loop {
                         if self.get_stack().is_empty() {
                             break;
                         }
 
-                        // pop the stack until the last state is not the same on story and scene
-                        // to remove all sub-blocks on the same scene
+                        // pop the stack until the last state is not the same on story and paragraph
+                        // to remove all sub-blocks on the same paragraph
                         let last_state = self.get_stack().last().unwrap();
-                        if last_state.story == current_scene.story
-                            && last_state.scene == current_scene.scene
+                        if last_state.story == current_paragraph.story
+                            && last_state.paragraph == current_paragraph.paragraph
                         {
                             self.get_stack_mut().pop();
                         } else {
@@ -255,20 +257,20 @@ pub trait Runtime: RuntimeDataSource + RuntimeExecutor {
                         }
                     }
 
-                    let scene = self.get_scene(&story_name, &scene_name)?.clone();
+                    let paragraph = self.get_paragraph(&story_name, &paragraph_name)?.clone();
 
-                    self.get_stack_mut().push(SceneState::new(
+                    self.get_stack_mut().push(ParagraphState::new(
                         story_name,
-                        scene_name.to_string(),
-                        scene.block,
+                        paragraph_name.to_string(),
+                        paragraph.block,
                     ));
                 } else {
                     return Err(RuntimeError::WrongArgumentSystemCallLine(
-                        "Scene name not provided".to_string(),
+                        "Paragraph name not provided".to_string(),
                     ));
                 }
             }
-            // This method will push a new state with the story and scene name,
+            // This method will push a new state with the story and paragraph name,
             // once this new state is ended, it will return to the previous state
             "call" => {
                 let story_name = match systemcall_line.get_argument("story") {
@@ -285,30 +287,30 @@ pub trait Runtime: RuntimeDataSource + RuntimeExecutor {
                     None => self.get_current_state().unwrap().story.clone(),
                 };
 
-                if let Some(scene_name) = systemcall_line.get_argument("scene") {
-                    let scene_name = self.get_rvalue(scene_name)?.to_owned();
-                    let scene_name = if scene_name.is_string() {
-                        scene_name.to_string()
+                if let Some(paragraph_name) = systemcall_line.get_argument("paragraph") {
+                    let paragraph_name = self.get_rvalue(paragraph_name)?.to_owned();
+                    let paragraph_name = if paragraph_name.is_string() {
+                        paragraph_name.to_string()
                     } else {
                         return Err(RuntimeError::WrongArgumentSystemCallLine(
                             "Expected a string argument".to_string(),
                         ));
                     };
 
-                    let scene = self.get_scene(&story_name, &scene_name)?.clone();
+                    let paragraph = self.get_paragraph(&story_name, &paragraph_name)?.clone();
 
-                    self.get_stack_mut().push(SceneState::new(
+                    self.get_stack_mut().push(ParagraphState::new(
                         story_name,
-                        scene_name.to_string(),
-                        scene.block,
+                        paragraph_name.to_string(),
+                        paragraph.block,
                     ));
                 } else {
                     return Err(RuntimeError::WrongArgumentSystemCallLine(
-                        "Scene name not provided".to_string(),
+                        "Paragraph name not provided".to_string(),
                     ));
                 }
             }
-            // This method will quit the current scene and return to the previous one
+            // This method will quit the current paragraph and return to the previous one
             "break" => {
                 self.break_current_block()?;
             }

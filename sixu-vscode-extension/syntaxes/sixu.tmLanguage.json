@@ -7,7 +7,7 @@
 		{ "include": "#comment-single" },
 		{ "include": "#comment-multi" },
 		{ "include": "#attribute" },
-		{ "include": "#scene" }
+		{ "include": "#paragraph" }
 	],
 	"repository": {
 		"comment-single": {
@@ -59,8 +59,8 @@
 				}
 			]
 		},
-		"scene": {
-			"name": "meta.scene.sixu",
+		"paragraph": {
+			"name": "meta.paragraph.sixu",
 			"begin": "(::)([a-zA-Z_][a-zA-Z0-9_]*)\\s*(\\()?(.*?)(\\))?\\s*({)",
 			"end": "}",
 			"beginCaptures": {

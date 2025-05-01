@@ -6,13 +6,13 @@ use serde::{Deserialize, Serialize};
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct Story {
     pub filename: String,
-    pub scenes: Vec<Scene>,
+    pub paragraphs: Vec<Paragraph>,
 }
 
-/// The format represents the structure of a `scene` inside a `story`.
+/// The format represents the structure of a `paragraph` inside a `story`.
 #[derive(Debug, Default, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-pub struct Scene {
+pub struct Paragraph {
     pub name: String,
     pub parameters: Vec<Parameter>,
     /// root block
