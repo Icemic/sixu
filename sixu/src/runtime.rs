@@ -4,26 +4,63 @@ mod executor;
 mod state;
 
 pub use self::callback::*;
-pub use self::datasource::RuntimeDataSource;
+pub use self::datasource::RuntimeContext;
 pub use self::executor::RuntimeExecutor;
 pub use self::state::ExecutionState;
 
 use crate::error::{Result, RuntimeError};
 use crate::format::*;
 
-pub trait Runtime: RuntimeDataSource + RuntimeExecutor {
-    fn add_story(&mut self, story: Story) {
-        self.get_stories_mut().push(story);
+/// Runtime manages the execution context and executor together
+pub struct Runtime<E: RuntimeExecutor> {
+    context: RuntimeContext,
+    executor: E,
+}
+
+impl<E: RuntimeExecutor> Runtime<E> {
+    pub fn new(executor: E) -> Self {
+        Self {
+            context: RuntimeContext::new(),
+            executor,
+        }
     }
 
-    fn get_story(&self, name: &str) -> Result<&Story> {
-        self.get_stories()
+    pub fn new_with_context(executor: E, context: RuntimeContext) -> Self {
+        Self {
+            context,
+            executor,
+        }
+    }
+
+    pub fn context(&self) -> &RuntimeContext {
+        &self.context
+    }
+
+    pub fn context_mut(&mut self) -> &mut RuntimeContext {
+        &mut self.context
+    }
+
+    pub fn executor(&self) -> &E {
+        &self.executor
+    }
+
+    pub fn executor_mut(&mut self) -> &mut E {
+        &mut self.executor
+    }
+
+    pub fn add_story(&mut self, story: Story) {
+        self.context.stories_mut().push(story);
+    }
+
+    pub fn get_story(&self, name: &str) -> Result<&Story> {
+        self.context
+            .stories()
             .iter()
             .find(|s| s.name == name)
             .ok_or(RuntimeError::StoryNotFound(name.to_string()))
     }
 
-    fn get_paragraph(&self, story_name: &str, name: &str) -> Result<&Paragraph> {
+    pub fn get_paragraph(&self, story_name: &str, name: &str) -> Result<&Paragraph> {
         let story = self.get_story(story_name)?;
         story
             .paragraphs
@@ -32,26 +69,26 @@ pub trait Runtime: RuntimeDataSource + RuntimeExecutor {
             .ok_or(RuntimeError::ParagraphNotFound(name.to_string()))
     }
 
-    fn save(&self) -> Result<Vec<ExecutionState>> {
-        let stack = self.get_stack().clone();
+    pub fn save(&self) -> Result<Vec<ExecutionState>> {
+        let stack = self.context.stack().clone();
         Ok(stack)
     }
 
-    fn restore(&mut self, states: Vec<ExecutionState>) -> Result<()> {
-        *self.get_stack_mut() = states;
+    pub fn restore(&mut self, states: Vec<ExecutionState>) -> Result<()> {
+        *self.context.stack_mut() = states;
         Ok(())
     }
 
-    fn start(&mut self, story_name: &str) -> Result<()> {
-        if self.get_stories().is_empty() {
+    pub fn start(&mut self, story_name: &str) -> Result<()> {
+        if self.context.stories().is_empty() {
             return Err(RuntimeError::NoStory);
         }
 
-        let is_empty = self.get_stack().is_empty();
+        let is_empty = self.context.stack().is_empty();
         if is_empty {
             let paragraph = self.get_paragraph(story_name, "entry")?;
             let block = paragraph.block.clone();
-            self.get_stack_mut().push(ExecutionState::new(
+            self.context.stack_mut().push(ExecutionState::new(
                 story_name.to_string(),
                 "entry".to_string(),
                 block,
@@ -63,31 +100,31 @@ pub trait Runtime: RuntimeDataSource + RuntimeExecutor {
         Ok(())
     }
 
-    fn terminate(&mut self) -> Result<()> {
-        if self.get_stack().is_empty() {
+    pub fn terminate(&mut self) -> Result<()> {
+        if self.context.stack().is_empty() {
             return Err(RuntimeError::StoryNotStarted);
         }
 
-        self.get_stack_mut().clear();
-        self.finished();
+        self.context.stack_mut().clear();
+        self.executor.finished(&mut self.context);
 
         Ok(())
     }
 
-    fn get_current_state(&self) -> Result<&ExecutionState> {
-        self.get_stack().last().ok_or(RuntimeError::StoryNotStarted)
+    pub fn get_current_state(&self) -> Result<&ExecutionState> {
+        self.context.stack().last().ok_or(RuntimeError::StoryNotStarted)
     }
 
-    fn get_current_state_mut(&mut self) -> Result<&mut ExecutionState> {
-        self.get_stack_mut()
+    pub fn get_current_state_mut(&mut self) -> Result<&mut ExecutionState> {
+        self.context.stack_mut()
             .last_mut()
             .ok_or(RuntimeError::StoryNotStarted)
     }
 
-    fn break_current_block(&mut self) -> Result<()> {
-        if let Some(state) = self.get_stack_mut().pop() {
+    pub fn break_current_block(&mut self) -> Result<()> {
+        if let Some(state) = self.context.stack_mut().pop() {
             // if the stack is empty, try to load the next paragraph of the current story
-            if self.get_stack().is_empty() {
+            if self.context.stack().is_empty() {
                 if let Some(next_paragraph) = {
                     let story = self.get_story(&state.story)?;
                     let mut paragraph_iter = story.paragraphs.iter();
@@ -95,13 +132,13 @@ pub trait Runtime: RuntimeDataSource + RuntimeExecutor {
 
                     paragraph_iter.next().cloned()
                 } {
-                    self.get_stack_mut().push(ExecutionState::new(
+                    self.context.stack_mut().push(ExecutionState::new(
                         state.story.clone(),
                         next_paragraph.name,
                         next_paragraph.block,
                     ));
                 } else {
-                    self.finished();
+                    self.executor.finished(&mut self.context);
                 }
             }
 
@@ -113,7 +150,7 @@ pub trait Runtime: RuntimeDataSource + RuntimeExecutor {
         }
     }
 
-    fn next(&mut self) -> Result<()> {
+    pub fn next(&mut self) -> Result<()> {
         let current_state = self.get_current_state_mut()?;
 
         if let Some(child) = current_state.next_line() {
@@ -121,7 +158,7 @@ pub trait Runtime: RuntimeDataSource + RuntimeExecutor {
             match content {
                 ChildContent::Block(block) => {
                     let current_state = self.get_current_state()?.clone();
-                    self.get_stack_mut().push(ExecutionState::new(
+                    self.context.stack_mut().push(ExecutionState::new(
                         current_state.story,
                         current_state.paragraph,
                         block.clone(),
@@ -132,7 +169,7 @@ pub trait Runtime: RuntimeDataSource + RuntimeExecutor {
                         LeadingText::None => None,
                         LeadingText::Text(t) => Some(t),
                         LeadingText::TemplateLiteral(template_literal) => {
-                            let text = self.calculate_template_literal(&template_literal)?;
+                            let text = self.executor.calculate_template_literal(&self.context, &template_literal)?;
                             Some(text)
                         }
                     };
@@ -140,20 +177,20 @@ pub trait Runtime: RuntimeDataSource + RuntimeExecutor {
                         Text::None => None,
                         Text::Text(t) => Some(t),
                         Text::TemplateLiteral(template_literal) => {
-                            let text = self.calculate_template_literal(&template_literal)?;
+                            let text = self.executor.calculate_template_literal(&self.context, &template_literal)?;
                             Some(text)
                         }
                     };
-                    self.handle_text(leading.as_deref(), text.as_deref())?;
+                    self.executor.handle_text(&mut self.context, leading.as_deref(), text.as_deref())?;
                 }
                 ChildContent::CommandLine(command) => {
-                    self.handle_command(&command)?;
+                    self.executor.handle_command(&mut self.context, &command)?;
                 }
                 ChildContent::SystemCallLine(systemcall) => {
                     self.handle_system_call(&systemcall)?;
                 }
                 ChildContent::EmbeddedCode(script) => {
-                    self.eval_script(&script)?;
+                    self.executor.eval_script(&mut self.context, &script)?;
                 }
             }
         } else {
@@ -169,7 +206,7 @@ pub trait Runtime: RuntimeDataSource + RuntimeExecutor {
             "goto" => {
                 let story_name = match systemcall_line.get_argument("story") {
                     Some(v) => {
-                        let v = self.get_rvalue(v)?;
+                        let v = self.executor.get_rvalue(&self.context, v)?;
                         if v.is_string() {
                             v.to_string()
                         } else {
@@ -182,7 +219,7 @@ pub trait Runtime: RuntimeDataSource + RuntimeExecutor {
                 };
 
                 if let Some(paragraph_name) = systemcall_line.get_argument("paragraph") {
-                    let paragraph_name = self.get_rvalue(paragraph_name)?.to_owned();
+                    let paragraph_name = self.executor.get_rvalue(&self.context, paragraph_name)?.to_owned();
                     let paragraph_name = if paragraph_name.is_string() {
                         paragraph_name.to_string()
                     } else {
@@ -191,13 +228,13 @@ pub trait Runtime: RuntimeDataSource + RuntimeExecutor {
                         ));
                     };
 
-                    self.get_stack_mut().clear();
+                    self.context.stack_mut().clear();
 
                     let paragraph = self
-                        .get_paragraph(&paragraph_name, &paragraph_name)?
+                        .get_paragraph(&story_name, &paragraph_name)?
                         .clone();
 
-                    self.get_stack_mut().push(ExecutionState::new(
+                    self.context.stack_mut().push(ExecutionState::new(
                         story_name,
                         paragraph_name.to_string(),
                         paragraph.block,
@@ -213,7 +250,7 @@ pub trait Runtime: RuntimeDataSource + RuntimeExecutor {
             "replace" => {
                 let story_name = match systemcall_line.get_argument("story") {
                     Some(v) => {
-                        let v = self.get_rvalue(v)?;
+                        let v = self.executor.get_rvalue(&self.context, v)?;
                         if v.is_string() {
                             v.to_string()
                         } else {
@@ -226,7 +263,7 @@ pub trait Runtime: RuntimeDataSource + RuntimeExecutor {
                 };
 
                 if let Some(paragraph_name) = systemcall_line.get_argument("paragraph") {
-                    let paragraph_name = self.get_rvalue(paragraph_name)?.to_owned();
+                    let paragraph_name = self.executor.get_rvalue(&self.context, paragraph_name)?.to_owned();
                     let paragraph_name = if paragraph_name.is_string() {
                         paragraph_name.to_string()
                     } else {
@@ -235,23 +272,23 @@ pub trait Runtime: RuntimeDataSource + RuntimeExecutor {
                         ));
                     };
 
-                    let current_paragraph = self
-                        .get_stack_mut()
+                    let current_paragraph = self.context
+                        .stack_mut()
                         .pop()
                         .expect("No paragraph in stack to replace, this should not happen.");
 
                     loop {
-                        if self.get_stack().is_empty() {
+                        if self.context.stack().is_empty() {
                             break;
                         }
 
                         // pop the stack until the last state is not the same on story and paragraph
                         // to remove all sub-blocks on the same paragraph
-                        let last_state = self.get_stack().last().unwrap();
+                        let last_state = self.context.stack().last().unwrap();
                         if last_state.story == current_paragraph.story
                             && last_state.paragraph == current_paragraph.paragraph
                         {
-                            self.get_stack_mut().pop();
+                            self.context.stack_mut().pop();
                         } else {
                             break;
                         }
@@ -259,7 +296,7 @@ pub trait Runtime: RuntimeDataSource + RuntimeExecutor {
 
                     let paragraph = self.get_paragraph(&story_name, &paragraph_name)?.clone();
 
-                    self.get_stack_mut().push(ExecutionState::new(
+                    self.context.stack_mut().push(ExecutionState::new(
                         story_name,
                         paragraph_name.to_string(),
                         paragraph.block,
@@ -275,7 +312,7 @@ pub trait Runtime: RuntimeDataSource + RuntimeExecutor {
             "call" => {
                 let story_name = match systemcall_line.get_argument("story") {
                     Some(v) => {
-                        let v = self.get_rvalue(v)?;
+                        let v = self.executor.get_rvalue(&self.context, v)?;
                         if v.is_string() {
                             v.to_string()
                         } else {
@@ -288,7 +325,7 @@ pub trait Runtime: RuntimeDataSource + RuntimeExecutor {
                 };
 
                 if let Some(paragraph_name) = systemcall_line.get_argument("paragraph") {
-                    let paragraph_name = self.get_rvalue(paragraph_name)?.to_owned();
+                    let paragraph_name = self.executor.get_rvalue(&self.context, paragraph_name)?.to_owned();
                     let paragraph_name = if paragraph_name.is_string() {
                         paragraph_name.to_string()
                     } else {
@@ -299,7 +336,7 @@ pub trait Runtime: RuntimeDataSource + RuntimeExecutor {
 
                     let paragraph = self.get_paragraph(&story_name, &paragraph_name)?.clone();
 
-                    self.get_stack_mut().push(ExecutionState::new(
+                    self.context.stack_mut().push(ExecutionState::new(
                         story_name,
                         paragraph_name.to_string(),
                         paragraph.block,
@@ -315,16 +352,14 @@ pub trait Runtime: RuntimeDataSource + RuntimeExecutor {
                 self.break_current_block()?;
             }
             "finish" => {
-                self.get_stack_mut().clear();
-                self.finished();
+                self.context.stack_mut().clear();
+                self.executor.finished(&mut self.context);
             }
             _ => {
-                self.handle_extra_system_call(systemcall_line)?;
+                self.executor.handle_extra_system_call(&mut self.context, systemcall_line)?;
             }
         }
 
         Ok(())
     }
 }
-
-impl<T: RuntimeDataSource + RuntimeExecutor> Runtime for T {}
