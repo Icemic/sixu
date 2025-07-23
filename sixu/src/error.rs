@@ -1,4 +1,5 @@
 use nom_language::error::VerboseError;
+use serde_json::error;
 use thiserror::Error;
 
 pub type Result<T, E = RuntimeError> = std::result::Result<T, E>;
@@ -37,4 +38,7 @@ pub enum RuntimeError {
     NotAArray,
     #[error("Not an object")]
     NotAObject,
+
+    #[error("Other error: {0}")]
+    Anyhow(#[from] anyhow::Error),
 }
