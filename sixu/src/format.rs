@@ -1,5 +1,9 @@
+use std::collections::HashMap;
+
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
+
+use crate::error::{Result, RuntimeError};
 
 /// The format represents the structure of a `story`, which is commonly came from a single file.
 #[derive(Debug, Default, Clone, PartialEq)]
@@ -41,6 +45,8 @@ pub enum Literal {
     Integer(i64),
     Float(f64),
     Boolean(bool),
+    Array(Vec<Literal>),
+    Object(HashMap<String, Literal>),
 }
 
 impl Literal {
@@ -64,35 +70,106 @@ impl Literal {
         matches!(self, Literal::Boolean(_))
     }
 
-    pub fn as_string(&self) -> Option<&String> {
-        if let Primitive::String(ref s) = self {
-            Some(s)
+    pub fn is_array(&self) -> bool {
+        matches!(self, Literal::Array(_))
+    }
+
+    pub fn is_object(&self) -> bool {
+        matches!(self, Literal::Object(_))
+    }
+
+    pub fn as_string(&self) -> Result<&String> {
+        if let Literal::String(ref s) = self {
+            Ok(s)
         } else {
-            None
+            Err(RuntimeError::NotAString)
         }
     }
 
-    pub fn as_integer(&self) -> Option<&i64> {
-        if let Primitive::Integer(ref i) = self {
-            Some(i)
+    pub fn as_integer(&self) -> Result<&i64> {
+        if let Literal::Integer(ref i) = self {
+            Ok(i)
         } else {
-            None
+            Err(RuntimeError::NotAInteger)
         }
     }
 
-    pub fn as_float(&self) -> Option<&f64> {
-        if let Primitive::Float(ref f) = self {
-            Some(f)
+    pub fn as_float(&self) -> Result<&f64> {
+        if let Literal::Float(ref f) = self {
+            Ok(f)
         } else {
-            None
+            Err(RuntimeError::NotAFloat)
         }
     }
 
-    pub fn as_boolean(&self) -> Option<&bool> {
-        if let Primitive::Boolean(ref b) = self {
-            Some(b)
+    pub fn as_boolean(&self) -> Result<&bool> {
+        if let Literal::Boolean(ref b) = self {
+            Ok(b)
         } else {
-            None
+            Err(RuntimeError::NotABoolean)
+        }
+    }
+
+    pub fn as_array(&self) -> Result<&Vec<Literal>> {
+        if let Literal::Array(ref a) = self {
+            Ok(a)
+        } else {
+            Err(RuntimeError::NotAArray)
+        }
+    }
+
+    pub fn as_object(&self) -> Result<&HashMap<String, Literal>> {
+        if let Literal::Object(ref o) = self {
+            Ok(o)
+        } else {
+            Err(RuntimeError::NotAObject)
+        }
+    }
+    pub fn as_string_mut(&mut self) -> Result<&mut String> {
+        if let Literal::String(ref mut s) = self {
+            Ok(s)
+        } else {
+            Err(RuntimeError::NotAString)
+        }
+    }
+
+    pub fn as_integer_mut(&mut self) -> Result<&mut i64> {
+        if let Literal::Integer(ref mut i) = self {
+            Ok(i)
+        } else {
+            Err(RuntimeError::NotAInteger)
+        }
+    }
+
+    pub fn as_float_mut(&mut self) -> Result<&mut f64> {
+        if let Literal::Float(ref mut f) = self {
+            Ok(f)
+        } else {
+            Err(RuntimeError::NotAFloat)
+        }
+    }
+
+    pub fn as_boolean_mut(&mut self) -> Result<&mut bool> {
+        if let Literal::Boolean(ref mut b) = self {
+            Ok(b)
+        } else {
+            Err(RuntimeError::NotABoolean)
+        }
+    }
+
+    pub fn as_array_mut(&mut self) -> Result<&mut Vec<Literal>> {
+        if let Literal::Array(ref mut a) = self {
+            Ok(a)
+        } else {
+            Err(RuntimeError::NotAArray)
+        }
+    }
+
+    pub fn as_object_mut(&mut self) -> Result<&mut HashMap<String, Literal>> {
+        if let Literal::Object(ref mut o) = self {
+            Ok(o)
+        } else {
+            Err(RuntimeError::NotAObject)
         }
     }
 }
@@ -105,6 +182,60 @@ impl ToString for Literal {
             Literal::Integer(i) => i.to_string(),
             Literal::Float(f) => f.to_string(),
             Literal::Boolean(b) => b.to_string(),
+            Literal::Array(a) => {
+                let elements: Vec<String> = a.iter().map(|e| e.to_string()).collect();
+                format!("[{}]", elements.join(", "))
+            }
+            Literal::Object(o) => {
+                let entries: Vec<String> = o
+                    .iter()
+                    .map(|(k, v)| format!("\"{}\": {}", k, v.to_string()))
+                    .collect();
+                format!("{{{}}}", entries.join(", "))
+            }
+        }
+    }
+}
+
+#[cfg(feature = "serde")]
+impl From<Literal> for serde_json::Value {
+    fn from(val: Literal) -> Self {
+        match val {
+            Literal::Null => serde_json::Value::Null,
+            Literal::String(s) => serde_json::Value::String(s),
+            Literal::Integer(i) => serde_json::Value::Number(serde_json::Number::from(i)),
+            Literal::Float(f) => serde_json::Number::from_f64(f)
+                .map(serde_json::Value::Number)
+                .unwrap_or(serde_json::Value::Null),
+            Literal::Boolean(b) => serde_json::Value::Bool(b),
+            Literal::Array(a) => serde_json::Value::Array(a.into_iter().map(Into::into).collect()),
+            Literal::Object(o) => {
+                serde_json::Value::Object(o.into_iter().map(|(k, v)| (k, v.into())).collect())
+            }
+        }
+    }
+}
+
+#[cfg(feature = "serde")]
+impl From<serde_json::Value> for Literal {
+    fn from(val: serde_json::Value) -> Self {
+        match val {
+            serde_json::Value::Null => Literal::Null,
+            serde_json::Value::String(s) => Literal::String(s),
+            serde_json::Value::Number(n) => {
+                if let Some(i) = n.as_i64() {
+                    Literal::Integer(i)
+                } else if let Some(f) = n.as_f64() {
+                    Literal::Float(f)
+                } else {
+                    Literal::Null
+                }
+            }
+            serde_json::Value::Bool(b) => Literal::Boolean(b),
+            serde_json::Value::Array(a) => Literal::Array(a.into_iter().map(Into::into).collect()),
+            serde_json::Value::Object(o) => {
+                Literal::Object(o.into_iter().map(|(k, v)| (k, v.into())).collect())
+            }
         }
     }
 }
