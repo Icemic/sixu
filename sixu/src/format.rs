@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Default, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct Story {
-    pub filename: String,
+    pub name: String,
     pub paragraphs: Vec<Paragraph>,
 }
 

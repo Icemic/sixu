@@ -32,7 +32,7 @@ pub fn parse<'a>(name: &'a str, input: &'a str) -> ParseResult<&'a str, Story> {
     Ok((
         input,
         Story {
-            filename: name.to_string(),
+            name: name.to_string(),
             paragraphs,
         },
     ))

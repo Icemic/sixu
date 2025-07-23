@@ -19,7 +19,7 @@ pub trait Runtime: RuntimeDataSource + RuntimeExecutor {
     fn get_story(&self, name: &str) -> Result<&Story> {
         self.get_stories()
             .iter()
-            .find(|s| s.filename == name)
+            .find(|s| s.name == name)
             .ok_or(RuntimeError::StoryNotFound(name.to_string()))
     }
 
