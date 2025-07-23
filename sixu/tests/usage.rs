@@ -165,6 +165,7 @@ impl RuntimeExecutor for SampleExecutor {
     }
 
     fn finished(&mut self, _ctx: &mut RuntimeContext) {
+        println!("Finished execution");
         assert_eq!(self.last_value, 1023, "last value should be 1023");
     }
 }
@@ -188,24 +189,7 @@ impl Sample {
 
         // Find the entry paragraph and set up initial execution state
         // We need to clone the block to avoid borrow conflicts
-        let entry_block = {
-            let stories = self.runtime.context().stories();
-            let entry_paragraph = stories[0]
-                .paragraphs
-                .iter()
-                .find(|p| p.name == "entry")
-                .expect("Entry paragraph not found");
-            entry_paragraph.block.clone()
-        };
-
-        self.runtime
-            .context_mut()
-            .stack_mut()
-            .push(ExecutionState::new(
-                "test".to_string(),
-                "entry".to_string(),
-                entry_block,
-            ));
+        self.runtime.start("test").unwrap();
     }
 
     pub fn next(&mut self) -> sixu::error::Result<()> {
