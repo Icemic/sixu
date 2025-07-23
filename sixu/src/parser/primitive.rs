@@ -9,13 +9,13 @@ use nom::Parser;
 
 use crate::result::ParseResult;
 
-use super::Primitive;
+use super::Literal;
 
-pub fn primitive(input: &str) -> ParseResult<&str, Primitive> {
+pub fn primitive(input: &str) -> ParseResult<&str, Literal> {
     context("primitive", alt((string, number, boolean))).parse(input)
 }
 
-pub fn string(input: &str) -> ParseResult<&str, Primitive> {
+pub fn string(input: &str) -> ParseResult<&str, Literal> {
     let (input, s) = context(
         "string",
         alt((
@@ -24,11 +24,11 @@ pub fn string(input: &str) -> ParseResult<&str, Primitive> {
         )),
     )
     .parse(input)?;
-    Ok((input, Primitive::String(s.to_string())))
+    Ok((input, Literal::String(s.to_string())))
 }
 
 // all integer, which should not start with 0
-pub fn number(input: &str) -> ParseResult<&str, Primitive> {
+pub fn number(input: &str) -> ParseResult<&str, Literal> {
     // let (input, n) = recognize(many1(terminated(digit1, many0(char('_'))))).parse.parse(input)?;
     let (input, n) = context(
         "number",
@@ -46,16 +46,16 @@ pub fn number(input: &str) -> ParseResult<&str, Primitive> {
         ),
     )
     .parse(input)?;
-    Ok((input, Primitive::Integer(n)))
+    Ok((input, Literal::Integer(n)))
 }
 
-pub fn boolean(input: &str) -> ParseResult<&str, Primitive> {
+pub fn boolean(input: &str) -> ParseResult<&str, Literal> {
     let (input, b) = context(
         "boolean",
         alt((value(true, tag("true")), value(false, tag("false")))),
     )
     .parse(input)?;
-    Ok((input, Primitive::Boolean(b)))
+    Ok((input, Literal::Boolean(b)))
 }
 
 #[cfg(test)]
@@ -67,16 +67,16 @@ mod tests {
 
     #[test]
     fn test_primitive() {
-        assert_eq!(primitive("true"), Ok(("", Primitive::Boolean(true))));
-        assert_eq!(primitive("false"), Ok(("", Primitive::Boolean(false))));
-        assert_eq!(primitive("123"), Ok(("", Primitive::Integer(123))));
-        assert_eq!(primitive("+123"), Ok(("", Primitive::Integer(123))));
-        assert_eq!(primitive("-123"), Ok(("", Primitive::Integer(-123))));
-        assert_eq!(primitive("0123"), Ok(("", Primitive::Integer(123))));
-        assert_eq!(primitive("123_456"), Ok(("", Primitive::Integer(123456))));
+        assert_eq!(primitive("true"), Ok(("", Literal::Boolean(true))));
+        assert_eq!(primitive("false"), Ok(("", Literal::Boolean(false))));
+        assert_eq!(primitive("123"), Ok(("", Literal::Integer(123))));
+        assert_eq!(primitive("+123"), Ok(("", Literal::Integer(123))));
+        assert_eq!(primitive("-123"), Ok(("", Literal::Integer(-123))));
+        assert_eq!(primitive("0123"), Ok(("", Literal::Integer(123))));
+        assert_eq!(primitive("123_456"), Ok(("", Literal::Integer(123456))));
         assert_eq!(
             primitive("123_456_789_"),
-            Ok(("", Primitive::Integer(123456789)))
+            Ok(("", Literal::Integer(123456789)))
         );
         assert_eq!(
             primitive("_123"),
@@ -92,11 +92,11 @@ mod tests {
         );
         assert_eq!(
             primitive("\"hello\""),
-            Ok(("", Primitive::String("hello".to_string())))
+            Ok(("", Literal::String("hello".to_string())))
         );
         assert_eq!(
             primitive("'hello'"),
-            Ok(("", Primitive::String("hello".to_string())))
+            Ok(("", Literal::String("hello".to_string())))
         );
     }
 }

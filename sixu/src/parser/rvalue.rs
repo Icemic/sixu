@@ -15,7 +15,7 @@ pub fn rvalue(input: &str) -> ParseResult<&str, RValue> {
 
 pub fn primitive_value(input: &str) -> ParseResult<&str, RValue> {
     let (input, p) = primitive.parse(input)?;
-    Ok((input, RValue::Primitive(p)))
+    Ok((input, RValue::Literal(p)))
 }
 
 pub fn variable_value(input: &str) -> ParseResult<&str, RValue> {
@@ -25,7 +25,7 @@ pub fn variable_value(input: &str) -> ParseResult<&str, RValue> {
 
 #[cfg(test)]
 mod tests {
-    use crate::format::{Primitive, RValue, Variable};
+    use crate::format::{Literal, RValue, Variable};
 
     use super::*;
 
@@ -33,7 +33,7 @@ mod tests {
     fn test_rvalue() {
         assert_eq!(
             rvalue("1"),
-            Ok(("", RValue::Primitive(Primitive::Integer(1))))
+            Ok(("", RValue::Literal(Literal::Integer(1))))
         );
         assert_eq!(
             rvalue("a"),

@@ -75,7 +75,7 @@ pub fn embedded_code_hash(input: &str) -> ParseResult<&str, ChildContent> {
 #[cfg(test)]
 mod tests {
     use crate::format::{
-        Argument, Attribute, ChildContent, CommandLine, LeadingText, Primitive, RValue,
+        Argument, Attribute, ChildContent, CommandLine, LeadingText, Literal, RValue,
         SystemCallLine, TemplateLiteral, TemplateLiteralPart, Text, Variable,
     };
 
@@ -97,7 +97,7 @@ mod tests {
                             flags: vec![],
                             arguments: vec![Argument {
                                 name: "foo".to_string(),
-                                value: Some(RValue::Primitive(Primitive::Boolean(false))),
+                                value: Some(RValue::Literal(Literal::Boolean(false))),
                             }],
                         }),
                     }],
@@ -117,7 +117,7 @@ mod tests {
                                 flags: vec![],
                                 arguments: vec![Argument {
                                     name: "foo".to_string(),
-                                    value: Some(RValue::Primitive(Primitive::Boolean(false))),
+                                    value: Some(RValue::Literal(Literal::Boolean(false))),
                                 }],
                             }),
                         },
@@ -144,7 +144,7 @@ mod tests {
                                 command: "command".to_string(),
                                 arguments: vec![Argument {
                                     name: "foo".to_string(),
-                                    value: Some(RValue::Primitive(Primitive::Boolean(false))),
+                                    value: Some(RValue::Literal(Literal::Boolean(false))),
                                 }],
                             }),
                         },
@@ -173,7 +173,7 @@ mod tests {
                                 flags: vec![],
                                 arguments: vec![Argument {
                                     name: "foo".to_string(),
-                                    value: Some(RValue::Primitive(Primitive::Boolean(false))),
+                                    value: Some(RValue::Literal(Literal::Boolean(false))),
                                 }],
                             }),
                         },
@@ -194,7 +194,7 @@ mod tests {
                                         flags: vec![],
                                         arguments: vec![Argument {
                                             name: "bar".to_string(),
-                                            value: Some(RValue::Primitive(Primitive::Boolean(
+                                            value: Some(RValue::Literal(Literal::Boolean(
                                                 true
                                             ))),
                                         }],
@@ -376,8 +376,8 @@ mod tests {
                                             chain: vec!["world".to_string()],
                                         })),
                                         TemplateLiteralPart::Text(" ".to_string()),
-                                        TemplateLiteralPart::Value(RValue::Primitive(
-                                            Primitive::Integer(123)
+                                        TemplateLiteralPart::Value(RValue::Literal(
+                                            Literal::Integer(123)
                                         )),
                                         TemplateLiteralPart::Text(" world".to_string()),
                                     ],
@@ -391,7 +391,7 @@ mod tests {
                                 flags: vec![],
                                 arguments: vec![Argument {
                                     name: "foo".to_string(),
-                                    value: Some(RValue::Primitive(Primitive::Boolean(false))),
+                                    value: Some(RValue::Literal(Literal::Boolean(false))),
                                 }],
                             }),
                         }

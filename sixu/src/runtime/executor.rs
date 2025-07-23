@@ -37,7 +37,7 @@ pub trait RuntimeExecutor: Send + Sync {
 
     fn get_rvalue<'a>(&self, value: &'a RValue) -> Result<&'a Primitive> {
         match value {
-            RValue::Primitive(s) => Ok(s),
+            RValue::Literal(s) => Ok(s),
             RValue::Variable(v) => self.get_variable(v),
         }
     }

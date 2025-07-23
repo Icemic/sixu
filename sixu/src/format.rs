@@ -23,7 +23,7 @@ pub struct Paragraph {
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct Parameter {
     pub name: String,
-    pub default_value: Option<Primitive>,
+    pub default_value: Option<Literal>,
 }
 
 #[derive(Debug, Default, Clone, PartialEq)]
@@ -35,28 +35,33 @@ pub struct Argument {
 
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-pub enum Primitive {
+pub enum Literal {
+    Null,
     String(String),
     Integer(i64),
     Float(f64),
     Boolean(bool),
 }
 
-impl Primitive {
+impl Literal {
+    pub fn is_null(&self) -> bool {
+        matches!(self, Literal::Null)
+    }
+
     pub fn is_string(&self) -> bool {
-        matches!(self, Primitive::String(_))
+        matches!(self, Literal::String(_))
     }
 
     pub fn is_integer(&self) -> bool {
-        matches!(self, Primitive::Integer(_))
+        matches!(self, Literal::Integer(_))
     }
 
     pub fn is_float(&self) -> bool {
-        matches!(self, Primitive::Float(_))
+        matches!(self, Literal::Float(_))
     }
 
     pub fn is_boolean(&self) -> bool {
-        matches!(self, Primitive::Boolean(_))
+        matches!(self, Literal::Boolean(_))
     }
 
     pub fn as_string(&self) -> Option<&String> {
@@ -92,13 +97,14 @@ impl Primitive {
     }
 }
 
-impl ToString for Primitive {
+impl ToString for Literal {
     fn to_string(&self) -> String {
         match self {
-            Primitive::String(s) => s.clone(),
-            Primitive::Integer(i) => i.to_string(),
-            Primitive::Float(f) => f.to_string(),
-            Primitive::Boolean(b) => b.to_string(),
+            Literal::Null => "null".to_string(),
+            Literal::String(s) => s.clone(),
+            Literal::Integer(i) => i.to_string(),
+            Literal::Float(f) => f.to_string(),
+            Literal::Boolean(b) => b.to_string(),
         }
     }
 }
@@ -112,7 +118,7 @@ pub struct Variable {
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum RValue {
-    Primitive(Primitive),
+    Literal(Literal),
     Variable(Variable),
 }
 

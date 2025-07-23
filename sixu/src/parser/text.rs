@@ -183,7 +183,7 @@ where
 
 #[cfg(test)]
 mod tests {
-    use crate::format::{Primitive, RValue, TemplateLiteralPart, Text, Variable};
+    use crate::format::{Literal, RValue, TemplateLiteralPart, Text, Variable};
 
     use super::*;
 
@@ -381,7 +381,7 @@ mod tests {
                             chain: vec!["world".to_string()],
                         })),
                         TemplateLiteralPart::Text(" ".to_string()),
-                        TemplateLiteralPart::Value(RValue::Primitive(Primitive::Integer(123))),
+                        TemplateLiteralPart::Value(RValue::Literal(Literal::Integer(123))),
                         TemplateLiteralPart::Text(" world".to_string()),
                     ],
                 })

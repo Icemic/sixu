@@ -58,7 +58,7 @@ pub fn template_literal(input: &str) -> ParseResult<&str, TemplateLiteral> {
 
 #[cfg(test)]
 mod tests {
-    use crate::format::{Primitive, RValue, Variable};
+    use crate::format::{Literal, RValue, Variable};
 
     use super::*;
 
@@ -74,7 +74,7 @@ mod tests {
                 RValue::Variable(Variable {
                     chain: vec!["world".to_string()],
                 }),
-                RValue::Primitive(Primitive::Integer(123)),
+                RValue::Literal(Literal::Integer(123)),
             ]
         );
     }

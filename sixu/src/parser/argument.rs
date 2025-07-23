@@ -47,7 +47,7 @@ pub fn argument(input: &str) -> ParseResult<&str, Argument> {
 
 #[cfg(test)]
 mod tests {
-    use crate::format::{Primitive, RValue, Variable};
+    use crate::format::{Literal, RValue, Variable};
 
     use super::*;
 
@@ -69,7 +69,7 @@ mod tests {
                 "",
                 Argument {
                     name: "a".to_string(),
-                    value: Some(RValue::Primitive(Primitive::Integer(1))),
+                    value: Some(RValue::Literal(Literal::Integer(1))),
                 }
             ))
         );
@@ -79,7 +79,7 @@ mod tests {
                 " ",
                 Argument {
                     name: "a".to_string(),
-                    value: Some(RValue::Primitive(Primitive::Integer(1))),
+                    value: Some(RValue::Literal(Literal::Integer(1))),
                 }
             ))
         );
@@ -89,7 +89,7 @@ mod tests {
                 " ",
                 Argument {
                     name: "foo".to_string(),
-                    value: Some(RValue::Primitive(Primitive::String("bar".to_string()))),
+                    value: Some(RValue::Literal(Literal::String("bar".to_string()))),
                 }
             ))
         );
@@ -114,7 +114,7 @@ mod tests {
                 "",
                 vec![Argument {
                     name: "a".to_string(),
-                    value: Some(RValue::Primitive(Primitive::Integer(1))),
+                    value: Some(RValue::Literal(Literal::Integer(1))),
                 }]
             ))
         );
@@ -125,11 +125,11 @@ mod tests {
                 vec![
                     Argument {
                         name: "a".to_string(),
-                        value: Some(RValue::Primitive(Primitive::Integer(1))),
+                        value: Some(RValue::Literal(Literal::Integer(1))),
                     },
                     Argument {
                         name: "b".to_string(),
-                        value: Some(RValue::Primitive(Primitive::String("aa".to_string()))),
+                        value: Some(RValue::Literal(Literal::String("aa".to_string()))),
                     }
                 ]
             ))
@@ -143,7 +143,7 @@ mod tests {
                 "",
                 vec![Argument {
                     name: "a".to_string(),
-                    value: Some(RValue::Primitive(Primitive::Integer(1))),
+                    value: Some(RValue::Literal(Literal::Integer(1))),
                 }]
             ))
         );
@@ -154,11 +154,11 @@ mod tests {
                 vec![
                     Argument {
                         name: "a".to_string(),
-                        value: Some(RValue::Primitive(Primitive::Integer(1))),
+                        value: Some(RValue::Literal(Literal::Integer(1))),
                     },
                     Argument {
                         name: "b".to_string(),
-                        value: Some(RValue::Primitive(Primitive::String("aa".to_string()))),
+                        value: Some(RValue::Literal(Literal::String("aa".to_string()))),
                     }
                 ]
             ))

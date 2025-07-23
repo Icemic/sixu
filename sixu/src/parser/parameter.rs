@@ -40,7 +40,7 @@ pub fn parameter(input: &str) -> ParseResult<&str, Parameter> {
 
 #[cfg(test)]
 mod tests {
-    use crate::format::Primitive;
+    use crate::format::Literal;
 
     use super::*;
 
@@ -99,7 +99,7 @@ mod tests {
                 "",
                 vec![Parameter {
                     name: "a".to_string(),
-                    default_value: Some(Primitive::Integer(1)),
+                    default_value: Some(Literal::Integer(1)),
                 }]
             ))
         );
@@ -110,11 +110,11 @@ mod tests {
                 vec![
                     Parameter {
                         name: "a".to_string(),
-                        default_value: Some(Primitive::Integer(1)),
+                        default_value: Some(Literal::Integer(1)),
                     },
                     Parameter {
                         name: "b".to_string(),
-                        default_value: Some(Primitive::String("2".to_string())),
+                        default_value: Some(Literal::String("2".to_string())),
                     },
                 ]
             ))
@@ -126,11 +126,11 @@ mod tests {
                 vec![
                     Parameter {
                         name: "a".to_string(),
-                        default_value: Some(Primitive::Integer(1)),
+                        default_value: Some(Literal::Integer(1)),
                     },
                     Parameter {
                         name: "b".to_string(),
-                        default_value: Some(Primitive::String("2".to_string())),
+                        default_value: Some(Literal::String("2".to_string())),
                     },
                 ]
             ))
@@ -142,7 +142,7 @@ mod tests {
                 vec![
                     Parameter {
                         name: "a".to_string(),
-                        default_value: Some(Primitive::Integer(1)),
+                        default_value: Some(Literal::Integer(1)),
                     },
                     Parameter {
                         name: "_c".to_string(),
@@ -150,7 +150,7 @@ mod tests {
                     },
                     Parameter {
                         name: "b".to_string(),
-                        default_value: Some(Primitive::String("2".to_string())),
+                        default_value: Some(Literal::String("2".to_string())),
                     },
                 ]
             ))
@@ -165,7 +165,7 @@ mod tests {
                 vec![
                     Parameter {
                         name: "a".to_string(),
-                        default_value: Some(Primitive::Integer(1)),
+                        default_value: Some(Literal::Integer(1)),
                     },
                     Parameter {
                         name: "_c".to_string(),
@@ -173,7 +173,7 @@ mod tests {
                     },
                     Parameter {
                         name: "b".to_string(),
-                        default_value: Some(Primitive::String("2".to_string())),
+                        default_value: Some(Literal::String("2".to_string())),
                     },
                 ]
             ))
