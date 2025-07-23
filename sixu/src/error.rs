@@ -1,5 +1,4 @@
 use nom_language::error::VerboseError;
-use serde_json::error;
 use thiserror::Error;
 
 pub type Result<T, E = RuntimeError> = std::result::Result<T, E>;
