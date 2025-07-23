@@ -24,4 +24,17 @@ pub enum RuntimeError {
 
     #[error("Parse error: {0}")]
     ParseError(#[from] VerboseError<&'static str>),
+
+    #[error("Not a string")]
+    NotAString,
+    #[error("Not an integer")]
+    NotAInteger,
+    #[error("Not a float")]
+    NotAFloat,
+    #[error("Not a boolean")]
+    NotABoolean,
+    #[error("Not an array")]
+    NotAArray,
+    #[error("Not an object")]
+    NotAObject,
 }
