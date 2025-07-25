@@ -26,10 +26,7 @@ impl<E: RuntimeExecutor> Runtime<E> {
     }
 
     pub fn new_with_context(executor: E, context: RuntimeContext) -> Self {
-        Self {
-            context,
-            executor,
-        }
+        Self { context, executor }
     }
 
     pub fn context(&self) -> &RuntimeContext {
@@ -116,11 +113,15 @@ impl<E: RuntimeExecutor> Runtime<E> {
     }
 
     pub fn get_current_state(&self) -> Result<&ExecutionState> {
-        self.context.stack().last().ok_or(RuntimeError::StoryNotStarted)
+        self.context
+            .stack()
+            .last()
+            .ok_or(RuntimeError::StoryNotStarted)
     }
 
     pub fn get_current_state_mut(&mut self) -> Result<&mut ExecutionState> {
-        self.context.stack_mut()
+        self.context
+            .stack_mut()
             .last_mut()
             .ok_or(RuntimeError::StoryNotStarted)
     }
@@ -173,7 +174,9 @@ impl<E: RuntimeExecutor> Runtime<E> {
                         LeadingText::None => None,
                         LeadingText::Text(t) => Some(t),
                         LeadingText::TemplateLiteral(template_literal) => {
-                            let text = self.executor.calculate_template_literal(&self.context, &template_literal)?;
+                            let text = self
+                                .executor
+                                .calculate_template_literal(&self.context, &template_literal)?;
                             Some(text)
                         }
                     };
@@ -181,11 +184,17 @@ impl<E: RuntimeExecutor> Runtime<E> {
                         Text::None => None,
                         Text::Text(t) => Some(t),
                         Text::TemplateLiteral(template_literal) => {
-                            let text = self.executor.calculate_template_literal(&self.context, &template_literal)?;
+                            let text = self
+                                .executor
+                                .calculate_template_literal(&self.context, &template_literal)?;
                             Some(text)
                         }
                     };
-                    self.executor.handle_text(&mut self.context, leading.as_deref(), text.as_deref())?;
+                    self.executor.handle_text(
+                        &mut self.context,
+                        leading.as_deref(),
+                        text.as_deref(),
+                    )?;
                 }
                 ChildContent::CommandLine(command) => {
                     self.executor.handle_command(&mut self.context, &command)?;
@@ -223,7 +232,10 @@ impl<E: RuntimeExecutor> Runtime<E> {
                 };
 
                 if let Some(paragraph_name) = systemcall_line.get_argument("paragraph") {
-                    let paragraph_name = self.executor.get_rvalue(&self.context, paragraph_name)?.to_owned();
+                    let paragraph_name = self
+                        .executor
+                        .get_rvalue(&self.context, paragraph_name)?
+                        .to_owned();
                     let paragraph_name = if paragraph_name.is_string() {
                         paragraph_name.to_string()
                     } else {
@@ -234,9 +246,7 @@ impl<E: RuntimeExecutor> Runtime<E> {
 
                     self.context.stack_mut().clear();
 
-                    let paragraph = self
-                        .get_paragraph(&story_name, &paragraph_name)?
-                        .clone();
+                    let paragraph = self.get_paragraph(&story_name, &paragraph_name)?.clone();
 
                     self.context.stack_mut().push(ExecutionState::new(
                         story_name,
@@ -267,7 +277,10 @@ impl<E: RuntimeExecutor> Runtime<E> {
                 };
 
                 if let Some(paragraph_name) = systemcall_line.get_argument("paragraph") {
-                    let paragraph_name = self.executor.get_rvalue(&self.context, paragraph_name)?.to_owned();
+                    let paragraph_name = self
+                        .executor
+                        .get_rvalue(&self.context, paragraph_name)?
+                        .to_owned();
                     let paragraph_name = if paragraph_name.is_string() {
                         paragraph_name.to_string()
                     } else {
@@ -276,7 +289,8 @@ impl<E: RuntimeExecutor> Runtime<E> {
                         ));
                     };
 
-                    let current_paragraph = self.context
+                    let current_paragraph = self
+                        .context
                         .stack_mut()
                         .pop()
                         .expect("No paragraph in stack to replace, this should not happen.");
@@ -329,7 +343,10 @@ impl<E: RuntimeExecutor> Runtime<E> {
                 };
 
                 if let Some(paragraph_name) = systemcall_line.get_argument("paragraph") {
-                    let paragraph_name = self.executor.get_rvalue(&self.context, paragraph_name)?.to_owned();
+                    let paragraph_name = self
+                        .executor
+                        .get_rvalue(&self.context, paragraph_name)?
+                        .to_owned();
                     let paragraph_name = if paragraph_name.is_string() {
                         paragraph_name.to_string()
                     } else {
@@ -360,7 +377,8 @@ impl<E: RuntimeExecutor> Runtime<E> {
                 self.executor.finished(&mut self.context);
             }
             _ => {
-                self.executor.handle_extra_system_call(&mut self.context, systemcall_line)?;
+                self.executor
+                    .handle_extra_system_call(&mut self.context, systemcall_line)?;
             }
         }
 
