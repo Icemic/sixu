@@ -106,6 +106,10 @@ impl<E: RuntimeExecutor> Runtime<E> {
         }
 
         self.context.stack_mut().clear();
+        self.context
+            .archive_variables_mut()
+            .as_object_mut()?
+            .clear();
         self.executor.finished(&mut self.context);
 
         Ok(())
