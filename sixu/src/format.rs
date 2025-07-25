@@ -39,6 +39,7 @@ pub struct Argument {
 
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serde", serde(untagged))]
 pub enum Literal {
     Null,
     String(String),
