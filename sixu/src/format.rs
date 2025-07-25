@@ -25,6 +25,7 @@ pub struct Paragraph {
 
 #[derive(Debug, Default, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
 pub struct Parameter {
     pub name: String,
     pub default_value: Option<Literal>,
@@ -32,6 +33,7 @@ pub struct Parameter {
 
 #[derive(Debug, Default, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
 pub struct Argument {
     pub name: String,
     pub value: Option<RValue>,
@@ -249,6 +251,7 @@ pub struct Variable {
 
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serde", serde(untagged))]
 pub enum RValue {
     Literal(Literal),
     Variable(Variable),
