@@ -111,15 +111,15 @@ pub fn array(input: &str) -> ParseResult<&str, Literal> {
     let (input, elements) = context(
         "array",
         delimited(
-            preceded(tag("["), multispace0),
+            preceded(tag("["), span0_inline),
             terminated(
                 separated_list0(
-                    delimited(multispace0, tag(","), multispace0),
-                    preceded(multispace0, primitive),
+                    delimited(span0_inline, tag(","), span0_inline),
+                    preceded(span0_inline, primitive),
                 ),
-                opt(preceded(multispace0, tag(","))),
+                opt(preceded(span0_inline, tag(","))),
             ),
-            preceded(multispace0, tag("]")),
+            preceded(span0_inline, tag("]")),
         ),
     )
     .parse(input)?;
