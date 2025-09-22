@@ -12,7 +12,7 @@ use crate::result::ParseResult;
 use super::Literal;
 
 pub fn primitive(input: &str) -> ParseResult<&str, Literal> {
-    context("primitive", alt((string, number, boolean))).parse(input)
+    context("primitive", alt((string, float, number, boolean))).parse(input)
 }
 
 pub fn string(input: &str) -> ParseResult<&str, Literal> {
@@ -49,6 +49,39 @@ pub fn number(input: &str) -> ParseResult<&str, Literal> {
     Ok((input, Literal::Integer(n)))
 }
 
+// float numbers, supports various formats like 123., 123.0, -123.123, 0.111
+pub fn float(input: &str) -> ParseResult<&str, Literal> {
+    let (input, f) = context(
+        "float",
+        map_res(
+            (
+                opt(alt((tag("-"), tag("+")))),
+                alt((
+                    // Format: 123.456 or 123.
+                    recognize((
+                        recognize(many1(terminated(digit1, many0(char('_'))))),
+                        tag("."),
+                        opt(recognize(many1(terminated(digit1, many0(char('_')))))),
+                    )),
+                    // Format: .123
+                    recognize((
+                        tag("."),
+                        recognize(many1(terminated(digit1, many0(char('_'))))),
+                    )),
+                )),
+            ),
+            |(sign, value)| {
+                let value = &str::replace(value, "_", "");
+                value
+                    .parse::<f64>()
+                    .map(|n| if sign == Some("-") { -n } else { n })
+            },
+        ),
+    )
+    .parse(input)?;
+    Ok((input, Literal::Float(f)))
+}
+
 pub fn boolean(input: &str) -> ParseResult<&str, Literal> {
     let (input, b) = context(
         "boolean",
@@ -78,6 +111,16 @@ mod tests {
             primitive("123_456_789_"),
             Ok(("", Literal::Integer(123456789)))
         );
+        assert_eq!(primitive("123."), Ok(("", Literal::Float(123.))));
+        assert_eq!(primitive("123.0"), Ok(("", Literal::Float(123.0))));
+        assert_eq!(primitive("123.456"), Ok(("", Literal::Float(123.456))));
+        assert_eq!(primitive("-123.123"), Ok(("", Literal::Float(-123.123))));
+        assert_eq!(primitive("+123.456"), Ok(("", Literal::Float(123.456))));
+        assert_eq!(primitive("0.111"), Ok(("", Literal::Float(0.111))));
+        assert_eq!(primitive(".123"), Ok(("", Literal::Float(0.123))));
+        assert_eq!(primitive("-.456"), Ok(("", Literal::Float(-0.456))));
+        assert_eq!(primitive("12_3.45_6"), Ok(("", Literal::Float(123.456))));
+        assert_eq!(primitive("0."), Ok(("", Literal::Float(0.))));
         assert_eq!(
             primitive("_123"),
             Err(Err::Error(VerboseError {
