@@ -12,7 +12,7 @@ use crate::result::ParseResult;
 use super::Literal;
 
 pub fn primitive(input: &str) -> ParseResult<&str, Literal> {
-    context("primitive", alt((string, float, integer, boolean))).parse(input)
+    context("primitive", alt((string, float, integer, boolean, array))).parse(input)
 }
 
 pub fn string(input: &str) -> ParseResult<&str, Literal> {
@@ -103,6 +103,26 @@ pub fn boolean(input: &str) -> ParseResult<&str, Literal> {
     Ok((input, Literal::Boolean(b)))
 }
 
+// array of primitives, supports nesting
+pub fn array(input: &str) -> ParseResult<&str, Literal> {
+    let (input, elements) = context(
+        "array",
+        delimited(
+            preceded(tag("["), multispace0),
+            terminated(
+                separated_list0(
+                    delimited(multispace0, tag(","), multispace0),
+                    preceded(multispace0, primitive),
+                ),
+                opt(preceded(multispace0, tag(","))),
+            ),
+            preceded(multispace0, tag("]")),
+        ),
+    )
+    .parse(input)?;
+    Ok((input, Literal::Array(elements)))
+}
+
 #[cfg(test)]
 mod tests {
     use nom::Err;
@@ -141,13 +161,73 @@ mod tests {
         assert_eq!(primitive("-.456"), Ok(("", Literal::Float(-0.456))));
         assert_eq!(primitive("12_3.45_6"), Ok(("", Literal::Float(123.456))));
         assert_eq!(primitive("0."), Ok(("", Literal::Float(0.))));
+        // Array tests
+        assert_eq!(primitive("[]"), Ok(("", Literal::Array(vec![]))));
+        assert_eq!(
+            primitive("[1]"),
+            Ok(("", Literal::Array(vec![Literal::Integer(1)])))
+        );
+        assert_eq!(
+            primitive("[1, 2.0, 3]"),
+            Ok((
+                "",
+                Literal::Array(vec![
+                    Literal::Integer(1),
+                    Literal::Float(2.0),
+                    Literal::Integer(3)
+                ])
+            ))
+        );
+        assert_eq!(
+            primitive("[1, \"hello\", true]"),
+            Ok((
+                "",
+                Literal::Array(vec![
+                    Literal::Integer(1),
+                    Literal::String("hello".to_string()),
+                    Literal::Boolean(true)
+                ])
+            ))
+        );
+        assert_eq!(
+            primitive("[1, [2, 3], 4]"),
+            Ok((
+                "",
+                Literal::Array(vec![
+                    Literal::Integer(1),
+                    Literal::Array(vec![Literal::Integer(2), Literal::Integer(3)]),
+                    Literal::Integer(4)
+                ])
+            ))
+        );
+        assert_eq!(
+            primitive("[1, 2, 3,]"),
+            Ok((
+                "",
+                Literal::Array(vec![
+                    Literal::Integer(1),
+                    Literal::Integer(2),
+                    Literal::Integer(3)
+                ])
+            ))
+        );
+        assert_eq!(
+            primitive("[ 1 , 2 , 3 ]"),
+            Ok((
+                "",
+                Literal::Array(vec![
+                    Literal::Integer(1),
+                    Literal::Integer(2),
+                    Literal::Integer(3)
+                ])
+            ))
+        );
         assert_eq!(
             primitive("_123"),
             Err(Err::Error(VerboseError {
                 errors: vec![
                     ("_123", VerboseErrorKind::Nom(nom::error::ErrorKind::Tag)),
-                    ("_123", VerboseErrorKind::Nom(nom::error::ErrorKind::Alt)),
-                    ("_123", VerboseErrorKind::Context("boolean")),
+                    ("_123", VerboseErrorKind::Context("array")),
                     ("_123", VerboseErrorKind::Nom(nom::error::ErrorKind::Alt)),
                     ("_123", VerboseErrorKind::Context("primitive"))
                 ]
