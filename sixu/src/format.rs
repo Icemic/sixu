@@ -105,6 +105,14 @@ impl Literal {
         }
     }
 
+    pub fn as_number(&self) -> Result<f64> {
+        match self {
+            Literal::Integer(i) => Ok(*i as f64),
+            Literal::Float(f) => Ok(*f),
+            _ => Err(RuntimeError::NotANumber),
+        }
+    }
+
     pub fn as_boolean(&self) -> Result<&bool> {
         if let Literal::Boolean(ref b) = self {
             Ok(b)

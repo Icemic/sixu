@@ -31,6 +31,8 @@ pub enum RuntimeError {
     NotAInteger,
     #[error("Not a float")]
     NotAFloat,
+    #[error("Not a number")]
+    NotANumber,
     #[error("Not a boolean")]
     NotABoolean,
     #[error("Not an array")]

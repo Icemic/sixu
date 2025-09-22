@@ -12,7 +12,7 @@ use crate::result::ParseResult;
 use super::Literal;
 
 pub fn primitive(input: &str) -> ParseResult<&str, Literal> {
-    context("primitive", alt((string, float, number, boolean))).parse(input)
+    context("primitive", alt((string, float, integer, boolean))).parse(input)
 }
 
 pub fn string(input: &str) -> ParseResult<&str, Literal> {
@@ -27,21 +27,33 @@ pub fn string(input: &str) -> ParseResult<&str, Literal> {
     Ok((input, Literal::String(s.to_string())))
 }
 
-// all integer, which should not start with 0
-pub fn number(input: &str) -> ParseResult<&str, Literal> {
-    // let (input, n) = recognize(many1(terminated(digit1, many0(char('_'))))).parse.parse(input)?;
+// all integer, supports decimal and hexadecimal (0x/0X prefix)
+pub fn integer(input: &str) -> ParseResult<&str, Literal> {
     let (input, n) = context(
-        "number",
+        "integer",
         map_res(
             (
                 opt(alt((tag("-"), tag("+")))),
-                recognize(many1(terminated(digit1, many0(char('_'))))),
+                alt((
+                    // Hexadecimal: 0x123 or 0X123
+                    recognize((
+                        alt((tag("0x"), tag("0X"))),
+                        many1(terminated(hex_digit1, many0(char('_')))),
+                    )),
+                    // Decimal: 123
+                    recognize(many1(terminated(digit1, many0(char('_'))))),
+                )),
             ),
             |(sign, value)| {
                 let value = &str::replace(value, "_", "");
-                value
-                    .parse::<i64>()
-                    .map(|n| if sign == Some("-") { -n } else { n })
+                let parsed_value = if value.starts_with("0x") || value.starts_with("0X") {
+                    // Parse hexadecimal
+                    i64::from_str_radix(&value[2..], 16)
+                } else {
+                    // Parse decimal
+                    value.parse::<i64>()
+                };
+                parsed_value.map(|n| if sign == Some("-") { -n } else { n })
             },
         ),
     )
@@ -111,6 +123,14 @@ mod tests {
             primitive("123_456_789_"),
             Ok(("", Literal::Integer(123456789)))
         );
+        // Hexadecimal tests
+        assert_eq!(primitive("0x123"), Ok(("", Literal::Integer(0x123))));
+        assert_eq!(primitive("0X123"), Ok(("", Literal::Integer(0x123))));
+        assert_eq!(primitive("-0x123"), Ok(("", Literal::Integer(-0x123))));
+        assert_eq!(primitive("+0xff"), Ok(("", Literal::Integer(0xff))));
+        assert_eq!(primitive("0xFF"), Ok(("", Literal::Integer(0xFF))));
+        assert_eq!(primitive("0xAB_CD"), Ok(("", Literal::Integer(0xABCD))));
+        assert_eq!(primitive("0x0"), Ok(("", Literal::Integer(0))));
         assert_eq!(primitive("123."), Ok(("", Literal::Float(123.))));
         assert_eq!(primitive("123.0"), Ok(("", Literal::Float(123.0))));
         assert_eq!(primitive("123.456"), Ok(("", Literal::Float(123.456))));
