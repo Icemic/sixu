@@ -7,6 +7,7 @@ use nom::multi::*;
 use nom::sequence::*;
 use nom::Parser;
 
+use crate::parser::comment::span0_inline;
 use crate::result::ParseResult;
 
 use super::Literal;
@@ -34,6 +35,7 @@ pub fn integer(input: &str) -> ParseResult<&str, Literal> {
         map_res(
             (
                 opt(alt((tag("-"), tag("+")))),
+                span0_inline,
                 alt((
                     // Hexadecimal: 0x123 or 0X123
                     recognize((
@@ -44,7 +46,7 @@ pub fn integer(input: &str) -> ParseResult<&str, Literal> {
                     recognize(many1(terminated(digit1, many0(char('_'))))),
                 )),
             ),
-            |(sign, value)| {
+            |(sign, _, value)| {
                 let value = &str::replace(value, "_", "");
                 let parsed_value = if value.starts_with("0x") || value.starts_with("0X") {
                     // Parse hexadecimal
@@ -68,6 +70,7 @@ pub fn float(input: &str) -> ParseResult<&str, Literal> {
         map_res(
             (
                 opt(alt((tag("-"), tag("+")))),
+                span0_inline,
                 alt((
                     // Format: 123.456 or 123.
                     recognize((
@@ -82,7 +85,7 @@ pub fn float(input: &str) -> ParseResult<&str, Literal> {
                     )),
                 )),
             ),
-            |(sign, value)| {
+            |(sign, _, value)| {
                 let value = &str::replace(value, "_", "");
                 value
                     .parse::<f64>()
@@ -136,7 +139,7 @@ mod tests {
         assert_eq!(primitive("false"), Ok(("", Literal::Boolean(false))));
         assert_eq!(primitive("123"), Ok(("", Literal::Integer(123))));
         assert_eq!(primitive("+123"), Ok(("", Literal::Integer(123))));
-        assert_eq!(primitive("-123"), Ok(("", Literal::Integer(-123))));
+        assert_eq!(primitive("- 123"), Ok(("", Literal::Integer(-123))));
         assert_eq!(primitive("0123"), Ok(("", Literal::Integer(123))));
         assert_eq!(primitive("123_456"), Ok(("", Literal::Integer(123456))));
         assert_eq!(
@@ -154,11 +157,12 @@ mod tests {
         assert_eq!(primitive("123."), Ok(("", Literal::Float(123.))));
         assert_eq!(primitive("123.0"), Ok(("", Literal::Float(123.0))));
         assert_eq!(primitive("123.456"), Ok(("", Literal::Float(123.456))));
-        assert_eq!(primitive("-123.123"), Ok(("", Literal::Float(-123.123))));
+        assert_eq!(primitive("- 123.123"), Ok(("", Literal::Float(-123.123))));
         assert_eq!(primitive("+123.456"), Ok(("", Literal::Float(123.456))));
         assert_eq!(primitive("0.111"), Ok(("", Literal::Float(0.111))));
         assert_eq!(primitive(".123"), Ok(("", Literal::Float(0.123))));
         assert_eq!(primitive("-.456"), Ok(("", Literal::Float(-0.456))));
+        assert_eq!(primitive("- .456"), Ok(("", Literal::Float(-0.456))));
         assert_eq!(primitive("12_3.45_6"), Ok(("", Literal::Float(123.456))));
         assert_eq!(primitive("0."), Ok(("", Literal::Float(0.))));
         // Array tests
