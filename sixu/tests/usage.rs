@@ -1,7 +1,7 @@
 use sixu::error::RuntimeError;
 use sixu::format::*;
 use sixu::parser::parse;
-use sixu::runtime::{ExecutionState, Runtime, RuntimeContext, RuntimeExecutor};
+use sixu::runtime::{Runtime, RuntimeContext, RuntimeExecutor};
 
 const SAMPLE: &str = r#"
 ::entry {
@@ -90,7 +90,7 @@ impl RuntimeExecutor for SampleExecutor {
         &mut self,
         ctx: &mut RuntimeContext,
         command_line: &CommandLine,
-    ) -> sixu::error::Result<()> {
+    ) -> sixu::error::Result<bool> {
         if command_line.command == "tttt" {
             let foo = command_line.get_argument("foo").unwrap();
             let foo = self.get_rvalue(ctx, foo)?;
@@ -123,14 +123,14 @@ impl RuntimeExecutor for SampleExecutor {
             self.last_value += *bar.as_integer().unwrap() as u32;
         }
 
-        Ok(())
+        Ok(false)
     }
 
     fn handle_extra_system_call(
         &mut self,
         _ctx: &mut RuntimeContext,
         _systemcall_line: &SystemCallLine,
-    ) -> sixu::error::Result<()> {
+    ) -> sixu::error::Result<bool> {
         unreachable!()
     }
 
@@ -139,7 +139,7 @@ impl RuntimeExecutor for SampleExecutor {
         _ctx: &mut RuntimeContext,
         _leading: Option<&str>,
         text: Option<&str>,
-    ) -> sixu::error::Result<()> {
+    ) -> sixu::error::Result<bool> {
         if let Some(text) = text {
             let last_char = text.chars().last().unwrap_or('0');
             let last_char_as_int = last_char.to_digit(10).unwrap_or(0);
@@ -147,21 +147,21 @@ impl RuntimeExecutor for SampleExecutor {
             println!("text value: {}", last_char_as_int);
             self.last_value += last_char_as_int;
         }
-        Ok(())
+        Ok(false)
     }
 
     fn eval_script(
         &mut self,
         _ctx: &mut RuntimeContext,
         script: &String,
-    ) -> sixu::error::Result<Option<RValue>> {
+    ) -> sixu::error::Result<(Option<RValue>, bool)> {
         let force_parse_int = script.trim().parse::<u32>().unwrap();
         assert_eq!(force_parse_int, 512, "script should be 512");
 
         println!("force_parse_int: {}", force_parse_int);
         self.last_value += force_parse_int;
 
-        Ok(None)
+        Ok((None, false))
     }
 
     fn finished(&mut self, _ctx: &mut RuntimeContext) {
