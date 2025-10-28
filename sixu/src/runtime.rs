@@ -156,64 +156,73 @@ impl<E: RuntimeExecutor> Runtime<E> {
     }
 
     pub fn next(&mut self) -> Result<()> {
-        let current_state = self.get_current_state_mut()?;
-
-        if let Some(child) = current_state.next_line() {
-            let content = child.content;
-            match content {
-                ChildContent::Block(block) => {
-                    let current_state = self.get_current_state()?.clone();
-                    self.context.stack_mut().push(ExecutionState::new(
-                        current_state.story,
-                        current_state.paragraph,
-                        block.clone(),
-                    ));
+        loop {
+            let is_continue;
+            let current_state = self.get_current_state_mut()?;
+            if let Some(child) = current_state.next_line() {
+                let content = child.content;
+                match content {
+                    ChildContent::Block(block) => {
+                        let current_state = self.get_current_state()?.clone();
+                        self.context.stack_mut().push(ExecutionState::new(
+                            current_state.story,
+                            current_state.paragraph,
+                            block.clone(),
+                        ));
+                        is_continue = true;
+                    }
+                    ChildContent::TextLine(leading, text) => {
+                        let leading = match leading {
+                            LeadingText::None => None,
+                            LeadingText::Text(t) => Some(t),
+                            LeadingText::TemplateLiteral(template_literal) => {
+                                let text = self
+                                    .executor
+                                    .calculate_template_literal(&self.context, &template_literal)?;
+                                Some(text)
+                            }
+                        };
+                        let text = match text {
+                            Text::None => None,
+                            Text::Text(t) => Some(t),
+                            Text::TemplateLiteral(template_literal) => {
+                                let text = self
+                                    .executor
+                                    .calculate_template_literal(&self.context, &template_literal)?;
+                                Some(text)
+                            }
+                        };
+                        is_continue = self.executor.handle_text(
+                            &mut self.context,
+                            leading.as_deref(),
+                            text.as_deref(),
+                        )?;
+                    }
+                    ChildContent::CommandLine(command) => {
+                        is_continue = self.executor.handle_command(&mut self.context, &command)?;
+                    }
+                    ChildContent::SystemCallLine(systemcall) => {
+                        is_continue = self.handle_system_call(&systemcall)?;
+                    }
+                    ChildContent::EmbeddedCode(script) => {
+                        is_continue = self.executor.eval_script(&mut self.context, &script)?.1;
+                    }
                 }
-                ChildContent::TextLine(leading, text) => {
-                    let leading = match leading {
-                        LeadingText::None => None,
-                        LeadingText::Text(t) => Some(t),
-                        LeadingText::TemplateLiteral(template_literal) => {
-                            let text = self
-                                .executor
-                                .calculate_template_literal(&self.context, &template_literal)?;
-                            Some(text)
-                        }
-                    };
-                    let text = match text {
-                        Text::None => None,
-                        Text::Text(t) => Some(t),
-                        Text::TemplateLiteral(template_literal) => {
-                            let text = self
-                                .executor
-                                .calculate_template_literal(&self.context, &template_literal)?;
-                            Some(text)
-                        }
-                    };
-                    self.executor.handle_text(
-                        &mut self.context,
-                        leading.as_deref(),
-                        text.as_deref(),
-                    )?;
-                }
-                ChildContent::CommandLine(command) => {
-                    self.executor.handle_command(&mut self.context, &command)?;
-                }
-                ChildContent::SystemCallLine(systemcall) => {
-                    self.handle_system_call(&systemcall)?;
-                }
-                ChildContent::EmbeddedCode(script) => {
-                    self.executor.eval_script(&mut self.context, &script)?;
-                }
+            } else {
+                self.break_current_block()?;
+                is_continue = true;
             }
-        } else {
-            self.break_current_block()?;
+
+            if !is_continue {
+                break;
+            }
         }
 
         Ok(())
     }
 
-    fn handle_system_call(&mut self, systemcall_line: &SystemCallLine) -> Result<()> {
+    /// Handle system call line, returns true if next() should be called again
+    fn handle_system_call(&mut self, systemcall_line: &SystemCallLine) -> Result<bool> {
         match systemcall_line.command.as_str() {
             // This method will clear the stack and push a new state with the story and paragraph name
             "goto" => {
@@ -258,6 +267,8 @@ impl<E: RuntimeExecutor> Runtime<E> {
                         "Paragraph name not provided".to_string(),
                     ));
                 }
+
+                Ok(true)
             }
             // This method will replace the current state with a new state with the story and paragraph name
             // once this new state is ended, it will return to the previous state
@@ -324,6 +335,8 @@ impl<E: RuntimeExecutor> Runtime<E> {
                         "Paragraph name not provided".to_string(),
                     ));
                 }
+
+                Ok(true)
             }
             // This method will push a new state with the story and paragraph name,
             // once this new state is ended, it will return to the previous state
@@ -367,21 +380,22 @@ impl<E: RuntimeExecutor> Runtime<E> {
                         "Paragraph name not provided".to_string(),
                     ));
                 }
+
+                Ok(true)
             }
             // This method will quit the current paragraph and return to the previous one
             "break" => {
                 self.break_current_block()?;
+                Ok(true)
             }
             "finish" => {
                 self.context.stack_mut().clear();
                 self.executor.finished(&mut self.context);
+                Ok(false)
             }
-            _ => {
-                self.executor
-                    .handle_extra_system_call(&mut self.context, systemcall_line)?;
-            }
+            _ => self
+                .executor
+                .handle_extra_system_call(&mut self.context, systemcall_line),
         }
-
-        Ok(())
     }
 }
