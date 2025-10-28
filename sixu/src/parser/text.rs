@@ -312,6 +312,34 @@ mod tests {
                 )
             ))
         );
+        // backslash in plain text will be preserved
+        assert_eq!(
+            text_line(r#"[foo bar] aaa\aaa"#),
+            Ok((
+                "",
+                ChildContent::TextLine(
+                    LeadingText::Text("foo bar".to_string()),
+                    Text::Text(r#"aaa\aaa"#.to_string())
+                )
+            ))
+        );
+        assert_eq!(
+            text_line(r#"[foo bar] aaa\n\raaa"#),
+            Ok((
+                "",
+                ChildContent::TextLine(
+                    LeadingText::Text("foo bar".to_string()),
+                    Text::Text(r#"aaa\n\raaa"#.to_string())
+                )
+            ))
+        );
+        assert_eq!(
+            text_line(r#"aaa\n\raaa"#),
+            Ok((
+                "",
+                ChildContent::TextLine(LeadingText::None, Text::Text(r#"aaa\n\raaa"#.to_string()))
+            ))
+        );
         // spaces around the plain text will not be trimmed
         assert_eq!(
             text_line("[ foo bar ] aaaaaa\n"),
