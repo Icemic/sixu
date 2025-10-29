@@ -5,7 +5,46 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## v0.3.0 (2025-10-29)
+
+### New Features
+
+ - <csr-id-b6b466614d95ca8761b5ad6e0bc0818ddd71c485/> update RuntimeExecutor methods to return boolean for improved execution control
+ - <csr-id-033d591f0a0d8559b38fe94e4ee2d88262842277/> refactor runtime executor methods to return boolean for immediate execution control
+
+### Test
+
+ - <csr-id-bb83e0c58c47ba43c8e3ff561fdf1783988507f9/> add cases to preserve backslashes in plain text parsing
+
+### Commit Statistics
+
+<csr-read-only-do-not-edit/>
+
+ - 3 commits contributed to the release.
+ - 35 days passed between releases.
+ - 3 commits were understood as [conventional](https://www.conventionalcommits.org).
+ - 0 issues like '(#ID)' were seen in commit messages
+
+### Commit Details
+
+<csr-read-only-do-not-edit/>
+
+<details><summary>view details</summary>
+
+ * **Uncategorized**
+    - Add cases to preserve backslashes in plain text parsing ([`bb83e0c`](https://github.com/Icemic/sixu/commit/bb83e0c58c47ba43c8e3ff561fdf1783988507f9))
+    - Update RuntimeExecutor methods to return boolean for improved execution control ([`b6b4666`](https://github.com/Icemic/sixu/commit/b6b466614d95ca8761b5ad6e0bc0818ddd71c485))
+    - Refactor runtime executor methods to return boolean for immediate execution control ([`033d591`](https://github.com/Icemic/sixu/commit/033d591f0a0d8559b38fe94e4ee2d88262842277))
+</details>
+
 ## v0.2.0 (2025-09-23)
+
+<csr-id-ea422f6635341a48ca8b4bacafab9201b9a16f8c/>
+<csr-id-eed7a76ea176ee96815a9bd0449fcc9397a48e27/>
+<csr-id-0c584ae1539530b4ecdc9e001f15d0a5c83d24cb/>
+<csr-id-3a59b18fdef992fbff2e1b473af0d01e66bde2e7/>
+<csr-id-5dc8331a9d585474f0af0007817a7091735bcbc8/>
+<csr-id-074234718cbea6a9de5f406fa5df4f243fc8baa4/>
 
 ### New Features
 
@@ -50,7 +89,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <csr-read-only-do-not-edit/>
 
- - 25 commits contributed to the release over the course of 144 calendar days.
+ - 26 commits contributed to the release over the course of 144 calendar days.
  - 146 days passed between releases.
  - 25 commits were understood as [conventional](https://www.conventionalcommits.org).
  - 0 issues like '(#ID)' were seen in commit messages
@@ -62,6 +101,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 <details><summary>view details</summary>
 
  * **Uncategorized**
+    - Release sixu v0.2.0 ([`5288f9a`](https://github.com/Icemic/sixu/commit/5288f9a8fff39e005f08c70bf5552927153bff1f))
     - Update array parsing to support inline comments and optional whitespace ([`9a846c9`](https://github.com/Icemic/sixu/commit/9a846c96a4234f625a6b61d4b6b3734c64a76863))
     - Enhance integer and float parsing to support optional whitespace and inline comments ([`de3a854`](https://github.com/Icemic/sixu/commit/de3a8542c2c27426f4b6b23be07fc5735aec9874))
     - Add array parsing support to primitive function ([`8b00819`](https://github.com/Icemic/sixu/commit/8b00819da3a03b52175e0c7e97641c61a03bed98))
@@ -158,7 +198,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - Update example syntax and enhance argument parsing tests ([`7bea0a5`](https://github.com/Icemic/sixu/commit/7bea0a5faff7ed7644a0f4c4efd19a447597d24d))
     - Move to monorepo ([`97245e0`](https://github.com/Icemic/sixu/commit/97245e070f6f1c770b023fb9b0713b5d34a99332))
 </details>
-
-<csr-unknown>
-Add support for @{} syntax for embedded JavaScript code while maintaining compatibility with ## syntaxUpdate syntax documentation to reflect new embedded code syntax optionsAdd comprehensive tests for the new syntax update Cargo.toml with project metadata and add README.md create CHANGELOG.md to document project updates and versioning<csr-unknown/>
 
