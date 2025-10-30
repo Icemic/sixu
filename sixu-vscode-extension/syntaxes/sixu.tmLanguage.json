@@ -12,11 +12,11 @@
 	"repository": {
 		"comment-single": {
 			"name": "comment.line.double-slash.sixu",
-			"match": "(?<!:)//.*$"
+			"match": "(?<!:)\\s*//.*$"
 		},
 		"comment-multi": {
 			"name": "comment.block.sixu",
-			"begin": "/\\*",
+			"begin": "\\s*/\\*",
 			"end": "\\*/",
 			"beginCaptures": {
 				"0": { "name": "punctuation.definition.comment.begin.sixu" }
