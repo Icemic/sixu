@@ -76,18 +76,19 @@ impl<E: RuntimeExecutor> Runtime<E> {
         Ok(())
     }
 
-    pub fn start(&mut self, story_name: &str) -> Result<()> {
+    pub fn start(&mut self, story_name: &str, entry_name: Option<&str>) -> Result<()> {
         if self.context.stories().is_empty() {
             return Err(RuntimeError::NoStory);
         }
 
         let is_empty = self.context.stack().is_empty();
         if is_empty {
-            let paragraph = self.get_paragraph(story_name, "entry")?;
+            let entry_name = entry_name.unwrap_or("entry");
+            let paragraph = self.get_paragraph(story_name, entry_name)?;
             let block = paragraph.block.clone();
             self.context.stack_mut().push(ExecutionState::new(
                 story_name.to_string(),
-                "entry".to_string(),
+                entry_name.to_string(),
                 block,
             ));
         } else {

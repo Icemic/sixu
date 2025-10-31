@@ -189,7 +189,7 @@ impl Sample {
 
         // Find the entry paragraph and set up initial execution state
         // We need to clone the block to avoid borrow conflicts
-        self.runtime.start("test").unwrap();
+        self.runtime.start("test", Some("entry")).unwrap();
     }
 
     pub fn next(&mut self) -> sixu::error::Result<()> {
