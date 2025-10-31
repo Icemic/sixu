@@ -5,7 +5,34 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## v0.4.0 (2025-10-31)
+
+### New Features
+
+ - <csr-id-dd8f5de155743770c6cb874a1bae0e02cc195807/> enhance Runtime::start to accept an optional entry name
+
+### Commit Statistics
+
+<csr-read-only-do-not-edit/>
+
+ - 1 commit contributed to the release.
+ - 1 day passed between releases.
+ - 1 commit was understood as [conventional](https://www.conventionalcommits.org).
+ - 0 issues like '(#ID)' were seen in commit messages
+
+### Commit Details
+
+<csr-read-only-do-not-edit/>
+
+<details><summary>view details</summary>
+
+ * **Uncategorized**
+    - Enhance Runtime::start to accept an optional entry name ([`dd8f5de`](https://github.com/Icemic/sixu/commit/dd8f5de155743770c6cb874a1bae0e02cc195807))
+</details>
+
 ## v0.3.0 (2025-10-29)
+
+<csr-id-bb83e0c58c47ba43c8e3ff561fdf1783988507f9/>
 
 ### New Features
 
@@ -20,8 +47,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <csr-read-only-do-not-edit/>
 
- - 3 commits contributed to the release.
- - 35 days passed between releases.
+ - 4 commits contributed to the release over the course of 1 calendar day.
+ - 36 days passed between releases.
  - 3 commits were understood as [conventional](https://www.conventionalcommits.org).
  - 0 issues like '(#ID)' were seen in commit messages
 
@@ -32,6 +59,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 <details><summary>view details</summary>
 
  * **Uncategorized**
+    - Release sixu v0.3.0 ([`01e81fd`](https://github.com/Icemic/sixu/commit/01e81fd656046b83475ae12a33bf66744438a59e))
     - Add cases to preserve backslashes in plain text parsing ([`bb83e0c`](https://github.com/Icemic/sixu/commit/bb83e0c58c47ba43c8e3ff561fdf1783988507f9))
     - Update RuntimeExecutor methods to return boolean for improved execution control ([`b6b4666`](https://github.com/Icemic/sixu/commit/b6b466614d95ca8761b5ad6e0bc0818ddd71c485))
     - Refactor runtime executor methods to return boolean for immediate execution control ([`033d591`](https://github.com/Icemic/sixu/commit/033d591f0a0d8559b38fe94e4ee2d88262842277))
