@@ -5,7 +5,7 @@ edition = "2021"
 license = "MPL-2.0"
 name = "sixu"
 repository = "https://github.com/Icemic/sixu"
-version = "0.4.0"
+version = "0.5.0"
 
 [features]
 default = ["serde"]

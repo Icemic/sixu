@@ -5,6 +5,31 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## v0.5.0 (2025-11-30)
+
+### New Features
+
+ - <csr-id-271d8af61b18248dc284906e8cb5913a16066227/> add support for tailing text in text lines
+
+### Commit Statistics
+
+<csr-read-only-do-not-edit/>
+
+ - 1 commit contributed to the release.
+ - 29 days passed between releases.
+ - 1 commit was understood as [conventional](https://www.conventionalcommits.org).
+ - 0 issues like '(#ID)' were seen in commit messages
+
+### Commit Details
+
+<csr-read-only-do-not-edit/>
+
+<details><summary>view details</summary>
+
+ * **Uncategorized**
+    - Add support for tailing text in text lines ([`271d8af`](https://github.com/Icemic/sixu/commit/271d8af61b18248dc284906e8cb5913a16066227))
+</details>
+
 ## v0.4.0 (2025-10-31)
 
 ### New Features
@@ -15,7 +40,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <csr-read-only-do-not-edit/>
 
- - 1 commit contributed to the release.
+ - 2 commits contributed to the release.
  - 1 day passed between releases.
  - 1 commit was understood as [conventional](https://www.conventionalcommits.org).
  - 0 issues like '(#ID)' were seen in commit messages
@@ -27,6 +52,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 <details><summary>view details</summary>
 
  * **Uncategorized**
+    - Release sixu v0.4.0 ([`79ab672`](https://github.com/Icemic/sixu/commit/79ab672292547a431d2d42ac222b844b0464b5aa))
     - Enhance Runtime::start to accept an optional entry name ([`dd8f5de`](https://github.com/Icemic/sixu/commit/dd8f5de155743770c6cb874a1bae0e02cc195807))
 </details>
 
