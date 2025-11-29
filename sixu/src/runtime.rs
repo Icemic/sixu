@@ -172,7 +172,7 @@ impl<E: RuntimeExecutor> Runtime<E> {
                         ));
                         is_continue = true;
                     }
-                    ChildContent::TextLine(leading, text) => {
+                    ChildContent::TextLine(leading, text, tailing) => {
                         let leading = match leading {
                             LeadingText::None => None,
                             LeadingText::Text(t) => Some(t),
@@ -193,10 +193,15 @@ impl<E: RuntimeExecutor> Runtime<E> {
                                 Some(text)
                             }
                         };
+                        let tailing = match tailing {
+                            TailingText::None => None,
+                            TailingText::Text(t) => Some(t),
+                        };
                         is_continue = self.executor.handle_text(
                             &mut self.context,
                             leading.as_deref(),
                             text.as_deref(),
+                            tailing.as_deref(),
                         )?;
                     }
                     ChildContent::CommandLine(command) => {

@@ -76,7 +76,7 @@ pub fn embedded_code_hash(input: &str) -> ParseResult<&str, ChildContent> {
 mod tests {
     use crate::format::{
         Argument, Attribute, ChildContent, CommandLine, LeadingText, Literal, RValue,
-        SystemCallLine, TemplateLiteral, TemplateLiteralPart, Text, Variable,
+        SystemCallLine, TailingText, TemplateLiteral, TemplateLiteralPart, Text, Variable,
     };
 
     use super::*;
@@ -125,7 +125,8 @@ mod tests {
                             attributes: vec![],
                             content: ChildContent::TextLine(
                                 LeadingText::None,
-                                Text::Text("text".to_string())
+                                Text::Text("text".to_string()),
+                                TailingText::None,
                             ),
                         }
                     ],
@@ -152,7 +153,8 @@ mod tests {
                             attributes: vec![],
                             content: ChildContent::TextLine(
                                 LeadingText::None,
-                                Text::Text("text".to_string())
+                                Text::Text("text".to_string()),
+                                TailingText::None,
                             ),
                         }
                     ],
@@ -181,7 +183,8 @@ mod tests {
                             attributes: vec![],
                             content: ChildContent::TextLine(
                                 LeadingText::None,
-                                Text::Text("text".to_string())
+                                Text::Text("text".to_string()),
+                                TailingText::None,
                             ),
                         },
                         Child {
@@ -194,9 +197,7 @@ mod tests {
                                         flags: vec![],
                                         arguments: vec![Argument {
                                             name: "bar".to_string(),
-                                            value: Some(RValue::Literal(Literal::Boolean(
-                                                true
-                                            ))),
+                                            value: Some(RValue::Literal(Literal::Boolean(true))),
                                         }],
                                     }),
                                 }],
@@ -381,7 +382,8 @@ mod tests {
                                         )),
                                         TemplateLiteralPart::Text(" world".to_string()),
                                     ],
-                                })
+                                }),
+                                TailingText::None,
                             ),
                         },
                         Child {
@@ -417,7 +419,8 @@ mod tests {
                         }],
                         content: ChildContent::TextLine(
                             LeadingText::None,
-                            Text::Text("text".to_string())
+                            Text::Text("text".to_string()),
+                            TailingText::None,
                         ),
                     }],
                 }
@@ -448,7 +451,8 @@ mod tests {
                         ],
                         content: ChildContent::TextLine(
                             LeadingText::None,
-                            Text::Text("text".to_string())
+                            Text::Text("text".to_string()),
+                            TailingText::None,
                         ),
                     }],
                 }

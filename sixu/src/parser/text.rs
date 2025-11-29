@@ -1,19 +1,35 @@
 use nom::branch::alt;
-use nom::bytes::complete::{escaped_transform, take_while, take_while_m_n};
-use nom::character::complete::{char, none_of, not_line_ending, one_of};
-use nom::combinator::{cut, map_opt, map_res, not, peek, success, value};
+use nom::bytes::complete::{escaped_transform, take_while, take_while1, take_while_m_n};
+use nom::character::complete::{char, none_of, one_of};
+use nom::combinator::{cut, map_opt, map_res, not, opt, peek, success, value};
 use nom::error::{context, FromExternalError, ParseError};
 use nom::sequence::{delimited, preceded};
 use nom::{IResult, Parser};
 
-use crate::format::{ChildContent, LeadingText, TemplateLiteral, Text};
+use crate::format::{ChildContent, LeadingText, TailingText, TemplateLiteral, Text};
 use crate::result::ParseResult;
 
 use super::comment::{span0, span0_inline};
 use super::template::template_literal;
 
+/// Parse tailing text in the format #<non-whitespace-chars>
+/// Example: #tag, #tag_123, #标签, #tag-name.ext
+pub fn tailing_text(input: &str) -> ParseResult<&str, TailingText> {
+    let mut parser = opt(preceded(
+        char('#'),
+        take_while1(|c: char| !c.is_whitespace()),
+    ));
+
+    let (remaining, result) = parser.parse(input)?;
+
+    match result {
+        Some(tag) => Ok((remaining, TailingText::Text(tag.to_string()))),
+        None => Ok((remaining, TailingText::None)),
+    }
+}
+
 pub fn text_line(input: &str) -> ParseResult<&str, ChildContent> {
-    let (input, (_, _, leading, _, text)) = delimited(
+    let (input, (_, _, leading, _, text, _, tailing)) = delimited(
         span0,
         (
             not(one_of("}@#")),
@@ -21,12 +37,14 @@ pub fn text_line(input: &str) -> ParseResult<&str, ChildContent> {
             alt((leading_text, success(LeadingText::None))),
             span0_inline,
             text,
+            span0_inline,
+            alt((tailing_text, success(TailingText::None))),
         ),
         span0,
     )
     .parse(input)?;
 
-    Ok((input, ChildContent::TextLine(leading, text)))
+    Ok((input, ChildContent::TextLine(leading, text, tailing)))
 }
 
 pub fn leading_text(input: &str) -> ParseResult<&str, LeadingText> {
@@ -92,9 +110,47 @@ pub fn text(input: &str) -> ParseResult<&str, Text> {
 }
 
 pub fn plain_text(input: &str) -> ParseResult<&str, String> {
-    let (input, s) = context("plain_text", not_line_ending).parse(input)?;
+    // Find the end of plain text, which is either:
+    // 1. A newline character
+    // 2. A '#' followed by a non-whitespace character (tailing text)
 
-    Ok((input, s.to_string()))
+    let mut end_pos = 0;
+    let chars: Vec<char> = input.chars().collect();
+
+    for i in 0..chars.len() {
+        let ch = chars[i];
+
+        // Stop at newline
+        if ch == '\n' || ch == '\r' {
+            break;
+        }
+
+        // Check if this is a '#' followed by non-whitespace (potential tailing text)
+        if ch == '#' {
+            // Check if there's a next character and it's not whitespace
+            if i + 1 < chars.len() && !chars[i + 1].is_whitespace() {
+                // This is the start of tailing text, stop here
+                break;
+            }
+        }
+
+        end_pos = i + 1;
+    }
+
+    if end_pos == 0 {
+        // Empty text is still valid
+        return Ok((input, String::new()));
+    }
+
+    let (text, remaining) = input.split_at(
+        input
+            .char_indices()
+            .nth(end_pos)
+            .map(|(pos, _)| pos)
+            .unwrap_or(input.len()),
+    );
+
+    Ok((remaining, text.to_string()))
 }
 
 pub fn escaped_text(input: &str) -> ParseResult<&str, String> {
@@ -267,14 +323,22 @@ mod tests {
             text_line("foo"),
             Ok((
                 "",
-                ChildContent::TextLine(LeadingText::None, Text::Text("foo".to_string()))
+                ChildContent::TextLine(
+                    LeadingText::None,
+                    Text::Text("foo".to_string()),
+                    TailingText::None
+                )
             ))
         );
         assert_eq!(
             text_line("foo\n  \r"),
             Ok((
                 "",
-                ChildContent::TextLine(LeadingText::None, Text::Text("foo".to_string()))
+                ChildContent::TextLine(
+                    LeadingText::None,
+                    Text::Text("foo".to_string()),
+                    TailingText::None
+                )
             ))
         );
     }
@@ -285,7 +349,11 @@ mod tests {
             text_line(r#""foo\u6D4B\u{8BD5}""#),
             Ok((
                 "",
-                ChildContent::TextLine(LeadingText::None, Text::Text("foo测试".to_string()))
+                ChildContent::TextLine(
+                    LeadingText::None,
+                    Text::Text("foo测试".to_string()),
+                    TailingText::None
+                )
             ))
         );
     }
@@ -298,7 +366,8 @@ mod tests {
                 "",
                 ChildContent::TextLine(
                     LeadingText::Text("foo".to_string()),
-                    Text::Text("aaaaaa".to_string())
+                    Text::Text("aaaaaa".to_string()),
+                    TailingText::None
                 )
             ))
         );
@@ -308,7 +377,8 @@ mod tests {
                 "",
                 ChildContent::TextLine(
                     LeadingText::Text("foo bar".to_string()),
-                    Text::Text("aaaaaa".to_string())
+                    Text::Text("aaaaaa".to_string()),
+                    TailingText::None
                 )
             ))
         );
@@ -319,7 +389,8 @@ mod tests {
                 "",
                 ChildContent::TextLine(
                     LeadingText::Text("foo bar".to_string()),
-                    Text::Text(r#"aaa\aaa"#.to_string())
+                    Text::Text(r#"aaa\aaa"#.to_string()),
+                    TailingText::None
                 )
             ))
         );
@@ -329,7 +400,8 @@ mod tests {
                 "",
                 ChildContent::TextLine(
                     LeadingText::Text("foo bar".to_string()),
-                    Text::Text(r#"aaa\n\raaa"#.to_string())
+                    Text::Text(r#"aaa\n\raaa"#.to_string()),
+                    TailingText::None
                 )
             ))
         );
@@ -337,7 +409,11 @@ mod tests {
             text_line(r#"aaa\n\raaa"#),
             Ok((
                 "",
-                ChildContent::TextLine(LeadingText::None, Text::Text(r#"aaa\n\raaa"#.to_string()))
+                ChildContent::TextLine(
+                    LeadingText::None,
+                    Text::Text(r#"aaa\n\raaa"#.to_string()),
+                    TailingText::None
+                )
             ))
         );
         // spaces around the plain text will not be trimmed
@@ -347,7 +423,8 @@ mod tests {
                 "",
                 ChildContent::TextLine(
                     LeadingText::Text(" foo bar ".to_string()),
-                    Text::Text("aaaaaa".to_string())
+                    Text::Text("aaaaaa".to_string()),
+                    TailingText::None
                 )
             ))
         );
@@ -358,7 +435,8 @@ mod tests {
                 "aaaaaa\r\n",
                 ChildContent::TextLine(
                     LeadingText::Text("foo bar".to_string()),
-                    Text::Text("".to_string())
+                    Text::Text("".to_string()),
+                    TailingText::None
                 )
             ))
         );
@@ -369,7 +447,8 @@ mod tests {
                 "aaaaaa\r\n",
                 ChildContent::TextLine(
                     LeadingText::Text(" 'foo bar' ''".to_string()),
-                    Text::Text("".to_string())
+                    Text::Text("".to_string()),
+                    TailingText::None
                 )
             ))
         );
@@ -387,7 +466,8 @@ mod tests {
                             })),
                         ],
                     }),
-                    Text::Text("".to_string())
+                    Text::Text("".to_string()),
+                    TailingText::None
                 )
             ))
         );
@@ -412,8 +492,188 @@ mod tests {
                         TemplateLiteralPart::Value(RValue::Literal(Literal::Integer(123))),
                         TemplateLiteralPart::Text(" world".to_string()),
                     ],
-                })
+                }),
+                TailingText::None
             )
+        );
+    }
+
+    #[test]
+    fn test_tailing_text() {
+        // Test with quoted text
+        assert_eq!(
+            text_line(r##""hello world"#tag"##),
+            Ok((
+                "",
+                ChildContent::TextLine(
+                    LeadingText::None,
+                    Text::Text("hello world".to_string()),
+                    TailingText::Text("tag".to_string())
+                )
+            ))
+        );
+
+        // Test with space before tailing text
+        assert_eq!(
+            text_line(r##""hello world" #tag"##),
+            Ok((
+                "",
+                ChildContent::TextLine(
+                    LeadingText::None,
+                    Text::Text("hello world".to_string()),
+                    TailingText::Text("tag".to_string())
+                )
+            ))
+        );
+
+        // Test with plain text
+        assert_eq!(
+            text_line(r##"hello world #tag"##),
+            Ok((
+                "",
+                ChildContent::TextLine(
+                    LeadingText::None,
+                    Text::Text("hello world ".to_string()),
+                    TailingText::Text("tag".to_string())
+                )
+            ))
+        );
+
+        // Test with leading and tailing text
+        assert_eq!(
+            text_line(r##"[speaker] "dialogue"#tag"##),
+            Ok((
+                "",
+                ChildContent::TextLine(
+                    LeadingText::Text("speaker".to_string()),
+                    Text::Text("dialogue".to_string()),
+                    TailingText::Text("tag".to_string())
+                )
+            ))
+        );
+
+        // Test with special characters in tailing text
+        assert_eq!(
+            text_line(r##""text"#tag_123-abc.xyz"##),
+            Ok((
+                "",
+                ChildContent::TextLine(
+                    LeadingText::None,
+                    Text::Text("text".to_string()),
+                    TailingText::Text("tag_123-abc.xyz".to_string())
+                )
+            ))
+        );
+
+        // Test with Unicode in tailing text
+        assert_eq!(
+            text_line(r##""text"#标签"##),
+            Ok((
+                "",
+                ChildContent::TextLine(
+                    LeadingText::None,
+                    Text::Text("text".to_string()),
+                    TailingText::Text("标签".to_string())
+                )
+            ))
+        );
+
+        // Test with template literal
+        assert_eq!(
+            text_line(r##"`hello ${world}`#tag"##),
+            Ok((
+                "",
+                ChildContent::TextLine(
+                    LeadingText::None,
+                    Text::TemplateLiteral(TemplateLiteral {
+                        parts: vec![
+                            TemplateLiteralPart::Text("hello ".to_string()),
+                            TemplateLiteralPart::Value(RValue::Variable(Variable {
+                                chain: vec!["world".to_string()],
+                            })),
+                        ],
+                    }),
+                    TailingText::Text("tag".to_string())
+                )
+            ))
+        );
+
+        // Test without tailing text
+        assert_eq!(
+            text_line(r#""hello world""#),
+            Ok((
+                "",
+                ChildContent::TextLine(
+                    LeadingText::None,
+                    Text::Text("hello world".to_string()),
+                    TailingText::None
+                )
+            ))
+        );
+
+        // Test plain text without tailing text
+        assert_eq!(
+            text_line(r#"hello world"#),
+            Ok((
+                "",
+                ChildContent::TextLine(
+                    LeadingText::None,
+                    Text::Text("hello world".to_string()),
+                    TailingText::None
+                )
+            ))
+        );
+
+        // Test with # followed by space (should be part of text, not tailing)
+        assert_eq!(
+            text_line(r##"hello world # not a tag"##),
+            Ok((
+                "",
+                ChildContent::TextLine(
+                    LeadingText::None,
+                    Text::Text("hello world # not a tag".to_string()),
+                    TailingText::None
+                )
+            ))
+        );
+
+        // Test with # at end of line (no non-whitespace after)
+        assert_eq!(
+            text_line(r##"hello world #"##),
+            Ok((
+                "",
+                ChildContent::TextLine(
+                    LeadingText::None,
+                    Text::Text("hello world #".to_string()),
+                    TailingText::None
+                )
+            ))
+        );
+
+        // Test tailing text after space
+        assert_eq!(
+            text_line(r##"some text #tag"##),
+            Ok((
+                "",
+                ChildContent::TextLine(
+                    LeadingText::None,
+                    Text::Text("some text ".to_string()),
+                    TailingText::Text("tag".to_string())
+                )
+            ))
+        );
+
+        // Test with emoji in tailing text
+        assert_eq!(
+            text_line(r##""text"#tag😀"##),
+            Ok((
+                "",
+                ChildContent::TextLine(
+                    LeadingText::None,
+                    Text::Text("text".to_string()),
+                    TailingText::Text("tag😀".to_string())
+                )
+            ))
         );
     }
 }

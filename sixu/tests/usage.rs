@@ -139,6 +139,7 @@ impl RuntimeExecutor for SampleExecutor {
         _ctx: &mut RuntimeContext,
         _leading: Option<&str>,
         text: Option<&str>,
+        _tailing: Option<&str>,
     ) -> sixu::error::Result<bool> {
         if let Some(text) = text {
             let last_char = text.chars().last().unwrap_or('0');

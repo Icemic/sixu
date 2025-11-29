@@ -23,6 +23,7 @@ pub trait RuntimeExecutor: Send + Sync {
         ctx: &mut RuntimeContext,
         leading: Option<&str>,
         text: Option<&str>,
+        tailing: Option<&str>,
     ) -> Result<bool>;
     /// Evaluate a script, returns the result and whether next line should be executed immediately
     fn eval_script(

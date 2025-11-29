@@ -282,7 +282,7 @@ pub struct Child {
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum ChildContent {
     Block(Block),
-    TextLine(LeadingText, Text),
+    TextLine(LeadingText, Text, TailingText),
     CommandLine(CommandLine),
     SystemCallLine(SystemCallLine),
     EmbeddedCode(String),
@@ -294,6 +294,13 @@ pub enum LeadingText {
     None,
     Text(String),
     TemplateLiteral(TemplateLiteral),
+}
+
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+pub enum TailingText {
+    None,
+    Text(String),
 }
 
 #[derive(Debug, Clone, PartialEq)]
