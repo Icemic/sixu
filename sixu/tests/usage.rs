@@ -48,13 +48,13 @@ first line1
 }
 "#;
 
-#[test]
-fn main() {
+#[tokio::test]
+async fn main() {
     let mut sample = Sample::new();
     sample.init();
 
     loop {
-        match sample.next() {
+        match sample.next().await {
             Ok(()) => {
                 // Continue execution - no sync needed since Sample holds the Runtime
             }
@@ -169,6 +169,14 @@ impl RuntimeExecutor for SampleExecutor {
         println!("Finished execution");
         assert_eq!(self.last_value, 1023, "last value should be 1023");
     }
+
+    async fn read_story_file(
+        &mut self,
+        _ctx: &mut RuntimeContext,
+        _story_name: &str,
+    ) -> sixu::error::Result<Vec<u8>> {
+        todo!()
+    }
 }
 
 struct Sample {
@@ -193,7 +201,7 @@ impl Sample {
         self.runtime.start("test", Some("entry")).unwrap();
     }
 
-    pub fn next(&mut self) -> sixu::error::Result<()> {
-        self.runtime.next()
+    pub async fn next(&mut self) -> sixu::error::Result<()> {
+        self.runtime.next().await
     }
 }

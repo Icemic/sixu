@@ -49,6 +49,31 @@ impl<E: RuntimeExecutor> Runtime<E> {
         self.context.stories_mut().push(story);
     }
 
+    pub async fn load_story(&mut self, story_name: &str) -> Result<()> {
+        let data = self
+            .executor
+            .read_story_file(&mut self.context, story_name)
+            .await?;
+
+        let text = String::from_utf8(data)
+            .map_err(|e| anyhow::anyhow!("Failed to parse story file: {}", e))?;
+
+        let (_, story) = crate::parser::parse(story_name, &text).map_err(|e| {
+            anyhow::anyhow!(
+                "Failed to parse story file '{}': {}",
+                story_name,
+                e.to_string()
+            )
+        })?;
+
+        self.context.stories_mut().push(story);
+        Ok(())
+    }
+
+    pub fn has_story(&self, name: &str) -> bool {
+        self.context.stories().iter().any(|s| s.name == name)
+    }
+
     pub fn get_story(&self, name: &str) -> Result<&Story> {
         self.context
             .stories()
@@ -64,6 +89,53 @@ impl<E: RuntimeExecutor> Runtime<E> {
             .iter()
             .find(|s| s.name == name)
             .ok_or(RuntimeError::ParagraphNotFound(name.to_string()))
+    }
+
+    pub async fn get_paragraph_or_load(
+        &mut self,
+        story_name: &str,
+        name: &str,
+    ) -> Result<&Paragraph> {
+        if self.has_story(story_name) {
+            return self.get_paragraph(story_name, name);
+        }
+
+        self.load_story(story_name).await?;
+        self.get_paragraph(story_name, name)
+    }
+
+    pub fn list_stories(&self) -> Vec<String> {
+        self.context
+            .stories()
+            .iter()
+            .map(|s| s.name.clone())
+            .collect()
+    }
+
+    pub fn list_paragraphs(&self, story_name: &str) -> Result<Vec<String>> {
+        let story = self.get_story(story_name)?;
+        Ok(story.paragraphs.iter().map(|p| p.name.clone()).collect())
+    }
+
+    pub fn traverse_lines<F>(
+        &mut self,
+        story_name: &str,
+        paragraph_name: &str,
+        mut callback: F,
+    ) -> Result<()>
+    where
+        F: FnMut(&ChildContent) -> Result<bool>,
+    {
+        let paragraph = self.get_paragraph(story_name, paragraph_name)?;
+
+        for child in &paragraph.block.children {
+            let is_continue = callback(&child.content)?;
+            if !is_continue {
+                break;
+            }
+        }
+
+        Ok(())
     }
 
     pub fn save(&self) -> Result<Vec<ExecutionState>> {
@@ -156,7 +228,7 @@ impl<E: RuntimeExecutor> Runtime<E> {
         }
     }
 
-    pub fn next(&mut self) -> Result<()> {
+    pub async fn next(&mut self) -> Result<()> {
         loop {
             let is_continue;
             let current_state = self.get_current_state_mut()?;
@@ -208,7 +280,7 @@ impl<E: RuntimeExecutor> Runtime<E> {
                         is_continue = self.executor.handle_command(&mut self.context, &command)?;
                     }
                     ChildContent::SystemCallLine(systemcall) => {
-                        is_continue = self.handle_system_call(&systemcall)?;
+                        is_continue = self.handle_system_call(&systemcall).await?;
                     }
                     ChildContent::EmbeddedCode(script) => {
                         is_continue = self.executor.eval_script(&mut self.context, &script)?.1;
@@ -228,7 +300,7 @@ impl<E: RuntimeExecutor> Runtime<E> {
     }
 
     /// Handle system call line, returns true if next() should be called again
-    fn handle_system_call(&mut self, systemcall_line: &SystemCallLine) -> Result<bool> {
+    async fn handle_system_call(&mut self, systemcall_line: &SystemCallLine) -> Result<bool> {
         match systemcall_line.command.as_str() {
             // This method will clear the stack and push a new state with the story and paragraph name
             "goto" => {
@@ -261,7 +333,10 @@ impl<E: RuntimeExecutor> Runtime<E> {
 
                     self.context.stack_mut().clear();
 
-                    let paragraph = self.get_paragraph(&story_name, &paragraph_name)?.clone();
+                    let paragraph = self
+                        .get_paragraph_or_load(&story_name, &paragraph_name)
+                        .await?
+                        .clone();
 
                     self.context.stack_mut().push(ExecutionState::new(
                         story_name,
@@ -329,7 +404,10 @@ impl<E: RuntimeExecutor> Runtime<E> {
                         }
                     }
 
-                    let paragraph = self.get_paragraph(&story_name, &paragraph_name)?.clone();
+                    let paragraph = self
+                        .get_paragraph_or_load(&story_name, &paragraph_name)
+                        .await?
+                        .clone();
 
                     self.context.stack_mut().push(ExecutionState::new(
                         story_name,
@@ -374,7 +452,10 @@ impl<E: RuntimeExecutor> Runtime<E> {
                         ));
                     };
 
-                    let paragraph = self.get_paragraph(&story_name, &paragraph_name)?.clone();
+                    let paragraph = self
+                        .get_paragraph_or_load(&story_name, &paragraph_name)
+                        .await?
+                        .clone();
 
                     self.context.stack_mut().push(ExecutionState::new(
                         story_name,

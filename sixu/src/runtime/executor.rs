@@ -1,3 +1,5 @@
+use std::future::Future;
+
 use crate::error::Result;
 use crate::format::*;
 
@@ -33,6 +35,12 @@ pub trait RuntimeExecutor: Send + Sync {
     ) -> Result<(Option<RValue>, bool)>;
     /// Called when the scenario execution is finished
     fn finished(&mut self, ctx: &mut RuntimeContext);
+
+    fn read_story_file(
+        &mut self,
+        ctx: &mut RuntimeContext,
+        story_name: &str,
+    ) -> impl Future<Output = Result<Vec<u8>>>;
 
     /// Helper method to get variable value from context
     ///
