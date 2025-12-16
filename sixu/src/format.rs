@@ -41,6 +41,14 @@ pub struct Argument {
 
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
+pub struct ResolvedArgument {
+    pub name: String,
+    pub value: Literal,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "serde", serde(untagged))]
 pub enum Literal {
     Null,
@@ -368,6 +376,27 @@ impl CommandLine {
 
 #[derive(Debug, Default, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+pub struct ResolvedCommandLine {
+    pub command: String,
+    pub flags: Vec<String>,
+    pub arguments: Vec<ResolvedArgument>,
+}
+
+impl ResolvedCommandLine {
+    pub fn has_flag(&self, flag: &str) -> bool {
+        self.flags.iter().any(|f| f == flag)
+    }
+
+    pub fn get_argument(&self, name: &str) -> Option<&Literal> {
+        self.arguments
+            .iter()
+            .find(|arg| arg.name == name)
+            .map(|arg| &arg.value)
+    }
+}
+
+#[derive(Debug, Default, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct SystemCallLine {
     pub command: String,
     pub arguments: Vec<Argument>,
@@ -379,6 +408,22 @@ impl SystemCallLine {
             .iter()
             .find(|arg| arg.name == name)
             .and_then(|arg| arg.value.as_ref())
+    }
+}
+
+#[derive(Debug, Default, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+pub struct ResolvedSystemCallLine {
+    pub command: String,
+    pub arguments: Vec<ResolvedArgument>,
+}
+
+impl ResolvedSystemCallLine {
+    pub fn get_argument(&self, name: &str) -> Option<&Literal> {
+        self.arguments
+            .iter()
+            .find(|arg| arg.name == name)
+            .map(|arg| &arg.value)
     }
 }
 

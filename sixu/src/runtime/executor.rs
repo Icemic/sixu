@@ -11,13 +11,13 @@ pub trait RuntimeExecutor: Send + Sync {
     fn handle_command(
         &mut self,
         ctx: &mut RuntimeContext,
-        command_line: &CommandLine,
+        command_line: &ResolvedCommandLine,
     ) -> Result<bool>;
     /// Handle an extra system call line input, returns true if next line should be executed immediately
     fn handle_extra_system_call(
         &mut self,
         ctx: &mut RuntimeContext,
-        systemcall_line: &SystemCallLine,
+        systemcall_line: &ResolvedSystemCallLine,
     ) -> Result<bool>;
     /// Handle text output, returns true if next line should be executed immediately
     fn handle_text(

@@ -88,12 +88,11 @@ impl SampleExecutor {
 impl RuntimeExecutor for SampleExecutor {
     fn handle_command(
         &mut self,
-        ctx: &mut RuntimeContext,
-        command_line: &CommandLine,
+        _ctx: &mut RuntimeContext,
+        command_line: &ResolvedCommandLine,
     ) -> sixu::error::Result<bool> {
         if command_line.command == "tttt" {
             let foo = command_line.get_argument("foo").unwrap();
-            let foo = self.get_rvalue(ctx, foo)?;
             assert!(foo.is_integer(), "foo should be an integer");
             assert!(foo.as_integer().is_ok(), "foo should be an integer");
 
@@ -104,12 +103,10 @@ impl RuntimeExecutor for SampleExecutor {
 
         if command_line.command == "tttt2" {
             let foo = command_line.get_argument("foo").unwrap();
-            let foo = self.get_rvalue(ctx, foo)?;
             assert!(foo.is_integer(), "foo should be an integer");
             assert!(foo.as_integer().is_ok(), "foo should be an integer");
 
             let bar = command_line.get_argument("bar").unwrap();
-            let bar = self.get_rvalue(ctx, bar)?;
             assert!(bar.is_integer(), "bar should be an integer");
             assert!(bar.as_integer().is_ok(), "bar should be an integer");
 
@@ -129,7 +126,7 @@ impl RuntimeExecutor for SampleExecutor {
     fn handle_extra_system_call(
         &mut self,
         _ctx: &mut RuntimeContext,
-        _systemcall_line: &SystemCallLine,
+        _systemcall_line: &ResolvedSystemCallLine,
     ) -> sixu::error::Result<bool> {
         unreachable!()
     }

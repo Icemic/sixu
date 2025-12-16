@@ -228,6 +228,20 @@ impl<E: RuntimeExecutor> Runtime<E> {
         }
     }
 
+    /// Resolve all variables in the argument list to literal values
+    pub fn resolve_arguments(&mut self, args: Vec<Argument>) -> Result<Vec<ResolvedArgument>> {
+        let mut resolved_args = Vec::new();
+        for arg in args {
+            let rvalue = arg.value.expect("Must have a value");
+            let resolved_value = self.executor.get_rvalue(&self.context, &rvalue)?.to_owned();
+            resolved_args.push(ResolvedArgument {
+                name: arg.name.clone(),
+                value: resolved_value,
+            });
+        }
+        Ok(resolved_args)
+    }
+
     pub async fn next(&mut self) -> Result<()> {
         loop {
             let is_continue;
@@ -277,9 +291,18 @@ impl<E: RuntimeExecutor> Runtime<E> {
                         )?;
                     }
                     ChildContent::CommandLine(command) => {
+                        let command = ResolvedCommandLine {
+                            command: command.command,
+                            flags: command.flags,
+                            arguments: self.resolve_arguments(command.arguments)?,
+                        };
                         is_continue = self.executor.handle_command(&mut self.context, &command)?;
                     }
                     ChildContent::SystemCallLine(systemcall) => {
+                        let systemcall = ResolvedSystemCallLine {
+                            command: systemcall.command,
+                            arguments: self.resolve_arguments(systemcall.arguments)?,
+                        };
                         is_continue = self.handle_system_call(&systemcall).await?;
                     }
                     ChildContent::EmbeddedCode(script) => {
@@ -300,13 +323,15 @@ impl<E: RuntimeExecutor> Runtime<E> {
     }
 
     /// Handle system call line, returns true if next() should be called again
-    async fn handle_system_call(&mut self, systemcall_line: &SystemCallLine) -> Result<bool> {
+    async fn handle_system_call(
+        &mut self,
+        systemcall_line: &ResolvedSystemCallLine,
+    ) -> Result<bool> {
         match systemcall_line.command.as_str() {
             // This method will clear the stack and push a new state with the story and paragraph name
             "goto" => {
                 let story_name = match systemcall_line.get_argument("story") {
                     Some(v) => {
-                        let v = self.executor.get_rvalue(&self.context, v)?;
                         if v.is_string() {
                             v.to_string()
                         } else {
@@ -319,10 +344,6 @@ impl<E: RuntimeExecutor> Runtime<E> {
                 };
 
                 if let Some(paragraph_name) = systemcall_line.get_argument("paragraph") {
-                    let paragraph_name = self
-                        .executor
-                        .get_rvalue(&self.context, paragraph_name)?
-                        .to_owned();
                     let paragraph_name = if paragraph_name.is_string() {
                         paragraph_name.to_string()
                     } else {
@@ -356,7 +377,6 @@ impl<E: RuntimeExecutor> Runtime<E> {
             "replace" => {
                 let story_name = match systemcall_line.get_argument("story") {
                     Some(v) => {
-                        let v = self.executor.get_rvalue(&self.context, v)?;
                         if v.is_string() {
                             v.to_string()
                         } else {
@@ -369,10 +389,6 @@ impl<E: RuntimeExecutor> Runtime<E> {
                 };
 
                 if let Some(paragraph_name) = systemcall_line.get_argument("paragraph") {
-                    let paragraph_name = self
-                        .executor
-                        .get_rvalue(&self.context, paragraph_name)?
-                        .to_owned();
                     let paragraph_name = if paragraph_name.is_string() {
                         paragraph_name.to_string()
                     } else {
@@ -427,7 +443,6 @@ impl<E: RuntimeExecutor> Runtime<E> {
             "call" => {
                 let story_name = match systemcall_line.get_argument("story") {
                     Some(v) => {
-                        let v = self.executor.get_rvalue(&self.context, v)?;
                         if v.is_string() {
                             v.to_string()
                         } else {
@@ -440,10 +455,6 @@ impl<E: RuntimeExecutor> Runtime<E> {
                 };
 
                 if let Some(paragraph_name) = systemcall_line.get_argument("paragraph") {
-                    let paragraph_name = self
-                        .executor
-                        .get_rvalue(&self.context, paragraph_name)?
-                        .to_owned();
                     let paragraph_name = if paragraph_name.is_string() {
                         paragraph_name.to_string()
                     } else {
