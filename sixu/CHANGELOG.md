@@ -5,6 +5,37 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## v0.7.0 (2025-12-17)
+
+### New Features
+
+ - <csr-id-4320fdc0688488a6b27be24697b46f9bb6c5b2c1/> add ts-rs support for argument serialization and update dependencies
+
+### Refactor
+
+ - <csr-id-39c38c473200344ef14c0a7b8c30b8b2ebd0a51d/> resolve arguments to literals before execution
+   Updates command and system call handling to resolve all arguments to their literal values before execution, introducing resolved data structures for clarity and type safety. Simplifies executor logic by removing runtime value resolution steps, improving maintainability and reducing potential errors from deferred evaluation.
+
+### Commit Statistics
+
+<csr-read-only-do-not-edit/>
+
+ - 2 commits contributed to the release.
+ - 8 days passed between releases.
+ - 2 commits were understood as [conventional](https://www.conventionalcommits.org).
+ - 0 issues like '(#ID)' were seen in commit messages
+
+### Commit Details
+
+<csr-read-only-do-not-edit/>
+
+<details><summary>view details</summary>
+
+ * **Uncategorized**
+    - Add ts-rs support for argument serialization and update dependencies ([`4320fdc`](https://github.com/Icemic/sixu/commit/4320fdc0688488a6b27be24697b46f9bb6c5b2c1))
+    - Resolve arguments to literals before execution ([`39c38c4`](https://github.com/Icemic/sixu/commit/39c38c473200344ef14c0a7b8c30b8b2ebd0a51d))
+</details>
+
 ## v0.6.0 (2025-12-09)
 
 ### New Features
@@ -15,7 +46,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <csr-read-only-do-not-edit/>
 
- - 1 commit contributed to the release.
+ - 2 commits contributed to the release.
  - 9 days passed between releases.
  - 1 commit was understood as [conventional](https://www.conventionalcommits.org).
  - 0 issues like '(#ID)' were seen in commit messages
@@ -27,6 +58,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 <details><summary>view details</summary>
 
  * **Uncategorized**
+    - Release sixu v0.6.0 ([`d0caa4a`](https://github.com/Icemic/sixu/commit/d0caa4a2491b65d4244266d82d9189dbb1c124ac))
     - Add async story loading and management functions in Runtime ([`be255c5`](https://github.com/Icemic/sixu/commit/be255c5907bdc6fac8318070af9338feaff5c167))
 </details>
 
