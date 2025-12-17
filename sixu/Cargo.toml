@@ -8,8 +8,9 @@ repository = "https://github.com/Icemic/sixu"
 version = "0.6.0"
 
 [features]
-default = ["serde"]
+default = ["serde", "ts"]
 serde = ["dep:serde"]
+ts = ["dep:ts-rs"]
 
 [dependencies]
 anyhow = "1"
@@ -22,6 +23,7 @@ thiserror = "2"
 
 serde = {version = "1", features = ["derive"], optional = true}
 serde_json = "1"
+ts-rs = {version = "11.1", optional = true}
 
 [dev-dependencies]
 tokio = {version = "1", features = ["rt", "macros"]}

@@ -42,6 +42,7 @@ pub struct Argument {
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS))]
 pub struct ResolvedArgument {
     pub name: String,
     pub value: Literal,
@@ -50,6 +51,7 @@ pub struct ResolvedArgument {
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "serde", serde(untagged))]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS))]
 pub enum Literal {
     Null,
     String(String),
@@ -376,6 +378,7 @@ impl CommandLine {
 
 #[derive(Debug, Default, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS))]
 pub struct ResolvedCommandLine {
     pub command: String,
     pub flags: Vec<String>,
@@ -413,6 +416,7 @@ impl SystemCallLine {
 
 #[derive(Debug, Default, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS))]
 pub struct ResolvedSystemCallLine {
     pub command: String,
     pub arguments: Vec<ResolvedArgument>,
