@@ -19,16 +19,7 @@ pub fn command_line(input: &str) -> ParseResult<&str, ChildContent> {
         input,
         ChildContent::CommandLine(CommandLine {
             command: command.to_string(),
-            flags: arguments
-                .iter()
-                .filter(|p| p.value.is_none())
-                .map(|p| p.name.clone())
-                .collect(),
-            arguments: arguments
-                .iter()
-                .filter(|p| p.value.is_some())
-                .map(|p| p.to_owned())
-                .collect(),
+            arguments: arguments,
         }),
     ))
 }
@@ -47,7 +38,6 @@ mod tests {
                 "",
                 ChildContent::CommandLine(CommandLine {
                     command: "command".to_string(),
-                    flags: vec![],
                     arguments: vec![],
                 })
             ))
@@ -58,8 +48,10 @@ mod tests {
                 "",
                 ChildContent::CommandLine(CommandLine {
                     command: "command".to_string(),
-                    flags: vec!["a".to_string()],
-                    arguments: vec![],
+                    arguments: vec![Argument {
+                        name: "a".to_string(),
+                        value: RValue::Literal(Literal::Boolean(true)),
+                    }],
                 })
             ))
         );
@@ -69,10 +61,9 @@ mod tests {
                 "",
                 ChildContent::CommandLine(CommandLine {
                     command: "command".to_string(),
-                    flags: vec![],
                     arguments: vec![Argument {
                         name: "a".to_string(),
-                        value: Some(RValue::Literal(Literal::Integer(1))),
+                        value: RValue::Literal(Literal::Integer(1)),
                     }],
                 })
             ))
@@ -83,11 +74,16 @@ mod tests {
                 "",
                 ChildContent::CommandLine(CommandLine {
                     command: "command".to_string(),
-                    flags: vec!["b".to_string()],
-                    arguments: vec![Argument {
-                        name: "a".to_string(),
-                        value: Some(RValue::Literal(Literal::Integer(1))),
-                    }],
+                    arguments: vec![
+                        Argument {
+                            name: "a".to_string(),
+                            value: RValue::Literal(Literal::Integer(1)),
+                        },
+                        Argument {
+                            name: "b".to_string(),
+                            value: RValue::Literal(Literal::Boolean(true)),
+                        }
+                    ],
                 })
             ))
         );
@@ -97,15 +93,14 @@ mod tests {
                 "",
                 ChildContent::CommandLine(CommandLine {
                     command: "command".to_string(),
-                    flags: vec![],
                     arguments: vec![
                         Argument {
                             name: "a".to_string(),
-                            value: Some(RValue::Literal(Literal::Integer(1))),
+                            value: RValue::Literal(Literal::Integer(1)),
                         },
                         Argument {
                             name: "b".to_string(),
-                            value: Some(RValue::Literal(Literal::Integer(2))),
+                            value: RValue::Literal(Literal::Integer(2)),
                         },
                     ],
                 })
@@ -117,16 +112,19 @@ mod tests {
                 "",
                 ChildContent::CommandLine(CommandLine {
                     command: "command".to_string(),
-                    flags: vec!["c".to_string()],
                     arguments: vec![
                         Argument {
                             name: "a".to_string(),
-                            value: Some(RValue::Literal(Literal::Integer(1))),
+                            value: RValue::Literal(Literal::Integer(1)),
                         },
                         Argument {
                             name: "b".to_string(),
-                            value: Some(RValue::Literal(Literal::Integer(2))),
+                            value: RValue::Literal(Literal::Integer(2)),
                         },
+                        Argument {
+                            name: "c".to_string(),
+                            value: RValue::Literal(Literal::Boolean(true)),
+                        }
                     ],
                 })
             ))
@@ -137,16 +135,19 @@ mod tests {
                 "",
                 ChildContent::CommandLine(CommandLine {
                     command: "command".to_string(),
-                    flags: vec!["c".to_string()],
                     arguments: vec![
                         Argument {
                             name: "a".to_string(),
-                            value: Some(RValue::Literal(Literal::Integer(1))),
+                            value: RValue::Literal(Literal::Integer(1)),
                         },
                         Argument {
                             name: "b".to_string(),
-                            value: Some(RValue::Literal(Literal::Integer(2))),
+                            value: RValue::Literal(Literal::Integer(2)),
                         },
+                        Argument {
+                            name: "c".to_string(),
+                            value: RValue::Literal(Literal::Boolean(true)),
+                        }
                     ],
                 })
             ))

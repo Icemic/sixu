@@ -57,7 +57,7 @@ mod tests {
                     command: "command".to_string(),
                     arguments: vec![Argument {
                         name: "a".to_string(),
-                        value: Some(RValue::Literal(Literal::Integer(1))),
+                        value: RValue::Literal(Literal::Integer(1)),
                     }],
                 })
             ))
@@ -71,11 +71,11 @@ mod tests {
                     arguments: vec![
                         Argument {
                             name: "a".to_string(),
-                            value: Some(RValue::Literal(Literal::Integer(1))),
+                            value: RValue::Literal(Literal::Integer(1)),
                         },
                         Argument {
                             name: "b".to_string(),
-                            value: Some(RValue::Literal(Literal::String("aa".to_string()))),
+                            value: RValue::Literal(Literal::String("aa".to_string())),
                         }
                     ],
                 })
@@ -90,11 +90,11 @@ mod tests {
                     arguments: vec![
                         Argument {
                             name: "a".to_string(),
-                            value: Some(RValue::Literal(Literal::Integer(1))),
+                            value: RValue::Literal(Literal::Integer(1)),
                         },
                         Argument {
                             name: "b".to_string(),
-                            value: Some(RValue::Literal(Literal::String("aa".to_string()))),
+                            value: RValue::Literal(Literal::String("aa".to_string())),
                         }
                     ],
                 })

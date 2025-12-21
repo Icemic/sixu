@@ -232,8 +232,10 @@ impl<E: RuntimeExecutor> Runtime<E> {
     pub fn resolve_arguments(&mut self, args: Vec<Argument>) -> Result<Vec<ResolvedArgument>> {
         let mut resolved_args = Vec::new();
         for arg in args {
-            let rvalue = arg.value.expect("Must have a value");
-            let resolved_value = self.executor.get_rvalue(&self.context, &rvalue)?.to_owned();
+            let resolved_value = self
+                .executor
+                .get_rvalue(&self.context, &arg.value)?
+                .to_owned();
             resolved_args.push(ResolvedArgument {
                 name: arg.name.clone(),
                 value: resolved_value,
@@ -293,7 +295,6 @@ impl<E: RuntimeExecutor> Runtime<E> {
                     ChildContent::CommandLine(command) => {
                         let command = ResolvedCommandLine {
                             command: command.command,
-                            flags: command.flags,
                             arguments: self.resolve_arguments(command.arguments)?,
                         };
                         is_continue = self.executor.handle_command(&mut self.context, &command)?;

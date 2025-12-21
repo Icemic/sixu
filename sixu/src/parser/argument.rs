@@ -5,6 +5,7 @@ use nom::multi::{many0, separated_list0};
 use nom::sequence::*;
 use nom::Parser;
 
+use crate::format::{Literal, RValue};
 use crate::result::ParseResult;
 
 use super::comment::{span0, span0_inline};
@@ -40,7 +41,7 @@ pub fn argument(input: &str) -> ParseResult<&str, Argument> {
         input,
         Argument {
             name: name.to_string(),
-            value,
+            value: value.unwrap_or(RValue::Literal(Literal::Boolean(true))),
         },
     ))
 }
@@ -59,7 +60,7 @@ mod tests {
                 "",
                 Argument {
                     name: "a".to_string(),
-                    value: None,
+                    value: RValue::Literal(Literal::Boolean(true)),
                 }
             ))
         );
@@ -69,7 +70,7 @@ mod tests {
                 "",
                 Argument {
                     name: "a".to_string(),
-                    value: Some(RValue::Literal(Literal::Integer(1))),
+                    value: RValue::Literal(Literal::Integer(1)),
                 }
             ))
         );
@@ -79,7 +80,7 @@ mod tests {
                 " ",
                 Argument {
                     name: "a".to_string(),
-                    value: Some(RValue::Literal(Literal::Integer(1))),
+                    value: RValue::Literal(Literal::Integer(1)),
                 }
             ))
         );
@@ -89,7 +90,7 @@ mod tests {
                 " ",
                 Argument {
                     name: "foo".to_string(),
-                    value: Some(RValue::Literal(Literal::String("bar".to_string()))),
+                    value: RValue::Literal(Literal::String("bar".to_string())),
                 }
             ))
         );
@@ -99,9 +100,9 @@ mod tests {
                 " ",
                 Argument {
                     name: "foo".to_string(),
-                    value: Some(RValue::Variable(Variable {
+                    value: RValue::Variable(Variable {
                         chain: vec!["foo".to_string(), "bar".to_string()],
-                    })),
+                    }),
                 }
             ))
         );
@@ -114,7 +115,7 @@ mod tests {
                 "",
                 vec![Argument {
                     name: "a".to_string(),
-                    value: Some(RValue::Literal(Literal::Integer(1))),
+                    value: RValue::Literal(Literal::Integer(1)),
                 }]
             ))
         );
@@ -125,11 +126,11 @@ mod tests {
                 vec![
                     Argument {
                         name: "a".to_string(),
-                        value: Some(RValue::Literal(Literal::Integer(1))),
+                        value: RValue::Literal(Literal::Integer(1)),
                     },
                     Argument {
                         name: "b".to_string(),
-                        value: Some(RValue::Literal(Literal::String("aa".to_string()))),
+                        value: RValue::Literal(Literal::String("aa".to_string())),
                     }
                 ]
             ))
@@ -143,7 +144,7 @@ mod tests {
                 "",
                 vec![Argument {
                     name: "a".to_string(),
-                    value: Some(RValue::Literal(Literal::Integer(1))),
+                    value: RValue::Literal(Literal::Integer(1)),
                 }]
             ))
         );
@@ -154,11 +155,11 @@ mod tests {
                 vec![
                     Argument {
                         name: "a".to_string(),
-                        value: Some(RValue::Literal(Literal::Integer(1))),
+                        value: RValue::Literal(Literal::Integer(1)),
                     },
                     Argument {
                         name: "b".to_string(),
-                        value: Some(RValue::Literal(Literal::String("aa".to_string()))),
+                        value: RValue::Literal(Literal::String("aa".to_string())),
                     }
                 ]
             ))

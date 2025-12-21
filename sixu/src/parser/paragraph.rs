@@ -101,7 +101,6 @@ mod tests {
                             attributes: vec![],
                             content: ChildContent::CommandLine(CommandLine {
                                 command: "command".to_string(),
-                                flags: vec![],
                                 arguments: vec![],
                             }),
                         }]

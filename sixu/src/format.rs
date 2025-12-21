@@ -31,12 +31,12 @@ pub struct Parameter {
     pub default_value: Option<Literal>,
 }
 
-#[derive(Debug, Default, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
 pub struct Argument {
     pub name: String,
-    pub value: Option<RValue>,
+    pub value: RValue,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -359,20 +359,16 @@ pub enum TemplateLiteralPart {
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct CommandLine {
     pub command: String,
-    pub flags: Vec<String>,
     pub arguments: Vec<Argument>,
 }
 
 impl CommandLine {
-    pub fn has_flag(&self, flag: &str) -> bool {
-        self.flags.iter().any(|f| f == flag)
-    }
-
+    /// Get argument by name, returns None if not found
     pub fn get_argument(&self, name: &str) -> Option<&RValue> {
         self.arguments
             .iter()
             .find(|arg| arg.name == name)
-            .and_then(|arg| arg.value.as_ref())
+            .and_then(|arg| Some(&arg.value))
     }
 }
 
@@ -381,15 +377,10 @@ impl CommandLine {
 #[cfg_attr(feature = "ts", derive(ts_rs::TS))]
 pub struct ResolvedCommandLine {
     pub command: String,
-    pub flags: Vec<String>,
     pub arguments: Vec<ResolvedArgument>,
 }
 
 impl ResolvedCommandLine {
-    pub fn has_flag(&self, flag: &str) -> bool {
-        self.flags.iter().any(|f| f == flag)
-    }
-
     pub fn get_argument(&self, name: &str) -> Option<&Literal> {
         self.arguments
             .iter()
@@ -406,11 +397,12 @@ pub struct SystemCallLine {
 }
 
 impl SystemCallLine {
+    /// Get argument by name, returns None if not found
     pub fn get_argument(&self, name: &str) -> Option<&RValue> {
         self.arguments
             .iter()
             .find(|arg| arg.name == name)
-            .and_then(|arg| arg.value.as_ref())
+            .and_then(|arg| Some(&arg.value))
     }
 }
 

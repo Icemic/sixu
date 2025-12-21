@@ -94,10 +94,9 @@ mod tests {
                         attributes: vec![],
                         content: ChildContent::CommandLine(CommandLine {
                             command: "command".to_string(),
-                            flags: vec![],
                             arguments: vec![Argument {
                                 name: "foo".to_string(),
-                                value: Some(RValue::Literal(Literal::Boolean(false))),
+                                value: RValue::Literal(Literal::Boolean(false)),
                             }],
                         }),
                     }],
@@ -114,10 +113,9 @@ mod tests {
                             attributes: vec![],
                             content: ChildContent::CommandLine(CommandLine {
                                 command: "command".to_string(),
-                                flags: vec![],
                                 arguments: vec![Argument {
                                     name: "foo".to_string(),
-                                    value: Some(RValue::Literal(Literal::Boolean(false))),
+                                    value: RValue::Literal(Literal::Boolean(false)),
                                 }],
                             }),
                         },
@@ -145,7 +143,7 @@ mod tests {
                                 command: "command".to_string(),
                                 arguments: vec![Argument {
                                     name: "foo".to_string(),
-                                    value: Some(RValue::Literal(Literal::Boolean(false))),
+                                    value: RValue::Literal(Literal::Boolean(false)),
                                 }],
                             }),
                         },
@@ -172,10 +170,9 @@ mod tests {
                             attributes: vec![],
                             content: ChildContent::CommandLine(CommandLine {
                                 command: "command".to_string(),
-                                flags: vec![],
                                 arguments: vec![Argument {
                                     name: "foo".to_string(),
-                                    value: Some(RValue::Literal(Literal::Boolean(false))),
+                                    value: RValue::Literal(Literal::Boolean(false)),
                                 }],
                             }),
                         },
@@ -194,10 +191,9 @@ mod tests {
                                     attributes: vec![],
                                     content: ChildContent::CommandLine(CommandLine {
                                         command: "command".to_string(),
-                                        flags: vec![],
                                         arguments: vec![Argument {
                                             name: "bar".to_string(),
-                                            value: Some(RValue::Literal(Literal::Boolean(true))),
+                                            value: RValue::Literal(Literal::Boolean(true)),
                                         }],
                                     }),
                                 }],
@@ -390,10 +386,9 @@ mod tests {
                             attributes: vec![],
                             content: ChildContent::CommandLine(CommandLine {
                                 command: "command".to_string(),
-                                flags: vec![],
                                 arguments: vec![Argument {
                                     name: "foo".to_string(),
-                                    value: Some(RValue::Literal(Literal::Boolean(false))),
+                                    value: RValue::Literal(Literal::Boolean(false)),
                                 }],
                             }),
                         }

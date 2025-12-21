@@ -99,10 +99,10 @@
 @show_text(speaker="hero", content="你好啊!")
 ```
 
-命令支持标记（flag）和参数两种形式：
+命令当参数为布尔值时，可以省略等号和值，表示 `true`：
 
 ```sixu
-@show_chara left right show name="chihana" expression="happy"  // left、right、show 是标记
+@show_chara left name="chihana" expression="happy"  // 等同于 left=true
 ```
 
 ### 系统调用（System Call）
