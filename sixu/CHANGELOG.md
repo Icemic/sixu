@@ -5,7 +5,37 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## v0.8.0 (2025-12-22)
+
+### Refactor
+
+ - <csr-id-0177191766ddff6c78a7d0b6a646301333d902df/> simplify argument model by removing flags and optionals
+   Unifies argument handling by making all arguments non-optional and removing separate flags.
+   Boolean arguments are now implicit when no value is specified, streamlining parsing and runtime logic.
+   Reduces complexity and improves code maintainability.
+
+### Commit Statistics
+
+<csr-read-only-do-not-edit/>
+
+ - 1 commit contributed to the release.
+ - 4 days passed between releases.
+ - 1 commit was understood as [conventional](https://www.conventionalcommits.org).
+ - 0 issues like '(#ID)' were seen in commit messages
+
+### Commit Details
+
+<csr-read-only-do-not-edit/>
+
+<details><summary>view details</summary>
+
+ * **Uncategorized**
+    - Simplify argument model by removing flags and optionals ([`0177191`](https://github.com/Icemic/sixu/commit/0177191766ddff6c78a7d0b6a646301333d902df))
+</details>
+
 ## v0.7.0 (2025-12-17)
+
+<csr-id-39c38c473200344ef14c0a7b8c30b8b2ebd0a51d/>
 
 ### New Features
 
@@ -20,7 +50,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <csr-read-only-do-not-edit/>
 
- - 2 commits contributed to the release.
+ - 3 commits contributed to the release.
  - 8 days passed between releases.
  - 2 commits were understood as [conventional](https://www.conventionalcommits.org).
  - 0 issues like '(#ID)' were seen in commit messages
@@ -32,6 +62,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 <details><summary>view details</summary>
 
  * **Uncategorized**
+    - Release sixu v0.7.0 ([`d754193`](https://github.com/Icemic/sixu/commit/d7541939679e2e302fb2758bddaf36ebaa09cd60))
     - Add ts-rs support for argument serialization and update dependencies ([`4320fdc`](https://github.com/Icemic/sixu/commit/4320fdc0688488a6b27be24697b46f9bb6c5b2c1))
     - Resolve arguments to literals before execution ([`39c38c4`](https://github.com/Icemic/sixu/commit/39c38c473200344ef14c0a7b8c30b8b2ebd0a51d))
 </details>
