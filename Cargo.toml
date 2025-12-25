@@ -1,9 +1,5 @@
 [workspace]
-default-members = [
-  "sixu",
-]
-members = [
-  "sixu",
-]
+default-members = ["sixu"]
+members = ["sixu", "sixu-lsp"]
 
 resolver = "2"

@@ -1,0 +1,19 @@
+{
+  "compilerOptions": {
+    "module": "node20",
+    "target": "es2024",
+    "outDir": "dist",
+    "lib": ["ES2024"],
+    "sourceMap": true,
+    "rootDir": "src",
+    "allowJs": false,
+    "skipLibCheck": false,
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "strict": true,
+    "forceConsistentCasingInFileNames": true,
+    "declaration": true
+  },
+  "include": ["src"],
+  "exclude": ["node_modules", ".vscode-test"]
+}

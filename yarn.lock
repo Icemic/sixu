@@ -5,14 +5,131 @@ __metadata:
   version: 8
   cacheKey: 10c0
 
+"@isaacs/balanced-match@npm:^4.0.1":
+  version: 4.0.1
+  resolution: "@isaacs/balanced-match@npm:4.0.1"
+  checksum: 10c0/7da011805b259ec5c955f01cee903da72ad97c5e6f01ca96197267d3f33103d5b2f8a1af192140f3aa64526c593c8d098ae366c2b11f7f17645d12387c2fd420
+  languageName: node
+  linkType: hard
+
+"@isaacs/brace-expansion@npm:^5.0.0":
+  version: 5.0.0
+  resolution: "@isaacs/brace-expansion@npm:5.0.0"
+  dependencies:
+    "@isaacs/balanced-match": "npm:^4.0.1"
+  checksum: 10c0/b4d4812f4be53afc2c5b6c545001ff7a4659af68d4484804e9d514e183d20269bb81def8682c01a22b17c4d6aed14292c8494f7d2ac664e547101c1a905aa977
+  languageName: node
+  linkType: hard
+
+"@types/node@npm:^24":
+  version: 24.10.4
+  resolution: "@types/node@npm:24.10.4"
+  dependencies:
+    undici-types: "npm:~7.16.0"
+  checksum: 10c0/069639cb7233ee747df1897b5e784f6b6c5da765c96c94773c580aac888fa1a585048d2a6e95eb8302d89c7a9df75801c8b5a0b7d0221d4249059cf09a5f4228
+  languageName: node
+  linkType: hard
+
+"@types/vscode@npm:^1.99.0":
+  version: 1.107.0
+  resolution: "@types/vscode@npm:1.107.0"
+  checksum: 10c0/91dcefaa646bb586189f80f64e2d63f3d2189ff521ce44872652ffbb80d4420fede685a6dbd1fa274fb5ef54501bff23e66ee5f15df9205b12c5bd6d8429988f
+  languageName: node
+  linkType: hard
+
+"minimatch@npm:^10.0.3":
+  version: 10.1.1
+  resolution: "minimatch@npm:10.1.1"
+  dependencies:
+    "@isaacs/brace-expansion": "npm:^5.0.0"
+  checksum: 10c0/c85d44821c71973d636091fddbfbffe62370f5ee3caf0241c5b60c18cd289e916200acb2361b7e987558cd06896d153e25d505db9fc1e43e6b4b6752e2702902
+  languageName: node
+  linkType: hard
+
 "root-workspace-0b6124@workspace:.":
   version: 0.0.0-use.local
   resolution: "root-workspace-0b6124@workspace:."
   languageName: unknown
   linkType: soft
 
-"vscode-extension-sixu@workspace:sixu-vscode-extension":
+"semver@npm:^7.7.1":
+  version: 7.7.3
+  resolution: "semver@npm:7.7.3"
+  bin:
+    semver: bin/semver.js
+  checksum: 10c0/4afe5c986567db82f44c8c6faef8fe9df2a9b1d98098fc1721f57c696c4c21cebd572f297fc21002f81889492345b8470473bc6f4aff5fb032a6ea59ea2bc45e
+  languageName: node
+  linkType: hard
+
+"sixu-vscode-extension@workspace:sixu-vscode-extension":
   version: 0.0.0-use.local
-  resolution: "vscode-extension-sixu@workspace:sixu-vscode-extension"
+  resolution: "sixu-vscode-extension@workspace:sixu-vscode-extension"
+  dependencies:
+    "@types/node": "npm:^24"
+    "@types/vscode": "npm:^1.99.0"
+    typescript: "npm:^5.9.3"
+    vscode-languageclient: "npm:^10.0.0-next.19"
   languageName: unknown
   linkType: soft
+
+"typescript@npm:^5.9.3":
+  version: 5.9.3
+  resolution: "typescript@npm:5.9.3"
+  bin:
+    tsc: bin/tsc
+    tsserver: bin/tsserver
+  checksum: 10c0/6bd7552ce39f97e711db5aa048f6f9995b53f1c52f7d8667c1abdc1700c68a76a308f579cd309ce6b53646deb4e9a1be7c813a93baaf0a28ccd536a30270e1c5
+  languageName: node
+  linkType: hard
+
+"typescript@patch:typescript@npm%3A^5.9.3#optional!builtin<compat/typescript>":
+  version: 5.9.3
+  resolution: "typescript@patch:typescript@npm%3A5.9.3#optional!builtin<compat/typescript>::version=5.9.3&hash=379a07"
+  bin:
+    tsc: bin/tsc
+    tsserver: bin/tsserver
+  checksum: 10c0/6f7e53bf0d9702350deeb6f35e08b69cbc8b958c33e0ec77bdc0ad6a6c8e280f3959dcbfde6f5b0848bece57810696489deaaa53d75de3578ff255d168c1efbd
+  languageName: node
+  linkType: hard
+
+"undici-types@npm:~7.16.0":
+  version: 7.16.0
+  resolution: "undici-types@npm:7.16.0"
+  checksum: 10c0/3033e2f2b5c9f1504bdc5934646cb54e37ecaca0f9249c983f7b1fc2e87c6d18399ebb05dc7fd5419e02b2e915f734d872a65da2e3eeed1813951c427d33cc9a
+  languageName: node
+  linkType: hard
+
+"vscode-jsonrpc@npm:9.0.0-next.11":
+  version: 9.0.0-next.11
+  resolution: "vscode-jsonrpc@npm:9.0.0-next.11"
+  checksum: 10c0/cb81863d5bacc27ebfeff410ebe6e109c1a0489a9dd46a08317a035c9ab5dd30b4306e9664e362411c325703e676b47917ff42058ff175c8215250c80ee80cae
+  languageName: node
+  linkType: hard
+
+"vscode-languageclient@npm:^10.0.0-next.19":
+  version: 10.0.0-next.19
+  resolution: "vscode-languageclient@npm:10.0.0-next.19"
+  dependencies:
+    minimatch: "npm:^10.0.3"
+    semver: "npm:^7.7.1"
+    vscode-languageserver-protocol: "npm:3.17.6-next.16"
+  checksum: 10c0/e6b457744eefb90ddb2d5464c6d2a650f61343b129d3686e7e07c400f610bad8cb7602f23b9f1abea0b0f12abd7ecee4f5046af59389c489054ae5aacf6bdba9
+  languageName: node
+  linkType: hard
+
+"vscode-languageserver-protocol@npm:3.17.6-next.16":
+  version: 3.17.6-next.16
+  resolution: "vscode-languageserver-protocol@npm:3.17.6-next.16"
+  dependencies:
+    vscode-jsonrpc: "npm:9.0.0-next.11"
+    vscode-languageserver-types: "npm:3.17.6-next.6"
+  checksum: 10c0/249808c8e966b977be5b244b3cb9b22e4299908404bad8def1861b05fee273c713a9d7f31b192e44c4b40c23deb33ef4c1d5aae7f0a91bb75b46d94b5a57c356
+  languageName: node
+  linkType: hard
+
+"vscode-languageserver-types@npm:3.17.6-next.6":
+  version: 3.17.6-next.6
+  resolution: "vscode-languageserver-types@npm:3.17.6-next.6"
+  checksum: 10c0/44c61fc263142812a9b4da719eed30a63eed7d9a377a08e2caab50af7b8e5d0fc46aa192a4731973ef66c5460e45d56670a54a432868eadbc6d82f1f7d8142ff
+  languageName: node
+  linkType: hard
