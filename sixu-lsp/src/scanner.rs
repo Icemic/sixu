@@ -1,11 +1,11 @@
 use nom::{
+    IResult, Parser,
     branch::alt,
     bytes::complete::{tag, take_until, take_while1},
     character::complete::{alpha1, alphanumeric1, char, space0, space1},
     combinator::{opt, recognize, value},
     multi::{many0, many1, separated_list0},
-    sequence::{delimited, pair, preceded, tuple},
-    IResult, Parser,
+    sequence::{delimited, pair, preceded},
 };
 use nom_language::error::VerboseError;
 use ropey::Rope;
@@ -40,7 +40,7 @@ pub struct ScannedArgument {
     pub name_range: Range,
     pub value_kind: ArgValueKind,
     pub value_range: Option<Range>, // Added to track value location
-    pub value: Option<String>, // Added to track value content
+    pub value: Option<String>,      // Added to track value content
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -137,11 +137,10 @@ pub fn scan_paragraphs(text: &str, rope: &Rope) -> Vec<ScannedParagraph> {
     paragraphs
 }
 
-
 fn parse_comment(input: &str) -> Res<()> {
     alt((
         value((), pair(tag("//"), take_until("\n"))),
-        value((), tuple((tag("/*"), take_until("*/"), tag("*/")))),
+        value((), (tag("/*"), take_until("*/"), tag("*/"))),
     ))
     .parse(input)
 }
@@ -196,12 +195,15 @@ fn parse_command_with_span<'a>(
     let end_ptr = input.as_ptr() as usize - full_text.as_ptr() as usize;
     let range = range_from_offsets(start_ptr, end_ptr, rope);
 
-    Ok((input, ScannedCommand {
-        name: name.to_string(),
-        name_range,
-        args,
-        range,
-    }))
+    Ok((
+        input,
+        ScannedCommand {
+            name: name.to_string(),
+            name_range,
+            args,
+            range,
+        },
+    ))
 }
 
 fn parse_system_call_with_span<'a>(
@@ -229,28 +231,31 @@ fn parse_system_call_with_span<'a>(
                 char('('),
                 delimited(
                     space0,
-                    separated_list0(
-                        delimited(space0, char(','), space0),
-                        |i| parse_argument(i, full_text, rope)
-                    ),
-                    space0
+                    separated_list0(delimited(space0, char(','), space0), |i| {
+                        parse_argument(i, full_text, rope)
+                    }),
+                    space0,
                 ),
-                char(')')
-            )
+                char(')'),
+            ),
         ),
         // Type B: space separated
-        many0(preceded(space1, |i| parse_argument(i, full_text, rope)))
-    )).parse(input)?;
+        many0(preceded(space1, |i| parse_argument(i, full_text, rope))),
+    ))
+    .parse(input)?;
 
     let end_ptr = input.as_ptr() as usize - full_text.as_ptr() as usize;
     let range = range_from_offsets(start_ptr, end_ptr, rope);
 
-    Ok((input, ScannedSystemCall {
-        name: name.to_string(),
-        name_range,
-        args,
-        range,
-    }))
+    Ok((
+        input,
+        ScannedSystemCall {
+            name: name.to_string(),
+            name_range,
+            args,
+            range,
+        },
+    ))
 }
 
 fn parse_paragraph_with_span<'a>(
@@ -273,11 +278,14 @@ fn parse_paragraph_with_span<'a>(
     let end_ptr = input.as_ptr() as usize - full_text.as_ptr() as usize;
     let range = range_from_offsets(start_ptr, end_ptr, rope);
 
-    Ok((input, ScannedParagraph {
-        name: name.to_string(),
-        name_range,
-        range,
-    }))
+    Ok((
+        input,
+        ScannedParagraph {
+            name: name.to_string(),
+            name_range,
+            range,
+        },
+    ))
 }
 
 fn parse_argument<'a>(input: &'a str, full_text: &'a str, rope: &Rope) -> Res<'a, ScannedArgument> {
@@ -291,17 +299,15 @@ fn parse_argument<'a>(input: &'a str, full_text: &'a str, rope: &Rope) -> Res<'a
     let name_end = input.as_ptr() as usize - full_text.as_ptr() as usize;
     let name_range = range_from_offsets(name_start, name_end, rope);
 
-    let (input, value_info) = opt(preceded(
-        tuple((space0, tag("="), space0)),
-        |i: &'a str| {
-            let start_ptr = i.as_ptr() as usize - full_text.as_ptr() as usize;
-            let (rest, kind) = parse_value(i)?;
-            let end_ptr = rest.as_ptr() as usize - full_text.as_ptr() as usize;
-            let range = range_from_offsets(start_ptr, end_ptr, rope);
-            let value_str = full_text[start_ptr..end_ptr].to_string();
-            Ok((rest, (kind, range, value_str)))
-        }
-    )).parse(input)?;
+    let (input, value_info) = opt(preceded((space0, tag("="), space0), |i: &'a str| {
+        let start_ptr = i.as_ptr() as usize - full_text.as_ptr() as usize;
+        let (rest, kind) = parse_value(i)?;
+        let end_ptr = rest.as_ptr() as usize - full_text.as_ptr() as usize;
+        let range = range_from_offsets(start_ptr, end_ptr, rope);
+        let value_str = full_text[start_ptr..end_ptr].to_string();
+        Ok((rest, (kind, range, value_str)))
+    }))
+    .parse(input)?;
 
     let (value_kind, value_range, value) = match value_info {
         Some((k, r, v)) => (k, Some(r), Some(v)),
