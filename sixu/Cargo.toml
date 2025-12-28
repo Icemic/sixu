@@ -8,6 +8,7 @@ repository = "https://github.com/Icemic/sixu"
 version = "0.8.0"
 
 [features]
+cst = ["dep:nom_locate"]
 default = ["serde", "ts"]
 serde = ["dep:serde"]
 ts = ["dep:ts-rs"]
@@ -18,6 +19,7 @@ arc-swap = "1.7"
 log = "0.4"
 nom = "8.0"
 nom-language = "0.1"
+nom_locate = {version = "5.0.0", features = ["runtime-dispatch-simd"], optional = true}
 pollster = "0.4"
 thiserror = "2"
 

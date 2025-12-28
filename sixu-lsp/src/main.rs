@@ -2,6 +2,9 @@ use dashmap::DashMap;
 use nom::Finish;
 use ropey::Rope;
 use sixu::parser;
+use sixu::cst::parser::parse_tolerant;
+use sixu::cst::formatter::CstFormatter;
+use sixu::cst::node::CstValueKind;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use tower_lsp_server::jsonrpc::Result;
@@ -10,10 +13,8 @@ use tower_lsp_server::{Client, LanguageServer, LspService, Server};
 
 mod schema;
 use schema::*;
-mod formatter;
-use formatter::Formatter;
-mod scanner;
-use scanner::{ArgValueKind, scan_commands, scan_paragraphs, scan_system_calls};
+mod cst_helper;
+use cst_helper::*;
 
 #[derive(Debug)]
 struct Backend {
@@ -57,16 +58,45 @@ impl Backend {
             }
         };
 
-        // 2. Schema Check
+        // 2. CST Error Check (解析失败但以 @ 或 # 开头的行)
+        let cst = parse_tolerant("validate", &text);
+        fn collect_errors(nodes: &[sixu::cst::node::CstNode], diagnostics: &mut Vec<Diagnostic>) {
+            use sixu::cst::node::CstNode;
+            
+            for node in nodes {
+                match node {
+                    CstNode::Error { content, span, message } => {
+                        diagnostics.push(Diagnostic {
+                            range: span_to_range(span),
+                            severity: Some(DiagnosticSeverity::ERROR),
+                            source: Some("sixu-syntax".to_string()),
+                            message: message.clone(),
+                            ..Default::default()
+                        });
+                    }
+                    CstNode::Paragraph(para) => {
+                        collect_errors(&para.block.children, diagnostics);
+                    }
+                    CstNode::Block(block) => {
+                        collect_errors(&block.children, diagnostics);
+                    }
+                    _ => {}
+                }
+            }
+        }
+        collect_errors(&cst.nodes, &mut diagnostics);
+
+        // 3. Schema Check
         let schema_guard = self.schema.read().await;
         if let Some(schema) = &*schema_guard {
-            let commands = scan_commands(&text, &rope);
-            for cmd in commands {
+            let cst = parse_tolerant("validate", &text);
+            let commands = extract_commands(&cst);
+            for cmd in &commands {
                 // Find command definition
                 let def = schema
                     .commands
                     .iter()
-                    .find(|c| c.get_command_name().as_deref() == Some(&cmd.name));
+                    .find(|c| c.get_command_name().as_deref() == Some(&cmd.command));
 
                 if let Some(def) = def {
                     // Check required parameters
@@ -75,9 +105,9 @@ impl Backend {
                             if req_param == "command" {
                                 continue;
                             }
-                            if !cmd.args.iter().any(|arg| &arg.name == req_param) {
+                            if !cmd.arguments.iter().any(|arg| &arg.name == req_param) {
                                 diagnostics.push(Diagnostic {
-                                    range: cmd.name_range, // Mark the command name
+                                    range: span_to_range(&cmd.name_span), // Mark the command name
                                     severity: Some(DiagnosticSeverity::ERROR),
                                     source: Some("sixu-schema".to_string()),
                                     message: format!("Missing required parameter: {}", req_param),
@@ -88,7 +118,7 @@ impl Backend {
                     }
 
                     // Check parameter types (Simple check)
-                    for arg in &cmd.args {
+                    for arg in &cmd.arguments {
                         if let Some(prop) = def.properties.get(&arg.name) {
                             // Check type if defined
                             if let Some(type_or_arr) = &prop.type_ {
@@ -97,24 +127,28 @@ impl Backend {
                                     StringOrArray::Array(arr) => arr.clone(),
                                 };
 
-                                let is_valid = match arg.value_kind {
-                                    ArgValueKind::String => {
-                                        expected_types.contains(&"string".to_string())
+                                // Determine argument value type from CST
+                                let is_valid = if let Some(value) = &arg.value {
+                                    match &value.kind {
+                                        CstValueKind::String { .. } | CstValueKind::TemplateString => {
+                                            expected_types.contains(&"string".to_string())
+                                        }
+                                        CstValueKind::Integer | CstValueKind::Float => {
+                                            expected_types.contains(&"number".to_string())
+                                                || expected_types.contains(&"integer".to_string())
+                                        }
+                                        CstValueKind::Boolean => {
+                                            expected_types.contains(&"boolean".to_string())
+                                        }
+                                        CstValueKind::Variable => true, // Variables can be anything at runtime
                                     }
-                                    ArgValueKind::Number => {
-                                        expected_types.contains(&"number".to_string())
-                                            || expected_types.contains(&"integer".to_string())
-                                    }
-                                    ArgValueKind::Boolean => {
-                                        expected_types.contains(&"boolean".to_string())
-                                    }
-                                    ArgValueKind::Variable => true, // Variables can be anything at runtime
-                                    ArgValueKind::Other => true,
+                                } else {
+                                    true // No value means boolean flag
                                 };
 
                                 if !is_valid {
                                     diagnostics.push(Diagnostic {
-                                        range: arg.name_range,
+                                        range: span_to_range(&arg.span),
                                         severity: Some(DiagnosticSeverity::WARNING),
                                         source: Some("sixu-schema".to_string()),
                                         message: format!(
@@ -128,7 +162,7 @@ impl Backend {
                         } else {
                             // Unknown parameter
                             diagnostics.push(Diagnostic {
-                                range: arg.name_range,
+                                range: span_to_range(&arg.span),
                                 severity: Some(DiagnosticSeverity::WARNING),
                                 source: Some("sixu-schema".to_string()),
                                 message: format!("Unknown parameter: {}", arg.name),
@@ -139,10 +173,10 @@ impl Backend {
                 } else {
                     // Unknown command
                     diagnostics.push(Diagnostic {
-                        range: cmd.name_range,
+                        range: span_to_range(&cmd.name_span),
                         severity: Some(DiagnosticSeverity::WARNING),
                         source: Some("sixu-schema".to_string()),
-                        message: format!("Unknown command: {}", cmd.name),
+                        message: format!("Unknown command: {}", cmd.command),
                         ..Default::default()
                     });
                 }
@@ -270,23 +304,76 @@ impl LanguageServer for Backend {
         let line_slice = rope.line(line_idx);
         let col = position.character as usize;
 
-        let char_len = line_slice.len_chars();
-        let slice_end = if col <= char_len { col } else { char_len };
-        let line_prefix = line_slice.slice(..slice_end).to_string();
+        let line = line_slice.to_string();
+        // 将字符索引转换为字节索引（处理多字节字符如中文）
+        let mut char_count = 0;
+        let mut byte_pos = 0;
+        for (idx, _) in line.char_indices() {
+            if char_count >= col {
+                break;
+            }
+            byte_pos = idx;
+            char_count += 1;
+        }
+        // 如果还没到达目标字符数，使用字符串末尾
+        let slice_end = if char_count < col { line.len() } else { byte_pos };
+        let line_prefix = &line[..slice_end];
 
-        if let Some(at_idx) = line_prefix.rfind('@') {
-            let after_at = &line_prefix[at_idx + 1..];
-            let separator_idx = after_at.find(|c: char| c.is_whitespace() || c == '(');
+        // 检查是否在等号后面（正在输入值）
+        let trimmed = line_prefix.trim_end();
+        if trimmed.ends_with('=') {
+            return Ok(None);
+        }
 
-            if let Some(sep_idx) = separator_idx {
-                // Argument Completion
-                let cmd_name = &after_at[..sep_idx];
+        // 尝试找到当前位置的命令
+        if let Some((cmd_name, _is_paren, existing_args)) =
+            find_command_at_position(&line, col)
+        {
+            // 判断是命令还是系统调用
+            let is_system_call = line_prefix
+                .rfind(&format!("#{}", cmd_name))
+                .map(|hash_pos| {
+                    let at_pos = line_prefix.rfind(&format!("@{}", cmd_name));
+                    at_pos.map(|ap| hash_pos > ap).unwrap_or(true)
+                })
+                .unwrap_or(false);
 
-                let trimmed = line_prefix.trim_end();
-                if trimmed.ends_with('=') {
-                    return Ok(None);
+            if is_system_call {
+                // 系统调用参数补全
+                if ["goto", "call", "replace"].contains(&cmd_name.as_str()) {
+                    let mut items = Vec::new();
+
+                    // Named args（排除已有参数）
+                    for arg in ["paragraph", "story"] {
+                        if !existing_args.contains(&arg.to_string()) {
+                            items.push(CompletionItem {
+                                label: arg.to_string(),
+                                kind: Some(CompletionItemKind::FIELD),
+                                insert_text: Some(format!("{}=", arg)),
+                                ..Default::default()
+                            });
+                        }
+                    }
+
+                    // Paragraph names from current file
+                    let cst = parse_tolerant("completion", &rope.to_string());
+                    let paragraphs = extract_paragraphs(&cst);
+                    for p in paragraphs {
+                        if !existing_args.contains(&"paragraph".to_string()) {
+                            items.push(CompletionItem {
+                                label: p.name.clone(),
+                                kind: Some(CompletionItemKind::REFERENCE),
+                                insert_text: Some(format!("paragraph=\"{}\"", p.name)),
+                                detail: Some("Paragraph".to_string()),
+                                ..Default::default()
+                            });
+                        }
+                    }
+
+                    return Ok(Some(CompletionResponse::Array(items)));
                 }
-
+            } else {
+                // 命令参数补全
                 let schema_guard = self.schema.read().await;
                 let schema = match &*schema_guard {
                     Some(s) => s,
@@ -296,12 +383,13 @@ impl LanguageServer for Backend {
                 if let Some(cmd_def) = schema
                     .commands
                     .iter()
-                    .find(|c| c.get_command_name().as_deref() == Some(cmd_name))
+                    .find(|c| c.get_command_name().as_deref() == Some(&cmd_name))
                 {
                     let items: Vec<CompletionItem> = cmd_def
                         .properties
                         .iter()
                         .filter(|(key, _)| *key != "command")
+                        .filter(|(key, _)| !existing_args.contains(*key)) // 排除已有参数
                         .map(|(key, prop)| {
                             let is_string = prop
                                 .type_
@@ -345,7 +433,16 @@ impl LanguageServer for Backend {
                         .collect();
                     return Ok(Some(CompletionResponse::Array(items)));
                 }
-            } else {
+            }
+
+            // 找到了命令但没有 schema，返回空
+            return Ok(None);
+        }
+
+        // 检查是否在输入命令名（@ 或 # 后面没有空格/括号）
+        if let Some(at_idx) = line_prefix.rfind('@') {
+            let after_at = &line_prefix[at_idx + 1..];
+            if !after_at.contains(|c: char| c.is_whitespace() || c == '(') {
                 // Command Completion
                 let schema_guard = self.schema.read().await;
                 let schema = match &*schema_guard {
@@ -375,40 +472,7 @@ impl LanguageServer for Backend {
             }
         } else if let Some(hash_idx) = line_prefix.rfind('#') {
             let after_hash = &line_prefix[hash_idx + 1..];
-            let separator_idx = after_hash.find(|c: char| c.is_whitespace() || c == '(');
-
-            if let Some(sep_idx) = separator_idx {
-                // Argument Completion for System Call
-                let cmd_name = &after_hash[..sep_idx];
-
-                if ["goto", "call", "replace"].contains(&cmd_name) {
-                    let mut items = Vec::new();
-
-                    // Named args
-                    for arg in ["paragraph", "story"] {
-                        items.push(CompletionItem {
-                            label: arg.to_string(),
-                            kind: Some(CompletionItemKind::FIELD),
-                            insert_text: Some(format!("{}=", arg)),
-                            ..Default::default()
-                        });
-                    }
-
-                    // Paragraph names from current file
-                    let paragraphs = scan_paragraphs(&rope.to_string(), &rope);
-                    for p in paragraphs {
-                        items.push(CompletionItem {
-                            label: p.name.clone(),
-                            kind: Some(CompletionItemKind::REFERENCE),
-                            insert_text: Some(format!("paragraph=\"{}\"", p.name)),
-                            detail: Some("Paragraph".to_string()),
-                            ..Default::default()
-                        });
-                    }
-
-                    return Ok(Some(CompletionResponse::Array(items)));
-                }
-            } else {
+            if !after_hash.contains(|c: char| c.is_whitespace() || c == '(') {
                 // System Call Name Completion
                 let sys_calls = vec!["call", "goto", "replace", "break", "finish"];
                 let items: Vec<CompletionItem> = sys_calls
@@ -442,10 +506,12 @@ impl LanguageServer for Backend {
         };
         let text = rope.to_string();
 
-        let commands = scan_commands(&text, &rope);
+        let cst = parse_tolerant("hover", &text);
+        let commands = extract_commands(&cst);
 
-        for cmd in commands {
-            if contains(&cmd.range, &position) {
+        for cmd in &commands {
+            let cmd_range = span_to_range(&cmd.span);
+            if contains(&cmd_range, &position) {
                 let schema_guard = self.schema.read().await;
                 let schema = match &*schema_guard {
                     Some(s) => s,
@@ -455,27 +521,29 @@ impl LanguageServer for Backend {
                 if let Some(def) = schema
                     .commands
                     .iter()
-                    .find(|c| c.get_command_name().as_deref() == Some(&cmd.name))
+                    .find(|c| c.get_command_name().as_deref() == Some(&cmd.command))
                 {
-                    if contains(&cmd.name_range, &position) {
+                    let name_range = span_to_range(&cmd.name_span);
+                    if contains(&name_range, &position) {
                         return Ok(Some(Hover {
                             contents: HoverContents::Markup(MarkupContent {
                                 kind: MarkupKind::Markdown,
                                 value: def.description.clone().unwrap_or_default(),
                             }),
-                            range: Some(cmd.name_range),
+                            range: Some(name_range),
                         }));
                     }
 
-                    for arg in cmd.args {
-                        if contains(&arg.name_range, &position) {
+                    for arg in &cmd.arguments {
+                        let arg_range = span_to_range(&arg.span);
+                        if contains(&arg_range, &position) {
                             if let Some(prop) = def.properties.get(&arg.name) {
                                 return Ok(Some(Hover {
                                     contents: HoverContents::Markup(MarkupContent {
                                         kind: MarkupKind::Markdown,
                                         value: prop.description.clone().unwrap_or_default(),
                                     }),
-                                    range: Some(arg.name_range),
+                                    range: Some(arg_range),
                                 }));
                             }
                         }
@@ -500,42 +568,41 @@ impl LanguageServer for Backend {
         };
         let text = rope.to_string();
 
-        let system_calls = scan_system_calls(&text, &rope);
+        let cst = parse_tolerant("goto_def", &text);
+        let system_calls = extract_system_calls(&cst);
 
-        for call in system_calls {
-            if !contains(&call.range, &position) {
+        for call in &system_calls {
+            let call_range = span_to_range(&call.span);
+            if !contains(&call_range, &position) {
                 continue;
             }
 
-            if !["goto", "call", "replace"].contains(&call.name.as_str()) {
+            if !["goto", "call", "replace"].contains(&call.command.as_str()) {
                 continue;
             }
 
-            // Find "story" argument in this command
-            let story_arg = call
-                .args
-                .iter()
-                .find(|a| a.name == "story" && a.value_kind == ArgValueKind::String);
-
-            let paragraph_arg = call
-                .args
-                .iter()
-                .find(|a| a.name == "paragraph" && a.value_kind == ArgValueKind::String);
+            // Find "story" and "paragraph" arguments
+            let story_value = get_systemcall_argument_value(call, "story");
+            let paragraph_value = get_systemcall_argument_value(call, "paragraph");
 
             let mut is_on_story = false;
             let mut is_on_para = false;
 
-            if let Some(story_arg) = &story_arg {
-                if let Some(r) = &story_arg.value_range {
-                    if contains(r, &position) {
+            // Check if cursor is on story argument value
+            if let Some(story_arg) = call.arguments.iter().find(|a| a.name == "story") {
+                if let Some(value) = &story_arg.value {
+                    let value_range = span_to_range(&value.span);
+                    if contains(&value_range, &position) {
                         is_on_story = true;
                     }
                 }
             }
 
-            if let Some(paragraph_arg) = &paragraph_arg {
-                if let Some(r) = &paragraph_arg.value_range {
-                    if contains(r, &position) {
+            // Check if cursor is on paragraph argument value
+            if let Some(para_arg) = call.arguments.iter().find(|a| a.name == "paragraph") {
+                if let Some(value) = &para_arg.value {
+                    let value_range = span_to_range(&value.span);
+                    if contains(&value_range, &position) {
                         is_on_para = true;
                     }
                 }
@@ -548,15 +615,10 @@ impl LanguageServer for Backend {
             let target_uri;
             let target_text;
 
-            if let Some(story_arg) = &story_arg
-                && story_arg.value.is_some()
-            {
-                let story_name = story_arg.value.as_deref().unwrap();
-
+            if let Some(story_name) = story_value {
                 let path = uri.to_file_path().expect("Invalid file URI");
                 let parent = path.parent().expect("No parent directory");
-                let target_path =
-                    parent.join(format!("{}.sixu", &story_name[1..story_name.len() - 1]));
+                let target_path = parent.join(format!("{}.sixu", story_name));
 
                 target_uri = Uri::from_file_path(&target_path).expect("Process file path failed");
 
@@ -570,16 +632,10 @@ impl LanguageServer for Backend {
                 target_text = text.clone();
             }
 
-            let para_name = match paragraph_arg {
-                Some(arg) => {
-                    let name = arg.value.as_deref().unwrap();
-                    name[1..name.len() - 1].to_string()
-                }
-                None => "".to_string(),
-            };
+            let para_name = paragraph_value.unwrap_or_default();
 
-            let target_rope = Rope::from_str(&target_text);
-            let paragraphs = scan_paragraphs(&target_text, &target_rope);
+            let target_cst = parse_tolerant("goto_target", &target_text);
+            let paragraphs = extract_paragraphs(&target_cst);
 
             if let Some(p) = paragraphs.iter().find(|p| {
                 // return first paragraph if para_name is empty
@@ -591,7 +647,7 @@ impl LanguageServer for Backend {
             }) {
                 return Ok(Some(GotoDefinitionResponse::Scalar(Location {
                     uri: target_uri,
-                    range: p.name_range,
+                    range: span_to_range(&p.name_span),
                 })));
             }
         }
@@ -610,19 +666,21 @@ impl LanguageServer for Backend {
         };
         let text = rope.to_string();
 
-        let paragraphs = scan_paragraphs(&text, &rope);
+        // 使用 CST parser
+        let cst = parse_tolerant("doc", &text);
+        let paragraphs = extract_paragraphs(&cst);
         let mut symbols = Vec::new();
 
         for p in paragraphs {
             #[allow(deprecated)]
             symbols.push(DocumentSymbol {
-                name: p.name,
+                name: p.name.clone(),
                 detail: None,
                 kind: SymbolKind::CLASS,
                 tags: None,
                 deprecated: None,
-                range: p.range,
-                selection_range: p.name_range,
+                range: span_to_range(&p.span),
+                selection_range: span_to_range(&p.name_span),
                 children: None,
             });
         }
@@ -638,35 +696,27 @@ impl LanguageServer for Backend {
         };
         let text = rope.to_string();
 
-        match parser::parse("format", &text).finish() {
-            Ok((_, story)) => {
-                let formatter = Formatter::new();
-                let formatted_text = formatter.format(&story);
+        // 使用 CST formatter
+        let cst = parse_tolerant("format", &text);
+        let formatter = CstFormatter::new();
+        let formatted_text = formatter.format(&cst);
 
-                // Replace the entire document
-                let full_range = Range {
-                    start: Position {
-                        line: 0,
-                        character: 0,
-                    },
-                    end: Position {
-                        line: rope.len_lines() as u32,
-                        character: 0,
-                    },
-                };
+        // Replace the entire document
+        let full_range = Range {
+            start: Position {
+                line: 0,
+                character: 0,
+            },
+            end: Position {
+                line: rope.len_lines() as u32,
+                character: 0,
+            },
+        };
 
-                Ok(Some(vec![TextEdit {
-                    range: full_range,
-                    new_text: formatted_text,
-                }]))
-            }
-            Err(_) => {
-                self.client
-                    .log_message(MessageType::ERROR, "Cannot format: syntax error")
-                    .await;
-                Ok(None)
-            }
-        }
+        Ok(Some(vec![TextEdit {
+            range: full_range,
+            new_text: formatted_text,
+        }]))
     }
 }
 

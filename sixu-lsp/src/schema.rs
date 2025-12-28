@@ -30,6 +30,7 @@ pub struct Property {
     #[serde(rename = "const")]
     pub const_value: Option<String>,
     #[serde(rename = "enum")]
+    #[allow(dead_code)]
     pub enum_values: Option<Vec<String>>,
     pub default: Option<serde_json::Value>,
 }
