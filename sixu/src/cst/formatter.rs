@@ -60,15 +60,12 @@ impl CstFormatter {
     fn format_trivia(&self, trivia: &CstTrivia, indent_level: usize, output: &mut String) {
         match trivia {
             CstTrivia::Whitespace { content, .. } => {
-                // 只处理空行的规范化：将多个连续空行（2个及以上换行符）缩减为一个空行
-                // 计算换行符的数量
+                // 处理空行：如果包含2个或以上换行符（表示源码中有空行），输出一个空行
                 let newline_count = content.chars().filter(|&c| c == '\n').count();
                 if newline_count >= 2 {
-                    // 多个连续空行，缩减为一个空行（即输出一个换行符）
+                    // 多个换行符，输出一个空行
                     output.push('\n');
                 }
-                // 如果只有一个或零个换行符，或者只有空格/tab，则忽略
-                // 这样可以避免在没有空行的地方添加空行
             }
             CstTrivia::LineComment { content, .. } => {
                 self.indent(indent_level, output);
@@ -77,11 +74,36 @@ impl CstFormatter {
                 output.push('\n');
             }
             CstTrivia::BlockComment { content, .. } => {
-                self.indent(indent_level, output);
-                output.push_str("/*");
-                output.push_str(content);
-                output.push_str("*/");
-                output.push('\n');
+                // 多行注释需要特殊处理
+                let lines: Vec<&str> = content.lines().collect();
+                
+                if lines.len() <= 1 {
+                    // 单行注释：/* content */
+                    self.indent(indent_level, output);
+                    output.push_str("/*");
+                    output.push_str(content);
+                    output.push_str("*/");
+                    output.push('\n');
+                } else {
+                    // 多行注释：/* 单独一行，每个内容行添加 * 前缀
+                    self.indent(indent_level, output);
+                    output.push_str("/*");
+                    output.push('\n');
+                    
+                    for line in &lines {
+                        self.indent(indent_level, output);
+                        output.push_str(" *");
+                        if !line.is_empty() {
+                            output.push(' ');
+                            output.push_str(line.trim());
+                        }
+                        output.push('\n');
+                    }
+                    
+                    self.indent(indent_level, output);
+                    output.push_str(" */");
+                    output.push('\n');
+                }
             }
         }
     }
@@ -110,7 +132,6 @@ impl CstFormatter {
 
         output.push_str(" ");
         self.format_block(&para.block, indent_level, output);
-        output.push('\n');
     }
 
     fn format_parameter(&self, param: &CstParameter, output: &mut String) {
@@ -122,6 +143,10 @@ impl CstFormatter {
     }
 
     fn format_block(&self, block: &CstBlock, indent_level: usize, output: &mut String) {
+        // Block开括号需要缩进（除非是段落的根block，indent_level为0）
+        if indent_level > 0 {
+            self.indent(indent_level, output);
+        }
         output.push_str("{\n");
 
         for child in &block.children {
@@ -129,7 +154,7 @@ impl CstFormatter {
         }
 
         self.indent(indent_level, output);
-        output.push('}');
+        output.push_str("}\n");
     }
 
     fn format_command(&self, cmd: &CstCommand, indent_level: usize, output: &mut String) {
@@ -278,13 +303,25 @@ impl CstFormatter {
                 output.push('\n');
             }
             EmbeddedCodeSyntax::Hash => {
-                // ## 语法：开始和结束标记在独立的行上，代码内容保留原样
-                self.indent(indent_level, output);
-                output.push_str("##\n");
-                // 直接输出代码内容，保留其原始格式（不额外缩进）
-                output.push_str(&code.code);
-                self.indent(indent_level, output);
-                output.push_str("##\n");
+                let trimmed_code = code.code.trim();
+                if trimmed_code.contains('\n') {
+                    // 多行语法：开始和结束标记在独立的行上，代码内容保留原样
+                    self.indent(indent_level, output);
+                    output.push_str("##\n");
+                    // 直接输出代码内容，保留其原始格式（不额外缩进）
+                    output.push_str(&code.code);
+                    if !code.code.ends_with('\n') {
+                        output.push('\n');
+                    }
+                    self.indent(indent_level, output);
+                    output.push_str("##\n");
+                } else {
+                    // 单行语法：## code ##
+                    self.indent(indent_level, output);
+                    output.push_str("## ");
+                    output.push_str(trimmed_code);
+                    output.push_str(" ##\n");
+                }
             }
         }
     }

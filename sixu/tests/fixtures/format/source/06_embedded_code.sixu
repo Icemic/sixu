@@ -1,0 +1,23 @@
+::code_test {
+@{ let x = 42; }
+
+## console.log(123) ##
+
+
+## 
+  console.log(123) ##
+
+
+## console.log(123)
+  ##
+
+##
+    const y = "hello";
+    console.log(y);
+##
+
+##
+const y = "hello";
+console.log(y);
+##
+}

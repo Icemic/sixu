@@ -1,0 +1,4 @@
+::test {
+    @changebg src="test.jpg" fadeTime=1000
+    @wait time=2
+}

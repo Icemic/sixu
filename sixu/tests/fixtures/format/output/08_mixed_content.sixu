@@ -1,0 +1,7 @@
+::mixed {
+    [角色名] "对话内容"
+    @command arg=123
+    // 注释
+    普通文本
+    #call paragraph="next"
+}

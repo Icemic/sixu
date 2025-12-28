@@ -1,0 +1,4 @@
+::start {
+    #call paragraph="next"
+    #goto paragraph="end"
+}

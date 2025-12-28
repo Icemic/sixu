@@ -3,7 +3,7 @@
 use nom::{
     IResult, Parser,
     branch::alt,
-    bytes::complete::{tag, take, take_till, take_until, take_while, take_while1},
+    bytes::complete::{tag, take, take_until, take_while, take_while1},
     character::complete::{alpha1, alphanumeric1, char, digit1, multispace1, one_of, space0, space1},
     combinator::{opt, recognize, value},
     multi::{many0, many1, many_till, separated_list0},
@@ -900,14 +900,12 @@ fn parse_embedded_code_hash(input: Span) -> ParseResult<CstEmbeddedCode> {
     let (input, _) = parse_whitespace_inline.parse(input)?;
     let (input, _) = opt(parse_line_ending).parse(input)?;
     
-    // 收集内容直到遇到：行内空格 + ## + 行内空格 + 换行
+    // 收集内容直到遇到：行内空格 + ##
     let (input, content_chars) = many_till(
         anychar,
         (
             parse_whitespace_inline,
             tag("##"),
-            parse_whitespace_inline,
-            parse_line_ending,
         ),
     )
     .parse(input)?;
@@ -959,9 +957,6 @@ pub fn parse_text_line(input: Span) -> ParseResult<CstTextLine> {
     
     // 解析后缀标记（可选）
     let (input, tailing) = opt(parse_tailing_text).parse(input)?;
-    
-    // 跳过行尾空白和换行
-    let (input, _) = opt(alt((tag("\r\n"), tag("\n")))).parse(input)?;
     
     let end_span = input;
     let span = SpanInfo::from_range(start_span, end_span);

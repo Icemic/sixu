@@ -1,0 +1,9 @@
+::outer {
+{
+@command1 arg=1
+{
+@command2 arg=2
+"nested text"
+}
+}
+}
