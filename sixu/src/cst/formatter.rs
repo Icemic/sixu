@@ -295,12 +295,26 @@ impl CstFormatter {
     fn format_embedded_code(&self, code: &CstEmbeddedCode, indent_level: usize, output: &mut String) {
         match code.syntax {
             EmbeddedCodeSyntax::Brace => {
-                self.indent(indent_level, output);
-                output.push_str("@{");
-                // 保留原始代码内容（包括其内部的缩进和换行）
-                output.push_str(&code.code);
-                output.push('}');
-                output.push('\n');
+                let trimmed_code = code.code.trim();
+                if trimmed_code.contains('\n') {
+                    // 多行语法：@{ \n code \n }
+                    self.indent(indent_level, output);
+                    output.push_str("@{\n");
+                    
+                    // 移除首尾的换行符，但保留内部的缩进
+                    let code_content = code.code.trim_matches(|c| c == '\n' || c == '\r');
+                    output.push_str(code_content);
+                    output.push('\n');
+                    
+                    self.indent(indent_level, output);
+                    output.push_str("}\n");
+                } else {
+                    // 单行语法：@{ code }
+                    self.indent(indent_level, output);
+                    output.push_str("@{ ");
+                    output.push_str(trimmed_code);
+                    output.push_str(" }\n");
+                }
             }
             EmbeddedCodeSyntax::Hash => {
                 let trimmed_code = code.code.trim();

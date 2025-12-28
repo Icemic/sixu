@@ -3,6 +3,15 @@
 
     ## console.log(123) ##
 
+    @{ console.log(123) }
+
+    @{ console.log(123) }
+
+    @{
+  const y = "hello";
+  console.log(y);
+    }
+
     ## console.log(123) ##
 
     ## console.log(123) ##
