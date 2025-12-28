@@ -1,0 +1,190 @@
+::image {
+  @setTitle(text="序章")
+
+
+  // ;goto *tc1
+
+
+  // ;bg "tui\title_off2.bmp",1
+
+  @soundStop(channel="c5")
+
+  @changebg src="sss"
+
+  
+
+  // @addchar(name="sfdsd", x=false)
+
+  // @changebg src="sdfsd" skippable
+
+  // ;プロローグ
+
+  @changebg(src="arc/e/b.webp", fadeTime=600)
+  @stopAllSounds()
+  @soundstop channel="bgm" fadeTime=1500
+
+  @soundStop channel="c0"
+
+  @sound(channel="c0", src="arc/w/n001.opus", loop=false)
+
+  @changebg(src="arc/e/c001a.webp", fadeTime=600)
+
+  @changebg(src="arc/e/c001b.webp", fadeTime=600)
+
+  @changebg(src="arc/e/c001.webp", fadeTime=600)
+
+  @changebg(src="arc/e/c002.webp", fadeTime=600)
+
+  @changebg(src="arc/e/c003.webp", fadeTime=600)
+
+  @wait(time=700)
+
+  @changebg(src="arc/e/c004.webp", fadeTime=1000)
+
+  @wait(time=1000)
+
+  @changebg(src="arc/e/b.webp", fadeTime=1000)
+
+  @wait(time=200)
+
+  @sound(channel="c5", src="arc/se/rain_1.opus", loop=false)
+
+  @changebg(src="arc/e/sora_ame03.webp", fadeTime=600)
+
+  @changebg(src="arc/e/c02.webp", fadeTime=600)
+
+  @setTextBoxPos(x=180, y=358)
+  // !sd
+  @clearTextBox()
+
+  ■　１９９６年　春　濑津美　■
+
+  // ;bg "e\c02b.jpg",3
+
+  @sound(channel="bgm", src="arc/bgm/n04.opus", loop=true)
+
+  @changebg(src="arc/e/sora_ame01.webp", fadeTime=600)
+
+
+  @sound(channel="c0", src="arc/w/n002.opus", loop=false)
+
+  『…从小时候起，我的身体就很虚弱…』
+
+  @soundStop(channel="c0")
+
+
+  但是，我也拥有和其他孩子一样的小学时代， #+!
+  那时到了暑假，我也会在外边一直玩耍到皮肤被晒黑。
+
+  // ;○とも＞教室夕方
+
+  @changebg(src="arc/e/byoin_heya_yu2.webp", fadeTime=1000)
+
+  ６月…在我刚刚进入初中的那年。 #+
+  在我满怀兴致地订购了体育课泳装的第二天。
+
+  那一天，我头一次尝到了住院的滋味。
+
+  那是第一学期期中考试之前， #+!
+  梅雨降临不久后的一个寒冷刺骨的日子。
+
+  // ;○とも＞夕：空
+
+  @sound(channel="c5", src="arc/se/rain_1.opus", loop=false)
+
+  @changebg(src="arc/e/sora_ame03.webp", fadeTime=1000)
+
+
+
+  下着梅雨的苍白天空。
+
+  当然，在最初的日子里， #+!
+  班里的同学们几乎每天都会来探望我。
+
+  出院的时候， #+!
+  她们也会利用周末到我家里来玩。
+
+  …但是，这一切都只发生在最初的日子里而已。
+
+  // ;どんどん学校から、社会から、置き去りにされてしまうわたし。\
+
+  @soundStop(channel="c5")
+
+  // ;bg "e\byoin_heya_yu2.jpg",5
+
+  @changebg(src="arc/e/sora_ame01.webp", fadeTime=600)
+
+  秋去冬来，四季流转， #+!
+  住院，出院，检查…之后再次住院。我的生活也在单调地轮回着…
+
+  那些曾经被我当作「朋友」的同学们。
+
+
+  在不知不觉中，慢慢地变成了「熟人」。
+
+  最终，渐渐地，成为了「陌生人」。
+
+  随着岁月的流逝，我的身影也在她们的记忆之中逐渐变淡… #+!
+  最终消失无痕。
+
+  @changebg(src="arc/e/chara_k01.webp", fadeTime=1000)
+
+  @sound(channel="c0", src="arc/w/n003.opus", loop=false)
+
+  「…看来，她们似乎『不喜欢』我…」
+
+  @soundStop(channel="c0")
+
+  @wait(time=300)
+
+  @sound(channel="c0", src="arc/w/n004.opus", loop=false)
+
+  「对普通人来说，我的存在只是一个累赘…」
+
+  @soundStop(channel="c0")
+
+  @changebg(src="arc/e/chara_k01.webp", fadeTime=600)
+
+  @sound(channel="c0", src="arc/w/n005.opus", loop=false)
+
+  「所以…才会被人们从记忆中抹去…」
+
+  @soundStop(channel="c0")
+
+  @sound(channel="c5", src="arc/se/rain_1.opus", loop=false)
+
+  @changebg(src="arc/e/w.webp", fadeTime=1000)
+
+  @changebg(src="arc/e/sora_ame03.webp", fadeTime=1000)
+
+  @sound(channel="c0", src="arc/w/n006.opus", loop=false)
+
+  「在这个只看得到自己的世界里… #+!
+  我送走了不知多少个季节…多少次下着梅雨的苍白天空…」
+
+  @soundStop(channel="c0")
+
+  @sound(channel="c0", src="arc/w/n007.opus", loop=false)
+
+  「我的英语教科书， #+!
+  自从１年级的期中考试以后，就再也没被翻开过…」
+
+  @soundStop(channel="c0")
+
+  @changebg(src="arc/e/chara_0012.webp", fadeTime=1000)
+
+  @sound(channel="c0", src="arc/w/n008.opus", loop=false)
+
+  「…从那时起… #+&
+  我的时间就静止了…」
+
+  @soundStop(channel="c0")
+
+  @changebg(src="arc/e/chara_0013b.webp", fadeTime=600)
+
+  @changebg(src="arc/e/c005.webp", fadeTime=1000)
+
+  @changebg(src="arc/e/c0052.webp", fadeTime=600)
+
+  #goto story="complex" paragraph="paragraphA"
+}

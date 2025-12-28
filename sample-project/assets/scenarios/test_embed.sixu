@@ -1,0 +1,23 @@
+::entry(aaa=123) {
+
+##
+  let x = 0;
+  let global.x = 1;
+  let save.x = 1;
+  let embed_str = "测试"
+  if x > 10 {
+    x = 0;
+  } else if x < 0 {
+    x = 10;
+  } else {
+    x = 5;
+  }
+
+  {
+    // do something
+  }
+
+  "fdsf##fsdsdsf"
+##
+
+}

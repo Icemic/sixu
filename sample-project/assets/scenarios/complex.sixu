@@ -1,0 +1,136 @@
+::entry(aaa=123) {
+{
+  #call paragraphA name = "def"
+  sfssdfdsafdsdsfds
+  ## console.log(123) ##
+}
+
+
+// 这是一条指令
+@xxx flag foo = "bar" abc = 123 xx = false
+
+ "sdfsdf" #+
+
+ sdsdfsdfds#啊啊啊
+ sdsdfsdfds#啊啊 啊
+
+// 另一种写法
+@xxx(flag, foo = "bar", abc = 123, xx = localValue)
+
+/**
+ * 这是多行注释
+ * 这是第二行注释
+ */
+
+// 以下是脚本块，以 ## 开头，内部可以是任意合法的 JavaScript 代码
+
+## console.log(123) ##
+
+@{ console.log(123);  }
+
+##
+  let x = 0;
+  let global.x = 1;
+  let save.x = 1;
+  let embed_str = "测试"
+  if x > 10 {
+    x = 0;
+  } else if x < 0 {
+    x = 10;
+  } else {
+    x = 5;
+  }
+
+  {
+    // do something
+  }
+
+  "fdsf##fsdsdsf"
+##
+
+#[if(a =123 && (b + 1) > '])'.length)]
+#[if(save.x = 1)]
+#[if(save.x = 1)]
+{
+  `这是一行${embed_str}文本` // 这是一行测试文本
+}
+
+#call(paragraphA, name = "def")
+// 支持另一种写法
+#call paragraphA name = "def"
+sfssdfdsafdsdsfds
+
+// 这是一行普通文本，不会进行转义
+啊啊啊啊啊
+
+[sdfds] sdfdsfsd
+["sdfdsfsd\u6D4B\u{8BD5}"] fsdsfsdfsd
+[`sdfdsf${embed_str}`] fsdsfsdfsd
+
+{
+  // #call paragraphA name = "def"
+  sfssdfdsafdsdsfds
+}
+
+// 用引号包裹的文本会进行转义
+"sdfdsfsd\u6D4B\u{8BD5}"
+'sdfdsfsd\u6D4B\u{8BD5}'
+}
+
+
+
+// 其他段落
+::paragraphA(name) {
+// 段落A的内容
+#goto(paragraphB, name = name)  // 如果 name 没有传入，paragraphB 会使用默认值
+
+// 段落A的剩余内容
+// 永远不会执行
+
+}
+
+::paragraphB(name = "abc") {
+这里是段落B
+}
+
+
+::demo_paragraph {
+    // Test tailing text syntax highlighting
+    
+    // Quoted text with tailing text
+    "Hello, world!"#greeting
+    "How are you?"#question
+    'Single quoted text'#tag
+    
+    // With space before tailing
+    "Some text" #tag_with_space
+    
+    // Plain text with tailing
+    This is plain text #plain_tag
+    Plain text with special chars #tag-123_test.ext
+    
+    // With leading and tailing text
+    [Character] "Dialogue text"#dialogue
+    [Speaker] Plain dialogue #speech
+    
+    // Unicode in tailing
+    "中文文本"#中文标签
+    "English text"#标签123
+    
+    // Template literal with tailing
+    `Template ${variable}`#template_tag
+    
+    // Without tailing text (for comparison)
+    "Regular text without tag"
+    Plain text without any tag
+    Plain text without any #tag sdfs
+    
+    // Edge cases
+    "Text with # in middle but no tailing"
+    "Text ending with #"
+    Text with multiple words #onlylastistag
+    
+    // With command for context
+    @show_text speaker="hero" content="Hello!"
+    #goto next_scene
+}

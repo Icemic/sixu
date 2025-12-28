@@ -1,0 +1,38 @@
+// 语法错误测试文件
+// 用于测试 LSP 是否能正确标记错误位置
+
+::test_errors {
+    // 正确的命令
+    @changebg(src="test.jpg", fadeTime=1000)
+
+    // 错误
+    @changebg(src="test.jpg", fadeTime=1000) aaaa
+    //                                      ^ 应该在这里显示红色下划线
+    
+    // 错误1：参数值有非法字符
+    @changebg src="test.jpg" fadeTime=1000a skippable
+    //                                   ^ 应该在这里显示红色下划线
+    
+    // 错误2：缺少引号
+    @changebg src=test.jpg
+    //            ^ 应该报错
+    
+    // 错误3：未知参数
+    @changebg src="test.jpg" unknownParam=123
+    //                       ^ 应该警告
+    
+    // 错误4：缺少必需参数
+    @changebg fadeTime=1000
+    // ^ 整个命令应该报错（缺少 src）
+    
+    // 错误5：系统调用语法错误
+    #goto paragraph=abc
+    //                ^ 应该报错（缺少引号）
+    
+    // 正确的系统调用
+    #goto paragraph="abc"
+    
+    // 错误6：拼写错误的命令
+    @changebgg src="test.jpg"
+    // ^ 应该警告未知命令
+}

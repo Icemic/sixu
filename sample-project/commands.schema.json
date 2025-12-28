@@ -1,0 +1,329 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "oneOf": [
+    {
+      "description": "Change background command",
+      "type": "object",
+      "properties": {
+        "command": {
+          "type": "string",
+          "const": "changebg"
+        },
+        "src": {
+          "description": "image source",
+          "type": "string"
+        },
+        "fadeTime": {
+          "description": "Fade time in milliseconds, default is 1000",
+          "type": "number"
+        },
+        "skippable": {
+          "description": "Whether the background change can be skipped, default is false",
+          "type": "boolean"
+        }
+      },
+      "required": ["command", "src"],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "command": {
+          "type": "string",
+          "const": "addchar"
+        },
+        "name": {
+          "type": "string"
+        },
+        "src": {
+          "type": "string"
+        },
+        "x": {
+          "type": "number"
+        },
+        "y": {
+          "type": "number"
+        },
+        "visible": {
+          "type": "boolean"
+        },
+        "scale": {
+          "type": "number"
+        },
+        "tint": {
+          "type": "string"
+        },
+        "pivot": {
+          "type": "array",
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ]
+        },
+        "fadeTime": {
+          "type": "number"
+        }
+      },
+      "required": ["command", "name", "src"],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "command": {
+          "type": "string",
+          "const": "charchange"
+        },
+        "name": {
+          "type": "string"
+        },
+        "src": {
+          "type": "string"
+        },
+        "x": {
+          "type": "number"
+        },
+        "y": {
+          "type": "number"
+        },
+        "visible": {
+          "type": "boolean"
+        },
+        "scale": {
+          "type": "number"
+        },
+        "tint": {
+          "type": "string"
+        },
+        "pivot": {
+          "type": "array",
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ]
+        },
+        "fadeTime": {
+          "type": "number"
+        }
+      },
+      "required": ["command", "name"],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "command": {
+          "type": "string",
+          "const": "charremove"
+        },
+        "name": {
+          "type": "string"
+        },
+        "fadeTime": {
+          "type": "number"
+        }
+      },
+      "required": ["command", "name"],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "command": {
+          "type": "string",
+          "const": "charclear"
+        },
+        "fadeTime": {
+          "type": "number"
+        }
+      },
+      "required": ["command"],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "command": {
+          "type": "string",
+          "const": "charname"
+        },
+        "name": {
+          "type": "string"
+        },
+        "to": {
+          "type": "string"
+        }
+      },
+      "required": ["command", "name", "to"],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "command": {
+          "type": "string",
+          "const": "wait"
+        },
+        "skippable": {
+          "type": "boolean"
+        },
+        "time": {
+          "type": "number"
+        }
+      },
+      "required": ["command", "time"],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "command": {
+          "type": "string",
+          "const": "sound"
+        },
+        "channel": {
+          "type": "string"
+        },
+        "src": {
+          "type": "string"
+        },
+        "loop": {
+          "type": "boolean"
+        },
+        "volume": {
+          "type": "number"
+        },
+        "fadeTime": {
+          "type": "number"
+        }
+      },
+      "required": ["command", "channel", "src"],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "command": {
+          "type": "string",
+          "const": "soundStop"
+        },
+        "channel": {
+          "type": "string"
+        },
+        "fadeTime": {
+          "type": "number"
+        }
+      },
+      "required": ["command", "channel"],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "command": {
+          "type": "string",
+          "const": "waitclick"
+        },
+        "channel": {
+          "type": "string"
+        },
+        "fadeTime": {
+          "type": "number"
+        }
+      },
+      "required": ["command", "channel"],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "command": {
+          "type": "string",
+          "const": "leaveStage"
+        },
+        "gotoPage": {
+          "type": "string"
+        }
+      },
+      "required": ["command", "gotoPage"],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "command": {
+          "type": "string",
+          "const": "setTitle"
+        },
+        "text": {
+          "type": "string"
+        }
+      },
+      "required": ["command", "text"],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "command": {
+          "type": "string",
+          "const": "setProgress"
+        },
+        "game": {
+          "type": "string",
+          "enum": ["nar", "nar2"]
+        },
+        "chapter": {
+          "type": "number"
+        },
+        "epilogue": {
+          "type": "boolean"
+        },
+        "nar1Limited": {
+          "type": "boolean"
+        }
+      },
+      "required": ["command", "game"],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "command": {
+          "type": "string",
+          "const": "setTextBoxPos"
+        },
+        "x": {
+          "type": "number"
+        },
+        "y": {
+          "type": "number"
+        }
+      },
+      "required": ["command", "x", "y"],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "command": {
+          "type": "string",
+          "const": "setBgTint"
+        },
+        "tint": {
+          "type": "string"
+        }
+      },
+      "required": ["command", "tint"],
+      "additionalProperties": false
+    }
+  ]
+}

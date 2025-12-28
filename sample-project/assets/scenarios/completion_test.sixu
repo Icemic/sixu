@@ -1,0 +1,61 @@
+// LSP 智能补全测试文件
+// 请在每个标记 [TEST] 的位置按空格，观察补全行为
+
+::test_param_exclusion {
+    // 测试 1：无括号语法 - 已有参数应该被排除
+    @changebg src="test.jpg" 
+    // [TEST] 光标在这里按空格，应该只看到 fadeTime 和 skippable，不应该看到 src
+    
+    // 测试 2：括号语法 - 已有参数应该被排除  
+    @changebg(src="test.jpg", 
+    // [TEST] 光标在这里按空格，应该只看到 fadeTime 和 skippable
+    
+    // 测试 3：布尔参数也应该被正确识别
+    @changebg src="test.jpg" skippable 
+    // [TEST] 光标在这里，应该只看到 fadeTime
+}
+
+::test_string_detection {
+    // 测试 4：字符串内不应该触发补全
+    @changebg src="test .jpg"
+    //              ^ [TEST] 光标在这里不应该触发
+    
+    // 测试 5：模板字符串内也不应该触发
+    @changebg src=`template .jpg`
+    //                     ^ [TEST] 不触发
+}
+
+::test_systemcall {
+    // 测试 6：系统调用的参数排除
+    #call paragraph="abc" 
+    // [TEST] 这里应该只看到 story，不应该看到 paragraph
+    
+    // 测试 7：系统调用括号语法
+    #goto(paragraph="def", 
+    // [TEST] 这里应该只看到 story
+}
+
+::test_context_validation {
+    // 测试 8：括号后不应该触发
+    @changebg(src="test.jpg") 
+    // [TEST] 右括号后这里不应该触发补全
+    
+    // 测试 9：命令名补全
+    @chang
+    // [TEST] 光标在 chang 后面，应该触发命令名补全，看到 changebg
+    
+    // 测试 10：系统调用名补全
+    #cal
+    // [TEST] 光标在 cal 后面，应该触发系统调用补全，看到 call
+}
+
+::test_mixed_syntax {
+    // 测试 11：混合值类型
+    @addchar name="hero" x=100 y=200 visible 
+    // [TEST] 这里应该看到剩余参数：src, scale, tint, pivot, fadeTime
+    // 不应该看到：name, x, y, visible
+    
+    // 测试 12：括号内逗号分隔
+    @addchar(name="hero", x=100, 
+    // [TEST] 这里应该看到：src, y, visible, scale, tint, pivot, fadeTime
+}
