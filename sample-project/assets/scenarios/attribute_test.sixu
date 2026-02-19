@@ -130,14 +130,14 @@
 ::test_with_systemcall {
     // attribute 应用于系统调用
     #[cond("go_to_ending")]
-    #goto ending_paragraph
+    #goto paragraph="ending_paragraph"
 
     // 条件跳转
     #[if("save.route = 1")]
-    #call route_a_handler
+    #call paragraph="route_a_handler"
 
     #[if("save.route = 2")]
-    #call route_b_handler
+    #call paragraph="route_b_handler"
 }
 
 ::test_attribute_syntax_edge_cases {
@@ -168,10 +168,10 @@
 
 ::route_a_handler {
     "进入了路线 A"
-    #goto ending_paragraph
+    #goto paragraph="ending_paragraph"
 }
 
 ::route_b_handler {
     "进入了路线 B"
-    #goto ending_paragraph
+    #goto paragraph="ending_paragraph"
 }

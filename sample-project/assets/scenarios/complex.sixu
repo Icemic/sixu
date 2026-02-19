@@ -1,6 +1,6 @@
 ::entry(aaa=123) {
 {
-  #call paragraphA name = "def"
+  #call paragraph="paragraphA"
   sfssdfdsafdsdsfds
   ## console.log(123) ##
 }
@@ -53,9 +53,9 @@
   `这是一行${embed_str}文本` // 这是一行测试文本
 }
 
-#call(paragraphA, name = "def")
+#call(paragraph="paragraphA")
 // 支持另一种写法
-#call paragraphA name = "def"
+#call paragraph="paragraphA"
 sfssdfdsafdsdsfds
 
 // 这是一行普通文本，不会进行转义
@@ -66,7 +66,7 @@ sfssdfdsafdsdsfds
 [`sdfdsf${embed_str}`] fsdsfsdfsd
 
 {
-  // #call paragraphA name = "def"
+  // #call paragraph="paragraphA"
   sfssdfdsafdsdsfds
 }
 
@@ -80,7 +80,7 @@ sfssdfdsafdsdsfds
 // 其他段落
 ::paragraphA(name) {
 // 段落A的内容
-#goto(paragraphB, name = name)  // 如果 name 没有传入，paragraphB 会使用默认值
+#goto paragraph="paragraphB"
 
 // 段落A的剩余内容
 // 永远不会执行
@@ -130,5 +130,5 @@ sfssdfdsafdsdsfds
     
     // With command for context
     @show_text speaker="hero" content="Hello!"
-    #goto next_scene
+    #goto paragraph="next_scene"
 }

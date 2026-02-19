@@ -14,9 +14,9 @@
     [chihana] "你好！我是转学生千花，请多指教！"
 
     {
-        #call intro
+        #call paragraph="intro"
         @wait 1.5
-        #goto chat_in_classroom
+        #goto paragraph="chat_in_classroom"
     }
 }
 ```
@@ -107,12 +107,198 @@
 
 ### 系统调用（System Call）
 
-以 `#` 开头，用于流程控制：
+以 `#` 开头，用于流程控制。系统调用的参数格式与命令相同，支持空格分隔和括号分隔两种写法：
 
 ```sixu
-#call(paragraph_name, param="value")
-#goto next_paragraph param="value"
+#goto paragraph="next_scene"
+// 或者使用括号形式
+#goto(paragraph="next_scene")
 ```
+
+#### 内置系统调用
+
+##### `#goto`
+
+清空执行栈，跳转到指定段落。执行后不会返回原位置。
+
+```sixu
+// 跳转到当前故事中的段落
+#goto paragraph="ending"
+
+// 跳转到其他故事文件中的段落
+#goto(paragraph="chapter2_start", story="chapter2")
+```
+
+| 参数 | 类型 | 必须 | 说明 |
+|------|------|------|------|
+| `paragraph` | string | 是 | 目标段落名称 |
+| `story` | string | 否 | 目标故事名称，省略则为当前故事 |
+
+##### `#call`
+
+调用指定段落。目标段落执行完毕后，会返回到调用处继续执行后续内容。
+
+```sixu
+#call paragraph="show_intro"
+
+#call(paragraph="common_dialogue", story="shared")
+```
+
+| 参数 | 类型 | 必须 | 说明 |
+|------|------|------|------|
+| `paragraph` | string | 是 | 目标段落名称 |
+| `story` | string | 否 | 目标故事名称，省略则为当前故事 |
+
+##### `#replace`
+
+替换当前段落为目标段落。与 `#call` 类似，但不会在目标段落结束后返回，而是返回到调用当前段落的位置。
+
+```sixu
+#replace paragraph="alternative_scene"
+
+#replace(paragraph="scene_b", story="other_story")
+```
+
+| 参数 | 类型 | 必须 | 说明 |
+|------|------|------|------|
+| `paragraph` | string | 是 | 目标段落名称 |
+| `story` | string | 否 | 目标故事名称，省略则为当前故事 |
+
+##### `#break`
+
+中断当前代码块，返回到上一层。
+
+```sixu
+{
+    "这行会执行"
+    #break
+    "这行不会执行"
+}
+```
+
+##### `#breakloop`
+
+跳出当前的 `#[while]` 或 `#[loop]` 循环（参见[属性](#属性attribute)章节）。
+
+```sixu
+#[loop]
+{
+    @do_something
+    #[if("should_stop")]
+    #breakloop
+}
+```
+
+##### `#continue`
+
+跳过当前循环迭代的剩余内容，重新开始下一次迭代（参见[属性](#属性attribute)章节）。
+
+```sixu
+#[while("index < 10")]
+{
+    #[if("skip_this")]
+    #continue
+    @process_item
+}
+```
+
+##### `#finish`
+
+结束整个故事的执行，清空执行栈。
+
+```sixu
+#finish
+```
+
+##### 自定义系统调用
+
+未被识别的系统调用名称会被转发给 `RuntimeExecutor` 的 `handle_extra_system_call()` 方法，由引擎实现者自行处理。
+
+### 属性（Attribute）
+
+属性以 `#[keyword]` 或 `#[keyword("condition")]` 的形式写在行前，用于为紧随其后的内容（文本、命令、系统调用或代码块）添加控制流逻辑。
+
+条件表达式必须使用引号包裹（双引号或单引号均可），其内容将在运行时由引擎的 `eval_condition()` 方法求值。
+
+```sixu
+// 条件执行：仅当条件为真时执行
+#[cond("flag_opened")]
+@changebg src="opened.webp"
+
+// if 是 cond 的别名
+#[if("save.route == 1")]
+"只有路线 1 才能看到这段文字"
+
+// 条件循环：条件为真时反复执行
+#[while("counter < 5")]
+{
+    @process_item
+    "循环进行中..."
+}
+
+// 无条件循环：需要配合 #breakloop 退出
+#[loop]
+{
+    @do_something
+    #[if("finished")]
+    #breakloop
+}
+
+// 使用单引号包裹条件
+#[cond('x > 10')]
+@alert
+```
+
+#### 支持的属性关键字
+
+| 关键字 | 条件 | 说明 |
+|--------|------|------|
+| `cond` | 必须 | 条件为真时执行，否则跳过 |
+| `if` | 必须 | `cond` 的别名，行为完全相同 |
+| `while` | 必须 | 条件为真时循环执行，每次迭代前重新求值 |
+| `loop` | 无 | 无条件循环，必须使用 `#breakloop` 退出 |
+
+#### 属性的作用范围
+
+属性作用于紧随其后的**一个**子元素，可以是文本行、命令行、系统调用行或代码块：
+
+```sixu
+// 作用于单条命令
+#[if("show_bg")]
+@changebg src="bg.webp"
+
+// 作用于代码块（块内所有内容作为整体）
+#[while("has_next")]
+{
+    @show_next
+    "下一项..."
+}
+```
+
+#### `#continue` 和 `#breakloop`
+
+在 `#[while]` 和 `#[loop]` 循环中，可以使用 `#continue` 和 `#breakloop` 系统调用来控制循环流程：
+
+```sixu
+#[while("index < 10")]
+{
+    // 满足条件时跳过本次迭代
+    #[if("skip_this")]
+    #continue
+
+    @process_item
+
+    // 满足条件时退出循环
+    #[if("enough")]
+    #breakloop
+}
+```
+
+#### 注意事项
+
+- 如果同一个子元素前有多个属性，仅最后一个生效，其余会被忽略
+- `loop` 属性不接受条件参数，写成 `#[loop]` 即可
+- 条件字符串的内容由运行时引擎解释，语法取决于具体的 `RuntimeExecutor` 实现
 
 ### 代码块
 
@@ -172,7 +358,7 @@
     @背景 "教室"
     {
         // 这是一个子块
-        #调用 对话
+        #call paragraph="对话"
         @等待 1
     }
 }
