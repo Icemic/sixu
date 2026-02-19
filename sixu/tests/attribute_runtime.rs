@@ -305,7 +305,7 @@ after_loop
 "#;
     let (texts, commands) = run_story(script).await;
     // Loop runs: increment, counter<3? continue. After 3 iterations, counter=3, break.
-    // Wait, let's trace: 
+    // Wait, let's trace:
     // iter1: increment(0→1), counter<3→continue (skip break, restart loop)
     // iter2: increment(1→2), counter<3→continue
     // iter3: increment(2→3), counter<3 is false→skip continue, hit break

@@ -219,10 +219,11 @@ pub fn find_command_at_position(
         // 括号语法：检查光标是否在 ) 之前
         let close_paren_pos = after_cmd.find(')');
         if let Some(pos) = close_paren_pos
-            && cmd_end + pos < after_trigger.len() {
-                // 光标在 ) 之后，不补全
-                return None;
-            }
+            && cmd_end + pos < after_trigger.len()
+        {
+            // 光标在 ) 之后，不补全
+            return None;
+        }
     }
 
     // 提取已有参数

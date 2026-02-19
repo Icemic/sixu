@@ -1,8 +1,7 @@
 /// CST-based formatter for Sixu language
-/// 
+///
 /// This formatter preserves all comments and produces formatted output
 /// with consistent spacing, indentation, and line breaks.
-
 use crate::cst::node::*;
 
 pub struct CstFormatter {
@@ -27,7 +26,7 @@ impl CstFormatter {
     /// Format a CST root node into a string
     pub fn format(&self, root: &CstRoot) -> String {
         let mut output = String::new();
-        
+
         for node in &root.nodes {
             self.format_node(node, 0, &mut output);
         }
@@ -77,7 +76,7 @@ impl CstFormatter {
             CstTrivia::BlockComment { content, .. } => {
                 // 多行注释需要特殊处理
                 let lines: Vec<&str> = content.lines().collect();
-                
+
                 if lines.len() <= 1 {
                     // 单行注释：/* content */
                     self.indent(indent_level, output);
@@ -90,7 +89,7 @@ impl CstFormatter {
                     self.indent(indent_level, output);
                     output.push_str("/*");
                     output.push('\n');
-                    
+
                     for line in &lines {
                         self.indent(indent_level, output);
                         output.push_str(" *");
@@ -100,7 +99,7 @@ impl CstFormatter {
                         }
                         output.push('\n');
                     }
-                    
+
                     self.indent(indent_level, output);
                     output.push_str(" */");
                     output.push('\n');
@@ -172,7 +171,7 @@ impl CstFormatter {
 
     fn format_command(&self, cmd: &CstCommand, indent_level: usize, output: &mut String) {
         self.indent(indent_level, output);
-        
+
         output.push('@');
         output.push_str(&cmd.command);
 
@@ -204,7 +203,7 @@ impl CstFormatter {
 
     fn format_systemcall(&self, call: &CstSystemCall, indent_level: usize, output: &mut String) {
         self.indent(indent_level, output);
-        
+
         output.push('#');
         output.push_str(&call.command);
 
@@ -305,7 +304,12 @@ impl CstFormatter {
         output.push_str(&tailing.marker);
     }
 
-    fn format_embedded_code(&self, code: &CstEmbeddedCode, indent_level: usize, output: &mut String) {
+    fn format_embedded_code(
+        &self,
+        code: &CstEmbeddedCode,
+        indent_level: usize,
+        output: &mut String,
+    ) {
         match code.syntax {
             EmbeddedCodeSyntax::Brace => {
                 let trimmed_code = code.code.trim();
@@ -313,12 +317,12 @@ impl CstFormatter {
                     // 多行语法：@{ \n code \n }
                     self.indent(indent_level, output);
                     output.push_str("@{\n");
-                    
+
                     // 移除首尾的换行符，但保留内部的缩进
                     let code_content = code.code.trim_matches(|c| c == '\n' || c == '\r');
                     output.push_str(code_content);
                     output.push('\n');
-                    
+
                     self.indent(indent_level, output);
                     output.push_str("}\n");
                 } else {
@@ -371,7 +375,7 @@ mod tests {
         let cst = parse_tolerant("test", input);
         let formatter = CstFormatter::new();
         let result = formatter.format(&cst);
-        
+
         assert!(result.contains("@command(arg=1)"));
     }
 
@@ -385,7 +389,7 @@ mod tests {
         let cst = parse_tolerant("test", input);
         let formatter = CstFormatter::new();
         let result = formatter.format(&cst);
-        
+
         assert!(result.contains("::test {"));
         assert!(result.contains("    @command(arg=1)"));
         assert!(result.contains("}"));
@@ -403,7 +407,7 @@ mod tests {
         let cst = parse_tolerant("test", input);
         let formatter = CstFormatter::new();
         let result = formatter.format(&cst);
-        
+
         // 应该保留注释
         assert!(result.contains("// 这是注释"));
         assert!(result.contains("/* 块注释 */"));
@@ -423,7 +427,7 @@ mod tests {
         let cst = parse_tolerant("test", input);
         let formatter = CstFormatter::new();
         let result = formatter.format(&cst);
-        
+
         assert!(result.contains("::first {"));
         assert!(result.contains("::second {"));
         // 段落间应该有空行
@@ -440,7 +444,7 @@ mod tests {
         let cst = parse_tolerant("test", input);
         let formatter = CstFormatter::new();
         let result = formatter.format(&cst);
-        
+
         println!("Formatted result:\n{}", result);
         // 文本行目前可能还没完全实现解析
         assert!(result.contains("::test {"));
@@ -456,7 +460,7 @@ mod tests {
         let cst = parse_tolerant("test", input);
         let formatter = CstFormatter::new();
         let result = formatter.format(&cst);
-        
+
         assert!(result.contains("#goto(next)"));
     }
 
@@ -473,7 +477,7 @@ mod tests {
         let cst = parse_tolerant("test", input);
         let formatter = CstFormatter::new();
         let result = formatter.format(&cst);
-        
+
         println!("Formatted result:\n{}", result);
         // 注释应该有正确的缩进
         assert!(result.contains("    // 这是一个注释"));
@@ -492,7 +496,7 @@ mod tests {
         let cst = parse_tolerant("test", input);
         let formatter = CstFormatter::new();
         let result = formatter.format(&cst);
-        
+
         println!("Formatted result:\n{}", result);
         // 命令之间不应该有空行（原本没有空行的地方）
         assert!(!result.contains("@cmd1(arg=1)\n\n    @cmd2"));
@@ -512,7 +516,7 @@ mod tests {
         let cst = parse_tolerant("test", input);
         let formatter = CstFormatter::new();
         let result = formatter.format(&cst);
-        
+
         println!("Formatted result:\n{}", result);
         // 多个空行应该被缩减为一个
         assert!(result.contains("@cmd1(arg=1)\n\n    @cmd2"));
@@ -529,10 +533,10 @@ mod tests {
         let cst1 = parse_tolerant("test", input1);
         let formatter = CstFormatter::new();
         let result1 = formatter.format(&cst1);
-        
+
         println!("Parenthesized syntax result:\n{}", result1);
         assert!(result1.contains("@command(arg=1, flag)"));
-        
+
         // 测试空格分隔语法保留
         let input2 = r#"
 ::test {
@@ -541,7 +545,7 @@ mod tests {
 "#;
         let cst2 = parse_tolerant("test", input2);
         let result2 = formatter.format(&cst2);
-        
+
         println!("Space-separated syntax result:\n{}", result2);
         assert!(result2.contains("@command arg=1 flag"));
     }
@@ -557,10 +561,10 @@ mod tests {
         let cst1 = parse_tolerant("test", input1);
         let formatter = CstFormatter::new();
         let result1 = formatter.format(&cst1);
-        
+
         println!("Parenthesized systemcall result:\n{}", result1);
         assert!(result1.contains("#goto(paragraph=\"main\")"));
-        
+
         // 测试空格分隔语法保留
         let input2 = r#"
 ::test {
@@ -569,7 +573,7 @@ mod tests {
 "#;
         let cst2 = parse_tolerant("test", input2);
         let result2 = formatter.format(&cst2);
-        
+
         println!("Space-separated systemcall result:\n{}", result2);
         assert!(result2.contains("#goto paragraph=\"main\""));
     }

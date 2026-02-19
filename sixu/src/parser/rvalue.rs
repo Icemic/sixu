@@ -31,10 +31,7 @@ mod tests {
 
     #[test]
     fn test_rvalue() {
-        assert_eq!(
-            rvalue("1"),
-            Ok(("", RValue::Literal(Literal::Integer(1))))
-        );
+        assert_eq!(rvalue("1"), Ok(("", RValue::Literal(Literal::Integer(1)))));
         assert_eq!(
             rvalue("a"),
             Ok((

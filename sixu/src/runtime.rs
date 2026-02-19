@@ -278,17 +278,14 @@ impl<E: RuntimeExecutor> Runtime<E> {
                 let mut is_loop = false; // whether this is a while/loop attribute
                 if !child.attributes.is_empty() {
                     if child.attributes.len() > 1 {
-                        log::warn!(
-                            "Multiple attributes on same child, only last one is used"
-                        );
+                        log::warn!("Multiple attributes on same child, only last one is used");
                     }
                     let attr = child.attributes.last().unwrap();
                     match attr.keyword.as_str() {
                         "cond" | "if" => {
                             if let Some(condition) = &attr.condition {
-                                let result = self
-                                    .executor
-                                    .eval_condition(&self.context, condition)?;
+                                let result =
+                                    self.executor.eval_condition(&self.context, condition)?;
                                 if !result {
                                     // Condition not met, skip this child
                                     continue;
@@ -298,9 +295,8 @@ impl<E: RuntimeExecutor> Runtime<E> {
                         }
                         "while" => {
                             if let Some(condition) = &attr.condition {
-                                let result = self
-                                    .executor
-                                    .eval_condition(&self.context, condition)?;
+                                let result =
+                                    self.executor.eval_condition(&self.context, condition)?;
                                 if !result {
                                     // Condition not met, skip this child
                                     continue;

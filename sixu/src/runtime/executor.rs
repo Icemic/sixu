@@ -35,11 +35,7 @@ pub trait RuntimeExecutor: Send + Sync {
     ) -> Result<(Option<RValue>, bool)>;
     /// Evaluate a condition expression, returns true if the condition is met.
     /// Used by attribute-based control flow (`#[cond(...)]`, `#[while(...)]`, etc.)
-    fn eval_condition(
-        &mut self,
-        ctx: &RuntimeContext,
-        condition: &str,
-    ) -> Result<bool>;
+    fn eval_condition(&mut self, ctx: &RuntimeContext, condition: &str) -> Result<bool>;
     /// Called when the scenario execution is finished
     fn finished(&mut self, ctx: &mut RuntimeContext);
 

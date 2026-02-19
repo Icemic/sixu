@@ -593,7 +593,10 @@ mod tests {
             "}",
         );
         let result = block.parse(input);
-        assert!(result.is_ok(), "Should parse complex.sixu attribute example");
+        assert!(
+            result.is_ok(),
+            "Should parse complex.sixu attribute example"
+        );
         let (_, parsed_block) = result.unwrap();
         assert_eq!(parsed_block.children.len(), 1);
         let child = &parsed_block.children[0];

@@ -1,10 +1,10 @@
 use dashmap::DashMap;
 use nom::Finish;
 use ropey::Rope;
-use sixu::parser;
-use sixu::cst::parser::parse_tolerant;
 use sixu::cst::formatter::CstFormatter;
 use sixu::cst::node::CstValueKind;
+use sixu::cst::parser::parse_tolerant;
+use sixu::parser;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use tower_lsp_server::jsonrpc::Result;
@@ -62,10 +62,14 @@ impl Backend {
         let cst = parse_tolerant("validate", &text);
         fn collect_errors(nodes: &[sixu::cst::node::CstNode], diagnostics: &mut Vec<Diagnostic>) {
             use sixu::cst::node::CstNode;
-            
+
             for node in nodes {
                 match node {
-                    CstNode::Error { content: _, span, message } => {
+                    CstNode::Error {
+                        content: _,
+                        span,
+                        message,
+                    } => {
                         diagnostics.push(Diagnostic {
                             range: span_to_range(span),
                             severity: Some(DiagnosticSeverity::ERROR),
@@ -130,7 +134,8 @@ impl Backend {
                                 // Determine argument value type from CST
                                 let is_valid = if let Some(value) = &arg.value {
                                     match &value.kind {
-                                        CstValueKind::String { .. } | CstValueKind::TemplateString => {
+                                        CstValueKind::String { .. }
+                                        | CstValueKind::TemplateString => {
                                             expected_types.contains(&"string".to_string())
                                         }
                                         CstValueKind::Integer | CstValueKind::Float => {
@@ -316,7 +321,11 @@ impl LanguageServer for Backend {
             char_count += 1;
         }
         // 如果还没到达目标字符数，使用字符串末尾
-        let slice_end = if char_count < col { line.len() } else { byte_pos };
+        let slice_end = if char_count < col {
+            line.len()
+        } else {
+            byte_pos
+        };
         let line_prefix = &line[..slice_end];
 
         // 检查是否在等号后面（正在输入值）
@@ -326,9 +335,7 @@ impl LanguageServer for Backend {
         }
 
         // 尝试找到当前位置的命令
-        if let Some((cmd_name, _is_paren, existing_args)) =
-            find_command_at_position(&line, col)
-        {
+        if let Some((cmd_name, _is_paren, existing_args)) = find_command_at_position(&line, col) {
             // 判断是命令还是系统调用
             let is_system_call = line_prefix
                 .rfind(&format!("#{}", cmd_name))
@@ -474,7 +481,9 @@ impl LanguageServer for Backend {
             let after_hash = &line_prefix[hash_idx + 1..];
             if !after_hash.contains(|c: char| c.is_whitespace() || c == '(') {
                 // System Call Name Completion
-                let sys_calls = vec!["call", "goto", "replace", "leave", "break", "continue", "finish"];
+                let sys_calls = vec![
+                    "call", "goto", "replace", "leave", "break", "continue", "finish",
+                ];
                 let items: Vec<CompletionItem> = sys_calls
                     .into_iter()
                     .map(|name| CompletionItem {
@@ -537,15 +546,16 @@ impl LanguageServer for Backend {
                     for arg in &cmd.arguments {
                         let arg_range = span_to_range(&arg.span);
                         if contains(&arg_range, &position)
-                            && let Some(prop) = def.properties.get(&arg.name) {
-                                return Ok(Some(Hover {
-                                    contents: HoverContents::Markup(MarkupContent {
-                                        kind: MarkupKind::Markdown,
-                                        value: prop.description.clone().unwrap_or_default(),
-                                    }),
-                                    range: Some(arg_range),
-                                }));
-                            }
+                            && let Some(prop) = def.properties.get(&arg.name)
+                        {
+                            return Ok(Some(Hover {
+                                contents: HoverContents::Markup(MarkupContent {
+                                    kind: MarkupKind::Markdown,
+                                    value: prop.description.clone().unwrap_or_default(),
+                                }),
+                                range: Some(arg_range),
+                            }));
+                        }
                     }
                 }
             }
@@ -589,21 +599,23 @@ impl LanguageServer for Backend {
 
             // Check if cursor is on story argument value
             if let Some(story_arg) = call.arguments.iter().find(|a| a.name == "story")
-                && let Some(value) = &story_arg.value {
-                    let value_range = span_to_range(&value.span);
-                    if contains(&value_range, &position) {
-                        is_on_story = true;
-                    }
+                && let Some(value) = &story_arg.value
+            {
+                let value_range = span_to_range(&value.span);
+                if contains(&value_range, &position) {
+                    is_on_story = true;
                 }
+            }
 
             // Check if cursor is on paragraph argument value
             if let Some(para_arg) = call.arguments.iter().find(|a| a.name == "paragraph")
-                && let Some(value) = &para_arg.value {
-                    let value_range = span_to_range(&value.span);
-                    if contains(&value_range, &position) {
-                        is_on_para = true;
-                    }
+                && let Some(value) = &para_arg.value
+            {
+                let value_range = span_to_range(&value.span);
+                if contains(&value_range, &position) {
+                    is_on_para = true;
                 }
+            }
 
             if !is_on_story && !is_on_para {
                 continue;

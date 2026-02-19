@@ -367,7 +367,8 @@ impl CommandLine {
     pub fn get_argument(&self, name: &str) -> Option<&RValue> {
         self.arguments
             .iter()
-            .find(|arg| arg.name == name).map(|arg| &arg.value)
+            .find(|arg| arg.name == name)
+            .map(|arg| &arg.value)
     }
 }
 
@@ -400,7 +401,8 @@ impl SystemCallLine {
     pub fn get_argument(&self, name: &str) -> Option<&RValue> {
         self.arguments
             .iter()
-            .find(|arg| arg.name == name).map(|arg| &arg.value)
+            .find(|arg| arg.name == name)
+            .map(|arg| &arg.value)
     }
 }
 

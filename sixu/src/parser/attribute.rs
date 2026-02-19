@@ -101,18 +101,16 @@ pub fn attribute(input: &str) -> ParseResult<&str, Attribute> {
         if let Ok((input, _)) = tag::<&str, &str, VerboseError<&str>>("(").parse(input) {
             let (input, _) = span0_inline.parse(input)?;
             // Parse a quoted string (double or single quotes)
-            let (input, condition_str) =
-                alt((
-                    delimited(
-                        tag::<&str, &str, VerboseError<&str>>("\""),
-                        take_until("\""),
-                        tag("\""),
-                    ),
-                    delimited(tag("'"), take_until("'"), tag("'")),
-                )).parse(input).map_err(|_| Err::Error(VerboseError::from_error_kind(
-                    input,
-                    ErrorKind::Tag,
-                )))?;
+            let (input, condition_str) = alt((
+                delimited(
+                    tag::<&str, &str, VerboseError<&str>>("\""),
+                    take_until("\""),
+                    tag("\""),
+                ),
+                delimited(tag("'"), take_until("'"), tag("'")),
+            ))
+            .parse(input)
+            .map_err(|_| Err::Error(VerboseError::from_error_kind(input, ErrorKind::Tag)))?;
             let (input, _) = span0_inline.parse(input)?;
             let (input, _) = tag(")").parse(input)?;
             (input, Some(condition_str.to_string()))

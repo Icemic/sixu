@@ -1,27 +1,24 @@
 //! CST node definitions
 
-use crate::format;
 use super::span::SpanInfo;
+use crate::format;
 
 /// Trivia：不影响语义的语法元素
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum CstTrivia {
     /// 空白（空格、制表符、换行）
-    Whitespace {
-        content: String,
-        span: SpanInfo,
-    },
-    
+    Whitespace { content: String, span: SpanInfo },
+
     /// 单行注释 // ...
     LineComment {
-        content: String,  // 不含 //
+        content: String, // 不含 //
         span: SpanInfo,
     },
-    
+
     /// 块注释 /* ... */
     BlockComment {
-        content: String,  // 不含 /* */
+        content: String, // 不含 /* */
         span: SpanInfo,
     },
 }
@@ -34,7 +31,7 @@ impl CstTrivia {
             Self::BlockComment { span, .. } => span,
         }
     }
-    
+
     pub fn content(&self) -> &str {
         match self {
             Self::Whitespace { content, .. } => content,
@@ -42,7 +39,7 @@ impl CstTrivia {
             Self::BlockComment { content, .. } => content,
         }
     }
-    
+
     /// 是否包含换行
     pub fn has_newline(&self) -> bool {
         self.content().contains('\n')
@@ -55,10 +52,10 @@ impl CstTrivia {
 pub struct CstRoot {
     /// 文件名
     pub name: String,
-    
+
     /// 所有节点（包括 trivia）
     pub nodes: Vec<CstNode>,
-    
+
     /// 全文 span
     pub span: SpanInfo,
 }
@@ -67,13 +64,13 @@ impl CstRoot {
     /// 转换为 AST Story
     pub fn to_ast(&self) -> crate::error::Result<crate::format::Story> {
         let mut paragraphs = Vec::new();
-        
+
         for node in &self.nodes {
             if let CstNode::Paragraph(para) = node {
                 paragraphs.push(para.to_ast()?);
             }
         }
-        
+
         Ok(crate::format::Story {
             name: self.name.clone(),
             paragraphs,
@@ -87,28 +84,28 @@ impl CstRoot {
 pub enum CstNode {
     /// Trivia（空白、注释）
     Trivia(CstTrivia),
-    
+
     /// 段落定义
     Paragraph(CstParagraph),
-    
+
     /// 命令
     Command(CstCommand),
-    
+
     /// 系统调用
     SystemCall(CstSystemCall),
-    
+
     /// 文本行
     TextLine(CstTextLine),
-    
+
     /// 代码块
     Block(CstBlock),
-    
+
     /// 嵌入代码
     EmbeddedCode(CstEmbeddedCode),
-    
+
     /// 属性（如 #[cond(...)], #[while(...)], #[loop]）
     Attribute(CstAttribute),
-    
+
     /// 错误节点（解析失败但需要保留的部分）
     Error {
         content: String,
@@ -139,25 +136,25 @@ impl CstNode {
 pub struct CstAttribute {
     /// 属性关键字（cond, if, while, loop 等）
     pub keyword: String,
-    
+
     /// 关键字的位置
     pub keyword_span: SpanInfo,
-    
+
     /// 条件表达式（如果有）
     pub condition: Option<String>,
-    
+
     /// 条件表达式的位置（如果有）
     pub condition_span: Option<SpanInfo>,
-    
+
     /// #[ 的位置
     pub open_token: SpanInfo,
-    
+
     /// ] 的位置
     pub close_token: SpanInfo,
-    
+
     /// 整个属性的范围
     pub span: SpanInfo,
-    
+
     /// 前导 trivia
     pub leading_trivia: Vec<CstTrivia>,
 }
@@ -183,7 +180,7 @@ pub enum CommandSyntax {
         /// ) 的位置
         close_paren: SpanInfo,
     },
-    
+
     /// 空格分隔：@cmd a=1 b=2
     SpaceSeparated,
 }
@@ -194,22 +191,22 @@ pub enum CommandSyntax {
 pub struct CstCommand {
     /// 语义信息（复用 AST）
     pub command: String,
-    
+
     /// @ 符号的位置
     pub at_token: SpanInfo,
-    
+
     /// 命令名的位置
     pub name_span: SpanInfo,
-    
+
     /// 参数列表
     pub arguments: Vec<CstArgument>,
-    
+
     /// 命令调用语法风格
     pub syntax: CommandSyntax,
-    
+
     /// 整个命令的范围
     pub span: SpanInfo,
-    
+
     /// 前导 trivia（命令前的空白/注释）
     pub leading_trivia: Vec<CstTrivia>,
 }
@@ -230,22 +227,22 @@ impl CstCommand {
 pub struct CstSystemCall {
     /// 系统调用名
     pub command: String,
-    
+
     /// # 符号的位置
     pub hash_token: SpanInfo,
-    
+
     /// 命令名的位置
     pub name_span: SpanInfo,
-    
+
     /// 参数列表
     pub arguments: Vec<CstArgument>,
-    
+
     /// 调用语法风格
     pub syntax: CommandSyntax,
-    
+
     /// 整个调用的范围
     pub span: SpanInfo,
-    
+
     /// 前导 trivia
     pub leading_trivia: Vec<CstTrivia>,
 }
@@ -266,22 +263,22 @@ impl CstSystemCall {
 pub struct CstArgument {
     /// 参数名
     pub name: String,
-    
+
     /// 参数名的位置
     pub name_span: SpanInfo,
-    
+
     /// = 的位置（如果有）
     pub equals_token: Option<SpanInfo>,
-    
+
     /// 参数值（None 表示布尔标志）
     pub value: Option<CstValue>,
-    
+
     /// 整个参数的范围
     pub span: SpanInfo,
-    
+
     /// 前导 trivia（参数前的空白/注释）
     pub leading_trivia: Vec<CstTrivia>,
-    
+
     /// 尾随 trivia（参数后的逗号、空白等）
     pub trailing_trivia: Vec<CstTrivia>,
 }
@@ -291,7 +288,8 @@ impl CstArgument {
     pub fn to_ast(&self) -> format::Argument {
         format::Argument {
             name: self.name.clone(),
-            value: self.value
+            value: self
+                .value
                 .as_ref()
                 .map(|v| v.to_ast())
                 .unwrap_or(format::RValue::Literal(format::Literal::Boolean(true))),
@@ -303,8 +301,8 @@ impl CstArgument {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum QuoteStyle {
-    Double,  // "
-    Single,  // '
+    Double,   // "
+    Single,   // '
     Backtick, // `
 }
 
@@ -317,19 +315,19 @@ pub enum CstValueKind {
         /// 引号类型
         quote: QuoteStyle,
     },
-    
+
     /// 模板字符串 `...`
     TemplateString,
-    
+
     /// 整数
     Integer,
-    
+
     /// 浮点数
     Float,
-    
+
     /// 布尔值
     Boolean,
-    
+
     /// 变量引用 foo.bar.baz
     Variable,
 }
@@ -340,13 +338,13 @@ pub enum CstValueKind {
 pub struct CstValue {
     /// 值的种类
     pub kind: CstValueKind,
-    
+
     /// 原始文本（含引号、前缀等）
     pub raw: String,
-    
+
     /// 解析后的值（用于生成 AST）
     pub parsed: format::RValue,
-    
+
     /// 值的位置
     pub span: SpanInfo,
 }
@@ -366,28 +364,28 @@ impl CstValue {
 pub struct CstParagraph {
     /// 段落名
     pub name: String,
-    
+
     /// :: 符号的位置
     pub colon_token: SpanInfo,
-    
+
     /// 段落名的位置
     pub name_span: SpanInfo,
-    
+
     /// 参数列表（可选）
     pub parameters: Vec<CstParameter>,
-    
+
     /// ( 的位置（如果有参数）
     pub open_paren: Option<SpanInfo>,
-    
+
     /// ) 的位置（如果有参数）
     pub close_paren: Option<SpanInfo>,
-    
+
     /// 段落体
     pub block: CstBlock,
-    
+
     /// 整个段落的范围
     pub span: SpanInfo,
-    
+
     /// 前导 trivia
     pub leading_trivia: Vec<CstTrivia>,
 }
@@ -408,22 +406,22 @@ impl CstParagraph {
 pub struct CstParameter {
     /// 参数名
     pub name: String,
-    
+
     /// 参数名的位置
     pub name_span: SpanInfo,
-    
+
     /// = 的位置（如果有默认值）
     pub equals_token: Option<SpanInfo>,
-    
+
     /// 默认值（可选）
     pub default_value: Option<CstValue>,
-    
+
     /// 整个参数的范围
     pub span: SpanInfo,
-    
+
     /// 前导 trivia
     pub leading_trivia: Vec<CstTrivia>,
-    
+
     /// 尾随 trivia（逗号、空白等）
     pub trailing_trivia: Vec<CstTrivia>,
 }
@@ -432,11 +430,9 @@ impl CstParameter {
     pub fn to_ast(&self) -> format::Parameter {
         format::Parameter {
             name: self.name.clone(),
-            default_value: self.default_value.as_ref().and_then(|v| {
-                match &v.parsed {
-                    format::RValue::Literal(lit) => Some(lit.clone()),
-                    _ => None,
-                }
+            default_value: self.default_value.as_ref().and_then(|v| match &v.parsed {
+                format::RValue::Literal(lit) => Some(lit.clone()),
+                _ => None,
             }),
         }
     }
@@ -456,7 +452,7 @@ impl CstBlock {
     pub fn to_ast(&self) -> crate::error::Result<format::Block> {
         let mut children = Vec::new();
         let mut pending_attributes: Vec<format::Attribute> = Vec::new();
-        
+
         for node in &self.children {
             match node {
                 CstNode::Attribute(attr) => {
@@ -502,7 +498,7 @@ impl CstBlock {
                 }
             }
         }
-        
+
         Ok(format::Block { children })
     }
 }
@@ -513,16 +509,16 @@ impl CstBlock {
 pub struct CstTextLine {
     /// 前导文本（如 [角色名]）
     pub leading: Option<CstLeadingText>,
-    
+
     /// 主文本内容
     pub text: Option<CstText>,
-    
+
     /// 后缀标记（如 #wait）
     pub tailing: Option<CstTailingText>,
-    
+
     /// 整行的范围
     pub span: SpanInfo,
-    
+
     /// 前导 trivia
     pub leading_trivia: Vec<CstTrivia>,
 }
@@ -533,17 +529,17 @@ impl CstTextLine {
             Some(l) => l.to_ast(),
             None => format::LeadingText::None,
         };
-        
+
         let text_ast = match &self.text {
             Some(t) => t.to_ast()?,
             None => format::Text::None,
         };
-        
+
         let tailing_ast = match &self.tailing {
             Some(t) => t.to_ast(),
             None => format::TailingText::None,
         };
-        
+
         Ok(format::Child {
             attributes: vec![],
             content: format::ChildContent::TextLine(leading_ast, text_ast, tailing_ast),
@@ -557,13 +553,13 @@ impl CstTextLine {
 pub struct CstLeadingText {
     /// [ 的位置
     pub open_bracket: SpanInfo,
-    
+
     /// 前导文本内容（可以是字符串或模板）
     pub content: CstLeadingTextContent,
-    
+
     /// ] 的位置
     pub close_bracket: SpanInfo,
-    
+
     /// 整个前导文本的范围
     pub span: SpanInfo,
 }
@@ -595,13 +591,13 @@ pub enum CstLeadingTextContent {
 pub struct CstText {
     /// 文本种类
     pub kind: CstTextKind,
-    
+
     /// 原始文本（含引号等）
     pub raw: String,
-    
+
     /// 解析后的文本（用于生成 AST）
     pub parsed: String,
-    
+
     /// 文本位置
     pub span: SpanInfo,
 }
@@ -633,13 +629,13 @@ pub enum CstTextKind {
 pub struct CstTailingText {
     /// # 的位置
     pub hash_token: SpanInfo,
-    
+
     /// 标记名
     pub marker: String,
-    
+
     /// 标记名的位置
     pub marker_span: SpanInfo,
-    
+
     /// 整个标记的范围
     pub span: SpanInfo,
 }
@@ -656,7 +652,7 @@ impl CstTailingText {
 pub struct CstTemplateLiteral {
     /// 模板的各个部分
     pub parts: Vec<CstTemplatePart>,
-    
+
     /// 整个模板的范围
     pub span: SpanInfo,
 }
@@ -672,10 +668,7 @@ impl CstTemplateLiteral {
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum CstTemplatePart {
     /// 文本部分
-    Text {
-        content: String,
-        span: SpanInfo,
-    },
+    Text { content: String, span: SpanInfo },
     /// 变量插值 ${...}
     Value {
         /// ${ 的位置
@@ -708,8 +701,8 @@ impl CstTemplatePart {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum EmbeddedCodeSyntax {
-    Brace,  // @{ ... }
-    Hash,   // ## ... ##
+    Brace, // @{ ... }
+    Hash,  // ## ... ##
 }
 
 /// 嵌入代码节点
@@ -729,4 +722,3 @@ impl CstEmbeddedCode {
         })
     }
 }
-
