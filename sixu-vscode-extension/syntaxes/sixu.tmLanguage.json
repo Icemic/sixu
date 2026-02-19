@@ -33,11 +33,11 @@
     },
     "attribute": {
       "name": "meta.attribute.sixu",
-      "begin": "(#\\[)([a-zA-Z_][a-zA-Z0-9_]*)\\s*(?=(\\()|\\])",
+      "begin": "(#\\[)(cond|if|while|loop|[a-zA-Z_][a-zA-Z0-9_]*)\\s*(?=(\\()|\\])",
       "end": "\\]",
       "beginCaptures": {
         "1": { "name": "punctuation.definition.attribute.begin.sixu" },
-        "2": { "name": "entity.name.tag.attribute.sixu" }
+        "2": { "name": "keyword.control.attribute.sixu" }
       },
       "endCaptures": {
         "0": { "name": "punctuation.definition.attribute.end.sixu" }
@@ -52,8 +52,22 @@
           "endCaptures": {
             "0": { "name": "punctuation.definition.condition.end.sixu" }
           },
-          "contentName": "source.js.embedded.sixu",
-          "patterns": [{ "include": "source.js" }]
+          "patterns": [
+            {
+              "name": "string.quoted.double.condition.sixu",
+              "begin": "\"",
+              "end": "\"",
+              "beginCaptures": { "0": { "name": "punctuation.definition.string.begin.sixu" } },
+              "endCaptures": { "0": { "name": "punctuation.definition.string.end.sixu" } }
+            },
+            {
+              "name": "string.quoted.single.condition.sixu",
+              "begin": "'",
+              "end": "'",
+              "beginCaptures": { "0": { "name": "punctuation.definition.string.begin.sixu" } },
+              "endCaptures": { "0": { "name": "punctuation.definition.string.end.sixu" } }
+            }
+          ]
         }
       ]
     },
