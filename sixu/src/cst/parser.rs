@@ -571,6 +571,91 @@ fn parse_equals_token(input: Span) -> ParseResult<SpanInfo> {
     Ok((input, SpanInfo::from_span_and_len(eq_start, 1)))
 }
 
+/// 解析属性 #[keyword(condition)] 或 #[keyword]
+fn parse_cst_attribute(input: Span) -> ParseResult<CstAttribute> {
+    let start_span = input;
+
+    // 收集前导 trivia（如空白）
+    let (input, leading_trivia) = many0(parse_trivia).parse(input)?;
+
+    // 解析 #[
+    let open_start = input;
+    let (input, _) = tag("#[").parse(input)?;
+    let open_token = SpanInfo::from_span_and_len(open_start, 2);
+
+    // 跳过空白
+    let (input, _) = space0(input)?;
+
+    // 解析关键字（identifier）
+    let keyword_start = input;
+    let (input, keyword) = recognize(pair(
+        alt((alpha1, tag("_"))),
+        many0(alt((alphanumeric1, tag("_")))),
+    ))
+    .parse(input)?;
+    let keyword_str = keyword.fragment().to_string();
+    let keyword_span = SpanInfo::from_range(keyword_start, input);
+
+    // 跳过空白
+    let (input, _) = space0(input)?;
+
+    // 尝试解析条件：条件必须是括号内的带引号字符串
+    // 例如 #[cond("x > 10")] 或 #[cond('counter < 3')]
+    let (input, condition, condition_span) = if input.fragment().starts_with('(') {
+        let (input, _) = char('(').parse(input)?;
+        let (input, _) = space0(input)?;
+
+        // 解析带引号的字符串
+        let cond_start = input;
+        let quote_char = input.fragment().chars().next().ok_or_else(|| {
+            nom::Err::Error(nom::error::Error::new(input, nom::error::ErrorKind::Char))
+        })?;
+        if quote_char != '"' && quote_char != '\'' {
+            return Err(nom::Err::Error(nom::error::Error::new(
+                input,
+                nom::error::ErrorKind::Char,
+            )));
+        }
+        let (input, _) = char(quote_char).parse(input)?;
+        let (input, condition_content) = take_while(move |c| c != quote_char)(input)?;
+        let condition_str = condition_content.fragment().to_string();
+        let (input, _) = char(quote_char).parse(input)?;
+        let cond_span = SpanInfo::from_range(cond_start, input);
+
+        let (input, _) = space0(input)?;
+        let (input, _) = char(')').parse(input)?;
+
+        (input, Some(condition_str), Some(cond_span))
+    } else {
+        (input, None, None)
+    };
+
+    // 跳过空白
+    let (input, _) = space0(input)?;
+
+    // 解析 ]
+    let close_start = input;
+    let (input, _) = char(']').parse(input)?;
+    let close_token = SpanInfo::from_span_and_len(close_start, 1);
+
+    let end_span = input;
+    let span = SpanInfo::from_range(start_span, end_span);
+
+    Ok((
+        input,
+        CstAttribute {
+            keyword: keyword_str,
+            keyword_span,
+            condition,
+            condition_span,
+            open_token,
+            close_token,
+            span,
+            leading_trivia,
+        },
+    ))
+}
+
 /// 解析块 { ... }
 pub fn parse_block(input: Span) -> ParseResult<CstBlock> {
     let start_span = input;
@@ -641,10 +726,25 @@ fn parse_block_children(input: Span) -> ParseResult<Vec<CstNode>> {
             continue;
         }
 
-        // 检查是否看起来像命令或系统调用
+        // 检查是否看起来像命令、系统调用或属性
         let trimmed = remaining.fragment().trim_start();
         let looks_like_command = trimmed.starts_with('@') && !trimmed.starts_with("@{");
-        let looks_like_systemcall = trimmed.starts_with('#');
+        let looks_like_attribute = trimmed.starts_with("#[");
+        let looks_like_systemcall = trimmed.starts_with('#') && !looks_like_attribute;
+
+        // 尝试解析属性（在系统调用之前，因为 #[ 和 # 都以 # 开头）
+        if looks_like_attribute {
+            match parse_cst_attribute(remaining) {
+                Ok((rest, attr)) => {
+                    nodes.push(CstNode::Attribute(attr));
+                    remaining = rest;
+                    continue;
+                }
+                Err(_) => {
+                    // 属性解析失败，回退到系统调用解析
+                }
+            }
+        }
 
         // 尝试解析命令
         if looks_like_command {

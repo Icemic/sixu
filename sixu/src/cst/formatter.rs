@@ -49,6 +49,7 @@ impl CstFormatter {
             CstNode::TextLine(text) => self.format_textline(text, indent_level, output),
             CstNode::Block(block) => self.format_block(block, indent_level, output),
             CstNode::EmbeddedCode(code) => self.format_embedded_code(code, indent_level, output),
+            CstNode::Attribute(attr) => self.format_attribute(attr, indent_level, output),
             CstNode::Error { content, .. } => {
                 // 保留错误节点的原始内容
                 output.push_str(content);
@@ -155,6 +156,18 @@ impl CstFormatter {
 
         self.indent(indent_level, output);
         output.push_str("}\n");
+    }
+
+    fn format_attribute(&self, attr: &CstAttribute, indent_level: usize, output: &mut String) {
+        self.indent(indent_level, output);
+        output.push_str("#[");
+        output.push_str(&attr.keyword);
+        if let Some(condition) = &attr.condition {
+            output.push_str("(\"");
+            output.push_str(condition);
+            output.push_str("\")");
+        }
+        output.push_str("]\n");
     }
 
     fn format_command(&self, cmd: &CstCommand, indent_level: usize, output: &mut String) {

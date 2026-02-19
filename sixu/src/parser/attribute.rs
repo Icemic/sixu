@@ -1,6 +1,8 @@
+use nom::branch::alt;
 use nom::bytes::complete::*;
 use nom::character::complete::char;
 use nom::error::{ErrorKind, ParseError};
+use nom::sequence::delimited;
 use nom::Err;
 use nom::Parser;
 use nom_language::error::VerboseError;
@@ -93,12 +95,27 @@ pub fn attribute(input: &str) -> ParseResult<&str, Attribute> {
     let (input, keyword) = identifier.parse(input)?;
     let (input, _) = span0_inline.parse(input)?;
 
-    // Handle conditional case
+    // Handle conditional case: condition must be a quoted string inside parentheses
+    // e.g. #[cond("x > 10")] or #[cond('counter < 3')]
     let (input, condition) =
         if let Ok((input, _)) = tag::<&str, &str, VerboseError<&str>>("(").parse(input) {
-            // Use balanced delimiters function to parse parenthesized content
-            let (input, condition) = balanced_delimiters('(', ')').parse(input)?;
-            (input, Some(condition.to_string()))
+            let (input, _) = span0_inline.parse(input)?;
+            // Parse a quoted string (double or single quotes)
+            let (input, condition_str) =
+                alt((
+                    delimited(
+                        tag::<&str, &str, VerboseError<&str>>("\""),
+                        take_until("\""),
+                        tag("\""),
+                    ),
+                    delimited(tag("'"), take_until("'"), tag("'")),
+                )).parse(input).map_err(|_| Err::Error(VerboseError::from_error_kind(
+                    input,
+                    ErrorKind::Tag,
+                )))?;
+            let (input, _) = span0_inline.parse(input)?;
+            let (input, _) = tag(")").parse(input)?;
+            (input, Some(condition_str.to_string()))
         } else {
             (input, None)
         };
@@ -120,7 +137,7 @@ mod tests {
 
     #[test]
     fn test_attribute() {
-        let input = "#[attribute_name(condition)]";
+        let input = "#[attribute_name(\"condition\")]";
         let expected = Attribute {
             keyword: "attribute_name".to_string(),
             condition: Some("condition".to_string()),
@@ -141,46 +158,104 @@ mod tests {
     }
 
     #[test]
-    fn test_attribute_complex() {
-        let input = "#[attribute_name(a > b && (x + 1) < 10 && c.isValid() && foo='bar)')]";
+    fn test_attribute_with_double_quotes() {
+        let input = "#[attribute_name(\"a > b && (x + 1) < 10\")]";
         let expected = Attribute {
             keyword: "attribute_name".to_string(),
-            condition: Some("a > b && (x + 1) < 10 && c.isValid() && foo='bar)'".to_string()),
+            condition: Some("a > b && (x + 1) < 10".to_string()),
         };
         let result = attribute(input).unwrap().1;
         assert_eq!(result, expected);
     }
 
     #[test]
-    fn test_attribute_with_quoted_strings() {
-        let input = "#[attribute_name(a == 'string with (parens)' && b == \"another (string)\")]";
+    fn test_attribute_with_single_quotes() {
+        let input = "#[attribute_name('a > b && (x + 1) < 10')]";
         let expected = Attribute {
             keyword: "attribute_name".to_string(),
-            condition: Some("a == 'string with (parens)' && b == \"another (string)\"".to_string()),
+            condition: Some("a > b && (x + 1) < 10".to_string()),
         };
         let result = attribute(input).unwrap().1;
         assert_eq!(result, expected);
     }
 
     #[test]
-    fn test_attribute_with_template_literals() {
-        let input = "#[attribute_name(a == `template ${var} with (nested ${obj.method()}) parts`)]";
+    fn test_attribute_condition_with_special_chars() {
+        // Condition can contain any characters since it's just a string
+        let input = "#[attribute_name(\"a == 'hello' && b > (c * d)\")]";
         let expected = Attribute {
             keyword: "attribute_name".to_string(),
-            condition: Some(
-                "a == `template ${var} with (nested ${obj.method()}) parts`".to_string(),
-            ),
+            condition: Some("a == 'hello' && b > (c * d)".to_string()),
         };
         let result = attribute(input).unwrap().1;
         assert_eq!(result, expected);
     }
 
     #[test]
-    fn test_attribute_with_regex() {
-        let input = "#[attribute_name(text.match(/^\\(hello\\)$/i))]";
+    fn test_attribute_condition_with_spaces_in_parens() {
+        // Spaces around the quoted string inside parentheses
+        let input = "#[attribute_name( \"condition\" )]";
         let expected = Attribute {
             keyword: "attribute_name".to_string(),
-            condition: Some("text.match(/^\\(hello\\)$/i)".to_string()),
+            condition: Some("condition".to_string()),
+        };
+        let result = attribute(input).unwrap().1;
+        assert_eq!(result, expected);
+    }
+
+    // === Attribute keyword-specific tests ===
+
+    #[test]
+    fn test_attribute_cond() {
+        let input = "#[cond(\"x > 10\")]";
+        let expected = Attribute {
+            keyword: "cond".to_string(),
+            condition: Some("x > 10".to_string()),
+        };
+        let result = attribute(input).unwrap().1;
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn test_attribute_if_alias() {
+        // `if` is an alias for `cond`
+        let input = "#[if(\"save.x = 1\")]";
+        let expected = Attribute {
+            keyword: "if".to_string(),
+            condition: Some("save.x = 1".to_string()),
+        };
+        let result = attribute(input).unwrap().1;
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn test_attribute_while() {
+        let input = "#[while(\"counter < 10\")]";
+        let expected = Attribute {
+            keyword: "while".to_string(),
+            condition: Some("counter < 10".to_string()),
+        };
+        let result = attribute(input).unwrap().1;
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn test_attribute_loop_without_condition() {
+        let input = "#[loop]";
+        let expected = Attribute {
+            keyword: "loop".to_string(),
+            condition: None,
+        };
+        let result = attribute(input).unwrap().1;
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn test_attribute_if_complex_condition() {
+        let input = "#[if(\"a =123 && (b + 1) > '])'.length\")]";
+        let expected = Attribute {
+            keyword: "if".to_string(),
+            condition: Some("a =123 && (b + 1) > '])'.length".to_string()),
         };
         let result = attribute(input).unwrap().1;
         assert_eq!(result, expected);

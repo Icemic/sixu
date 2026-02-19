@@ -333,7 +333,7 @@ mod tests {
     #[test]
     fn test_embedded_code_with_attributes() {
         // Test embedded code combined with attributes
-        let input = "{#[condition(a > b)]\n@{let x = a > b ? a : b;}}";
+        let input = "{#[condition(\"a > b\")]\n@{let x = a > b ? a : b;}}";
 
         assert_eq!(
             block.parse(input),
@@ -400,7 +400,7 @@ mod tests {
 
     #[test]
     fn test_line_with_attribute() {
-        let input = "{#[attribute_name(a = 123 )]\ntext\n}";
+        let input = "{#[attribute_name(\"a = 123\")]\ntext\n}";
 
         assert_eq!(
             block.parse(input),
@@ -410,7 +410,7 @@ mod tests {
                     children: vec![Child {
                         attributes: vec![Attribute {
                             keyword: "attribute_name".to_string(),
-                            condition: Some("a = 123 ".to_string()),
+                            condition: Some("a = 123".to_string()),
                         }],
                         content: ChildContent::TextLine(
                             LeadingText::None,
@@ -426,7 +426,7 @@ mod tests {
     #[test]
     fn test_line_with_multiple_attributes() {
         let input =
-            "{#[attribute_name(a = 123 )]\n#[attribute_name(a && (b + 1) > '])'.length)]\ntext\n}";
+            "{#[attribute_name(\"a = 123\")]\n#[attribute_name(\"a && (b + 1) > '])'.length\")]\ntext\n}";
 
         assert_eq!(
             block.parse(input),
@@ -437,7 +437,7 @@ mod tests {
                         attributes: vec![
                             Attribute {
                                 keyword: "attribute_name".to_string(),
-                                condition: Some("a = 123 ".to_string()),
+                                condition: Some("a = 123".to_string()),
                             },
                             Attribute {
                                 keyword: "attribute_name".to_string(),
@@ -453,5 +453,154 @@ mod tests {
                 }
             ))
         );
+    }
+
+    #[test]
+    fn test_cond_attribute_on_block() {
+        let input = "{#[cond(\"x > 0\")]\n{\ntext\n}\n}";
+        assert_eq!(
+            block.parse(input),
+            Ok((
+                "",
+                Block {
+                    children: vec![Child {
+                        attributes: vec![Attribute {
+                            keyword: "cond".to_string(),
+                            condition: Some("x > 0".to_string()),
+                        }],
+                        content: ChildContent::Block(Block {
+                            children: vec![Child {
+                                attributes: vec![],
+                                content: ChildContent::TextLine(
+                                    LeadingText::None,
+                                    Text::Text("text".to_string()),
+                                    TailingText::None,
+                                ),
+                            }],
+                        }),
+                    }],
+                }
+            ))
+        );
+    }
+
+    #[test]
+    fn test_if_attribute_on_text_line() {
+        let input = "{#[if(\"save.x = 1\")]\nsome text\n}";
+        assert_eq!(
+            block.parse(input),
+            Ok((
+                "",
+                Block {
+                    children: vec![Child {
+                        attributes: vec![Attribute {
+                            keyword: "if".to_string(),
+                            condition: Some("save.x = 1".to_string()),
+                        }],
+                        content: ChildContent::TextLine(
+                            LeadingText::None,
+                            Text::Text("some text".to_string()),
+                            TailingText::None,
+                        ),
+                    }],
+                }
+            ))
+        );
+    }
+
+    #[test]
+    fn test_while_attribute_on_block() {
+        let input = "{#[while(\"counter < 3\")]\n{\n@cmd arg=1\n}\n}";
+        assert_eq!(
+            block.parse(input),
+            Ok((
+                "",
+                Block {
+                    children: vec![Child {
+                        attributes: vec![Attribute {
+                            keyword: "while".to_string(),
+                            condition: Some("counter < 3".to_string()),
+                        }],
+                        content: ChildContent::Block(Block {
+                            children: vec![Child {
+                                attributes: vec![],
+                                content: ChildContent::CommandLine(CommandLine {
+                                    command: "cmd".to_string(),
+                                    arguments: vec![Argument {
+                                        name: "arg".to_string(),
+                                        value: RValue::Literal(Literal::Integer(1)),
+                                    }],
+                                }),
+                            }],
+                        }),
+                    }],
+                }
+            ))
+        );
+    }
+
+    #[test]
+    fn test_loop_attribute_on_block() {
+        let input = "{#[loop]\n{\n@cmd arg=1\n#breakloop\n}\n}";
+        assert_eq!(
+            block.parse(input),
+            Ok((
+                "",
+                Block {
+                    children: vec![Child {
+                        attributes: vec![Attribute {
+                            keyword: "loop".to_string(),
+                            condition: None,
+                        }],
+                        content: ChildContent::Block(Block {
+                            children: vec![
+                                Child {
+                                    attributes: vec![],
+                                    content: ChildContent::CommandLine(CommandLine {
+                                        command: "cmd".to_string(),
+                                        arguments: vec![Argument {
+                                            name: "arg".to_string(),
+                                            value: RValue::Literal(Literal::Integer(1)),
+                                        }],
+                                    }),
+                                },
+                                Child {
+                                    attributes: vec![],
+                                    content: ChildContent::SystemCallLine(SystemCallLine {
+                                        command: "breakloop".to_string(),
+                                        arguments: vec![],
+                                    }),
+                                },
+                            ],
+                        }),
+                    }],
+                }
+            ))
+        );
+    }
+
+    #[test]
+    fn test_multiple_if_attributes_from_complex_sixu() {
+        // Based on the complex.sixu example: three #[if(...)] on one block
+        let input = concat!(
+            "{",
+            "#[if(\"a =123 && (b + 1) > '])'.length\")]\n",
+            "#[if(\"save.x = 1\")]\n",
+            "#[if(\"save.x = 1\")]\n",
+            "{\n",
+            "  `这是一行${embed_str}文本`\n",
+            "}\n",
+            "}",
+        );
+        let result = block.parse(input);
+        assert!(result.is_ok(), "Should parse complex.sixu attribute example");
+        let (_, parsed_block) = result.unwrap();
+        assert_eq!(parsed_block.children.len(), 1);
+        let child = &parsed_block.children[0];
+        assert_eq!(child.attributes.len(), 3);
+        assert_eq!(child.attributes[0].keyword, "if");
+        assert_eq!(child.attributes[1].keyword, "if");
+        assert_eq!(child.attributes[2].keyword, "if");
+        assert!(matches!(child.content, ChildContent::Block(_)));
     }
 }

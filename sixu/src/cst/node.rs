@@ -106,6 +106,9 @@ pub enum CstNode {
     /// 嵌入代码
     EmbeddedCode(CstEmbeddedCode),
     
+    /// 属性（如 #[cond(...)], #[while(...)], #[loop]）
+    Attribute(CstAttribute),
+    
     /// 错误节点（解析失败但需要保留的部分）
     Error {
         content: String,
@@ -124,7 +127,47 @@ impl CstNode {
             Self::TextLine(t) => t.span,
             Self::Block(b) => b.span,
             Self::EmbeddedCode(e) => e.span,
+            Self::Attribute(a) => a.span,
             Self::Error { span, .. } => *span,
+        }
+    }
+}
+
+/// 属性节点 #[keyword(condition)]
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct CstAttribute {
+    /// 属性关键字（cond, if, while, loop 等）
+    pub keyword: String,
+    
+    /// 关键字的位置
+    pub keyword_span: SpanInfo,
+    
+    /// 条件表达式（如果有）
+    pub condition: Option<String>,
+    
+    /// 条件表达式的位置（如果有）
+    pub condition_span: Option<SpanInfo>,
+    
+    /// #[ 的位置
+    pub open_token: SpanInfo,
+    
+    /// ] 的位置
+    pub close_token: SpanInfo,
+    
+    /// 整个属性的范围
+    pub span: SpanInfo,
+    
+    /// 前导 trivia
+    pub leading_trivia: Vec<CstTrivia>,
+}
+
+impl CstAttribute {
+    /// 转换为 AST Attribute
+    pub fn to_ast(&self) -> format::Attribute {
+        format::Attribute {
+            keyword: self.keyword.clone(),
+            condition: self.condition.clone(),
         }
     }
 }
@@ -412,33 +455,39 @@ pub struct CstBlock {
 impl CstBlock {
     pub fn to_ast(&self) -> crate::error::Result<format::Block> {
         let mut children = Vec::new();
+        let mut pending_attributes: Vec<format::Attribute> = Vec::new();
         
         for node in &self.children {
             match node {
+                CstNode::Attribute(attr) => {
+                    pending_attributes.push(attr.to_ast());
+                }
                 CstNode::Command(cmd) => {
                     children.push(format::Child {
-                        attributes: vec![],
+                        attributes: std::mem::take(&mut pending_attributes),
                         content: format::ChildContent::CommandLine(cmd.to_ast()),
                     });
                 }
                 CstNode::SystemCall(sc) => {
                     children.push(format::Child {
-                        attributes: vec![],
+                        attributes: std::mem::take(&mut pending_attributes),
                         content: format::ChildContent::SystemCallLine(sc.to_ast()),
                     });
                 }
                 CstNode::TextLine(tl) => {
-                    children.push(tl.to_ast()?);
+                    let mut child = tl.to_ast()?;
+                    child.attributes = std::mem::take(&mut pending_attributes);
+                    children.push(child);
                 }
                 CstNode::Block(b) => {
                     children.push(format::Child {
-                        attributes: vec![],
+                        attributes: std::mem::take(&mut pending_attributes),
                         content: format::ChildContent::Block(b.to_ast()?),
                     });
                 }
                 CstNode::EmbeddedCode(ec) => {
                     children.push(format::Child {
-                        attributes: vec![],
+                        attributes: std::mem::take(&mut pending_attributes),
                         content: format::ChildContent::EmbeddedCode(ec.code.clone()),
                     });
                 }

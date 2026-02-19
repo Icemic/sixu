@@ -162,6 +162,14 @@ impl RuntimeExecutor for SampleExecutor {
         Ok((None, false))
     }
 
+    fn eval_condition(
+        &mut self,
+        _ctx: &RuntimeContext,
+        _condition: &str,
+    ) -> sixu::error::Result<bool> {
+        Ok(true)
+    }
+
     fn finished(&mut self, _ctx: &mut RuntimeContext) {
         println!("Finished execution");
         assert_eq!(self.last_value, 1023, "last value should be 1023");

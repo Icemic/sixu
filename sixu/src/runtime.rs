@@ -4,7 +4,7 @@ mod executor;
 mod state;
 
 pub use self::callback::*;
-pub use self::datasource::RuntimeContext;
+pub use self::datasource::{LoopControl, RuntimeContext};
 pub use self::executor::RuntimeExecutor;
 pub use self::state::ExecutionState;
 
@@ -246,18 +246,99 @@ impl<E: RuntimeExecutor> Runtime<E> {
 
     pub async fn next(&mut self) -> Result<()> {
         loop {
+            // Check loop control signal from #breakloop / #continue
+            if let Some(control) = self.context.take_loop_control() {
+                // Pop states until we find the loop body state
+                let found = self.pop_to_loop_body();
+                if found {
+                    match control {
+                        LoopControl::Break => {
+                            // Advance parent index past the loop child (undo the decrement)
+                            if let Ok(parent_state) = self.get_current_state_mut() {
+                                parent_state.index += 1;
+                            }
+                        }
+                        LoopControl::Continue => {
+                            // Parent index is already at the loop child (decremented),
+                            // so the next iteration will re-evaluate the condition
+                        }
+                    }
+                } else {
+                    log::warn!("Loop control signal received but no loop body found in stack");
+                }
+                continue;
+            }
+
             let is_continue;
             let current_state = self.get_current_state_mut()?;
             if let Some(child) = current_state.next_line() {
                 let content = child.content;
+
+                // Process attributes: only the last attribute is used
+                let mut is_loop = false; // whether this is a while/loop attribute
+                if !child.attributes.is_empty() {
+                    if child.attributes.len() > 1 {
+                        log::warn!(
+                            "Multiple attributes on same child, only last one is used"
+                        );
+                    }
+                    let attr = child.attributes.last().unwrap();
+                    match attr.keyword.as_str() {
+                        "cond" | "if" => {
+                            if let Some(condition) = &attr.condition {
+                                let result = self
+                                    .executor
+                                    .eval_condition(&self.context, condition)?;
+                                if !result {
+                                    // Condition not met, skip this child
+                                    continue;
+                                }
+                                // Condition met, fall through to normal execution
+                            }
+                        }
+                        "while" => {
+                            if let Some(condition) = &attr.condition {
+                                let result = self
+                                    .executor
+                                    .eval_condition(&self.context, condition)?;
+                                if !result {
+                                    // Condition not met, skip this child
+                                    continue;
+                                }
+                                // Condition met: decrement index for replay
+                                let current_state = self.get_current_state_mut()?;
+                                current_state.index -= 1;
+                                is_loop = true;
+                            }
+                        }
+                        "loop" => {
+                            // Unconditional loop: always execute, decrement index for replay
+                            let current_state = self.get_current_state_mut()?;
+                            current_state.index -= 1;
+                            is_loop = true;
+                        }
+                        _ => {
+                            log::warn!("Unknown attribute keyword: {}", attr.keyword);
+                        }
+                    }
+                }
+
                 match content {
                     ChildContent::Block(block) => {
                         let current_state = self.get_current_state()?.clone();
-                        self.context.stack_mut().push(ExecutionState::new(
-                            current_state.story,
-                            current_state.paragraph,
-                            block.clone(),
-                        ));
+                        if is_loop {
+                            self.context.stack_mut().push(ExecutionState::new_loop_body(
+                                current_state.story,
+                                current_state.paragraph,
+                                block.clone(),
+                            ));
+                        } else {
+                            self.context.stack_mut().push(ExecutionState::new(
+                                current_state.story,
+                                current_state.paragraph,
+                                block.clone(),
+                            ));
+                        }
                         is_continue = true;
                     }
                     ChildContent::TextLine(leading, text, tailing) => {
@@ -321,6 +402,17 @@ impl<E: RuntimeExecutor> Runtime<E> {
         }
 
         Ok(())
+    }
+
+    /// Pop states from the stack until a loop body state is found and popped.
+    /// Returns true if a loop body was found, false otherwise.
+    fn pop_to_loop_body(&mut self) -> bool {
+        while let Some(state) = self.context.stack_mut().pop() {
+            if state.is_loop_body {
+                return true;
+            }
+        }
+        false
     }
 
     /// Handle system call line, returns true if next() should be called again
@@ -485,6 +577,16 @@ impl<E: RuntimeExecutor> Runtime<E> {
             // This method will quit the current paragraph and return to the previous one
             "break" => {
                 self.break_current_block()?;
+                Ok(true)
+            }
+            // Break out of the current while/loop attribute loop
+            "breakloop" => {
+                self.context.set_loop_control(LoopControl::Break);
+                Ok(true)
+            }
+            // Skip the rest of the current loop iteration and re-evaluate the condition
+            "continue" => {
+                self.context.set_loop_control(LoopControl::Continue);
                 Ok(true)
             }
             "finish" => {
