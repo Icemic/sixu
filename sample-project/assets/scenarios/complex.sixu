@@ -48,9 +48,7 @@
   "fdsf##fsdsdsf"
 ##
 
-#[if(a =123 && (b + 1) > '])'.length)]
-#[if(save.x = 1)]
-#[if(save.x = 1)]
+#[if("a =123 && (b + 1) > '])'.length")]
 {
   `这是一行${embed_str}文本` // 这是一行测试文本
 }

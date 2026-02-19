@@ -1,0 +1,177 @@
+// Attribute 语法测试文件
+// 用于测试 LSP 对 attribute 的解析、高亮和诊断支持
+
+::test_cond_basic {
+    // 基本 cond 条件判断
+    #[cond("flag_opened")]
+    @changebg(src="arc/e/opened.webp", fadeTime=600)
+
+    // if 别名
+    #[if("save.route = 1")]
+    "这段文字只有在 save.route = 1 时才会显示"
+
+    // cond 应用在 block 上
+    #[cond("has_key && door_unlocked")]
+    {
+        @changebg(src="arc/e/room_inside.webp", fadeTime=600)
+        "你打开了门，走了进去。"
+    }
+
+    // 复杂条件表达式
+    #[if("a > 10 && (b + 1) <= 20")]
+    @sound(channel="c0", src="arc/se/alert.opus", loop=false)
+}
+
+::test_while_loop {
+    // while 循环
+    #[while("counter < 5")]
+    {
+        @wait(time=500)
+        "循环进行中..."
+    }
+
+    // while 应用于单条命令
+    #[while("has_next_item")]
+    @show_next_item
+
+    // while 条件为假时不执行
+    #[while("false_condition")]
+    "这段文字不会显示"
+}
+
+::test_loop {
+    // 无条件循环 + breakloop
+    #[loop]
+    {
+        "这是无限循环的内容"
+        #[if("should_stop")]
+        #breakloop
+
+        @wait(time=1000)
+    }
+
+    // loop 应用于 block
+    #[loop]
+    {
+        @changebg(src="arc/e/frame1.webp", fadeTime=100)
+        @wait(time=100)
+        @changebg(src="arc/e/frame2.webp", fadeTime=100)
+        @wait(time=100)
+
+        #[cond("animation_done")]
+        #breakloop
+    }
+}
+
+::test_continue {
+    // continue 跳过当前循环迭代
+    #[while("index < 10")]
+    {
+        #[if("skip_this")]
+        #continue
+
+        @process_item
+        "处理了一项"
+    }
+
+    // loop 中使用 continue
+    #[loop]
+    {
+        #[if("not_ready")]
+        #continue
+
+        @do_work
+
+        #[if("finished")]
+        #breakloop
+    }
+}
+
+::test_multiple_attributes {
+    // 多个 attribute（注意：仅最后一个生效，其余会产生警告）
+    #[if("condition_a")]
+    #[if("condition_b")]
+    "只有 condition_b 会被检查"
+
+    // 混合不同 attribute（同样仅最后一个生效）
+    #[cond("some_flag")]
+    #[while("counter < 3")]
+    {
+        "这里将按 while 循环执行，cond 被忽略"
+    }
+}
+
+::test_nested {
+    // 嵌套：while 内部使用 cond
+    #[while("round < 3")]
+    {
+        #[cond("is_special_round")]
+        @sound(channel="c0", src="arc/se/special.opus", loop=false)
+
+        "回合进行中..."
+
+        #[if("enemy_defeated")]
+        #breakloop
+    }
+
+    // 嵌套 block 中的 attribute
+    #[cond("show_chapter")]
+    {
+        @changebg(src="arc/e/chapter_title.webp", fadeTime=1000)
+        @wait(time=2000)
+
+        #[if("has_subtitle")]
+        "副标题文字"
+
+        @changebg(src="arc/e/chapter_bg.webp", fadeTime=600)
+    }
+}
+
+::test_with_systemcall {
+    // attribute 应用于系统调用
+    #[cond("go_to_ending")]
+    #goto ending_paragraph
+
+    // 条件跳转
+    #[if("save.route = 1")]
+    #call route_a_handler
+
+    #[if("save.route = 2")]
+    #call route_b_handler
+}
+
+::test_attribute_syntax_edge_cases {
+    // 无条件的 loop
+    #[loop]
+    {
+        #breakloop
+    }
+
+    // 条件中包含特殊字符和括号（都是合法的，因为条件是字符串）
+    #[if("text_value == 'hello'")]
+    "匹配文本值"
+
+    #[cond("(a + b) > (c * d)")]
+    @compute
+
+    #[if("arr[0] > 10")]
+    "数组元素检查"
+
+    // 使用单引号包裹条件
+    #[cond("counter >= 0 && counter < 100")]
+    @process
+}
+
+::ending_paragraph {
+    "故事结束了。"
+}
+
+::route_a_handler {
+    "进入了路线 A"
+    #goto ending_paragraph
+}
+
+::route_b_handler {
+    "进入了路线 B"
+    #goto ending_paragraph
+}
