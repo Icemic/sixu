@@ -164,19 +164,19 @@
 | `paragraph` | string | 是 | 目标段落名称 |
 | `story` | string | 否 | 目标故事名称，省略则为当前故事 |
 
-##### `#break`
+##### `#leave`
 
-中断当前代码块，返回到上一层。
+离开当前代码块，返回到上一层。
 
 ```sixu
 {
     "这行会执行"
-    #break
+    #leave
     "这行不会执行"
 }
 ```
 
-##### `#breakloop`
+##### `#break`
 
 跳出当前的 `#[while]` 或 `#[loop]` 循环（参见[属性](#属性attribute)章节）。
 
@@ -185,7 +185,7 @@
 {
     @do_something
     #[if("should_stop")]
-    #breakloop
+    #break
 }
 ```
 
@@ -236,12 +236,12 @@
     "循环进行中..."
 }
 
-// 无条件循环：需要配合 #breakloop 退出
+// 无条件循环：需要配合 #break 退出
 #[loop]
 {
     @do_something
     #[if("finished")]
-    #breakloop
+    #break
 }
 
 // 使用单引号包裹条件
@@ -256,7 +256,7 @@
 | `cond` | 必须 | 条件为真时执行，否则跳过 |
 | `if` | 必须 | `cond` 的别名，行为完全相同 |
 | `while` | 必须 | 条件为真时循环执行，每次迭代前重新求值 |
-| `loop` | 无 | 无条件循环，必须使用 `#breakloop` 退出 |
+| `loop` | 无 | 无条件循环，必须使用 `#break` 退出 |
 
 #### 属性的作用范围
 
@@ -275,9 +275,9 @@
 }
 ```
 
-#### `#continue` 和 `#breakloop`
+#### `#continue` 和 `#break`
 
-在 `#[while]` 和 `#[loop]` 循环中，可以使用 `#continue` 和 `#breakloop` 系统调用来控制循环流程：
+在 `#[while]` 和 `#[loop]` 循环中，可以使用 `#continue` 和 `#break` 系统调用来控制循环流程：
 
 ```sixu
 #[while("index < 10")]
@@ -290,7 +290,7 @@
 
     // 满足条件时退出循环
     #[if("enough")]
-    #breakloop
+    #break
 }
 ```
 

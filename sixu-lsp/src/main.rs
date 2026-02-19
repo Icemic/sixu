@@ -474,7 +474,7 @@ impl LanguageServer for Backend {
             let after_hash = &line_prefix[hash_idx + 1..];
             if !after_hash.contains(|c: char| c.is_whitespace() || c == '(') {
                 // System Call Name Completion
-                let sys_calls = vec!["call", "goto", "replace", "break", "finish"];
+                let sys_calls = vec!["call", "goto", "replace", "leave", "break", "continue", "finish"];
                 let items: Vec<CompletionItem> = sys_calls
                     .into_iter()
                     .map(|name| CompletionItem {

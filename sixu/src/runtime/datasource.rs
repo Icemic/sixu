@@ -2,7 +2,7 @@ use crate::format::{Literal, Story};
 
 use super::ExecutionState;
 
-/// Loop control signal for `#breakloop` and `#continue` system calls
+/// Loop control signal for `#break` and `#continue` system calls
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum LoopControl {
     /// Break out of the current loop

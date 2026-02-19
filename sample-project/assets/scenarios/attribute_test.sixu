@@ -40,12 +40,12 @@
 }
 
 ::test_loop {
-    // 无条件循环 + breakloop
+    // 无条件循环 + break
     #[loop]
     {
         "这是无限循环的内容"
         #[if("should_stop")]
-        #breakloop
+        #break
 
         @wait(time=1000)
     }
@@ -59,7 +59,7 @@
         @wait(time=100)
 
         #[cond("animation_done")]
-        #breakloop
+        #break
     }
 }
 
@@ -83,7 +83,7 @@
         @do_work
 
         #[if("finished")]
-        #breakloop
+        #break
     }
 }
 
@@ -111,7 +111,7 @@
         "回合进行中..."
 
         #[if("enemy_defeated")]
-        #breakloop
+        #break
     }
 
     // 嵌套 block 中的 attribute
@@ -144,7 +144,7 @@
     // 无条件的 loop
     #[loop]
     {
-        #breakloop
+        #break
     }
 
     // 条件中包含特殊字符和括号（都是合法的，因为条件是字符串）

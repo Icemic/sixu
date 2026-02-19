@@ -541,7 +541,7 @@ mod tests {
 
     #[test]
     fn test_loop_attribute_on_block() {
-        let input = "{#[loop]\n{\n@cmd arg=1\n#breakloop\n}\n}";
+        let input = "{#[loop]\n{\n@cmd arg=1\n#break\n}\n}";
         assert_eq!(
             block.parse(input),
             Ok((
@@ -567,7 +567,7 @@ mod tests {
                                 Child {
                                     attributes: vec![],
                                     content: ChildContent::SystemCallLine(SystemCallLine {
-                                        command: "breakloop".to_string(),
+                                        command: "break".to_string(),
                                         arguments: vec![],
                                     }),
                                 },

@@ -16,7 +16,7 @@ pub struct ExecutionState {
     /// line index of the current block in the paragraph
     pub index: usize,
     /// Whether this state is the body of a loop (while/loop attribute).
-    /// Used by `#breakloop` and `#continue` to find the loop boundary.
+    /// Used by `#break` and `#continue` to find the loop boundary.
     pub is_loop_body: bool,
 }
 

@@ -246,7 +246,7 @@ impl<E: RuntimeExecutor> Runtime<E> {
 
     pub async fn next(&mut self) -> Result<()> {
         loop {
-            // Check loop control signal from #breakloop / #continue
+            // Check loop control signal from #break / #continue
             if let Some(control) = self.context.take_loop_control() {
                 // Pop states until we find the loop body state
                 let found = self.pop_to_loop_body();
@@ -575,12 +575,12 @@ impl<E: RuntimeExecutor> Runtime<E> {
                 Ok(true)
             }
             // This method will quit the current paragraph and return to the previous one
-            "break" => {
+            "leave" => {
                 self.break_current_block()?;
                 Ok(true)
             }
             // Break out of the current while/loop attribute loop
-            "breakloop" => {
+            "break" => {
                 self.context.set_loop_control(LoopControl::Break);
                 Ok(true)
             }

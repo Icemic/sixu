@@ -290,7 +290,7 @@ async fn test_while_on_single_command() {
 // ==================== loop tests ====================
 
 #[tokio::test]
-async fn test_loop_with_breakloop() {
+async fn test_loop_with_break() {
     let script = r#"
 ::entry {
 #[loop]
@@ -298,28 +298,28 @@ async fn test_loop_with_breakloop() {
   @increment
   #[cond("counter < 3")]
   #continue
-  #breakloop
+  #break
 }
 after_loop
 }
 "#;
     let (texts, commands) = run_story(script).await;
-    // Loop runs: increment, counter<3? continue. After 3 iterations, counter=3, breakloop.
+    // Loop runs: increment, counter<3? continue. After 3 iterations, counter=3, break.
     // Wait, let's trace: 
-    // iter1: increment(0→1), counter<3→continue (skip breakloop, restart loop)
+    // iter1: increment(0→1), counter<3→continue (skip break, restart loop)
     // iter2: increment(1→2), counter<3→continue
-    // iter3: increment(2→3), counter<3 is false→skip continue, hit breakloop
+    // iter3: increment(2→3), counter<3 is false→skip continue, hit break
     assert_eq!(commands, vec!["increment", "increment", "increment"]);
     assert_eq!(texts, vec!["after_loop"]);
 }
 
 #[tokio::test]
-async fn test_loop_breakloop_immediately() {
+async fn test_loop_break_immediately() {
     let script = r#"
 ::entry {
 #[loop]
 {
-  #breakloop
+  #break
 }
 "after loop"
 }
