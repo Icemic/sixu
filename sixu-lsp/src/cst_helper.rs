@@ -1,15 +1,12 @@
 use sixu::cst::{node::*, span::SpanInfo};
 use tower_lsp_server::ls_types::{Position, Range};
 
-#[cfg(test)]
-use sixu::cst::parser::parse_tolerant;
-
 /// 将 CST SpanInfo 转换为 LSP Range
 pub fn span_to_range(span: &SpanInfo) -> Range {
     Range {
         start: Position {
             line: (span.start_line - 1) as u32,  // SpanInfo 是 1-based
-            character: span.start_column as u32,  // SpanInfo 是 0-based
+            character: span.start_column as u32, // SpanInfo 是 0-based
         },
         end: Position {
             line: (span.end_line - 1) as u32,
@@ -36,7 +33,7 @@ pub fn contains(range: &Range, pos: &Position) -> bool {
 /// 从 CST 中提取所有命令节点
 pub fn extract_commands(cst: &CstRoot) -> Vec<&CstCommand> {
     let mut commands = Vec::new();
-    
+
     fn visit_node<'a>(node: &'a CstNode, commands: &mut Vec<&'a CstCommand>) {
         match node {
             CstNode::Command(cmd) => commands.push(cmd),
@@ -49,24 +46,24 @@ pub fn extract_commands(cst: &CstRoot) -> Vec<&CstCommand> {
             _ => {}
         }
     }
-    
+
     fn visit_block<'a>(block: &'a CstBlock, commands: &mut Vec<&'a CstCommand>) {
         for child in &block.children {
             visit_node(child, commands);
         }
     }
-    
+
     for node in &cst.nodes {
         visit_node(node, &mut commands);
     }
-    
+
     commands
 }
 
 /// 从 CST 中提取所有系统调用节点
 pub fn extract_system_calls(cst: &CstRoot) -> Vec<&CstSystemCall> {
     let mut system_calls = Vec::new();
-    
+
     fn visit_node<'a>(node: &'a CstNode, calls: &mut Vec<&'a CstSystemCall>) {
         match node {
             CstNode::SystemCall(call) => calls.push(call),
@@ -79,17 +76,17 @@ pub fn extract_system_calls(cst: &CstRoot) -> Vec<&CstSystemCall> {
             _ => {}
         }
     }
-    
+
     fn visit_block<'a>(block: &'a CstBlock, calls: &mut Vec<&'a CstSystemCall>) {
         for child in &block.children {
             visit_node(child, calls);
         }
     }
-    
+
     for node in &cst.nodes {
         visit_node(node, &mut system_calls);
     }
-    
+
     system_calls
 }
 
@@ -135,13 +132,13 @@ pub fn is_inside_string(line_prefix: &str) -> bool {
     let mut in_single = false;
     let mut in_template = false;
     let mut escape_next = false;
-    
+
     for ch in line_prefix.chars() {
         if escape_next {
             escape_next = false;
             continue;
         }
-        
+
         match ch {
             '\\' => escape_next = true,
             '"' if !in_single && !in_template => in_double = !in_double,
@@ -150,13 +147,16 @@ pub fn is_inside_string(line_prefix: &str) -> bool {
             _ => {}
         }
     }
-    
+
     in_double || in_single || in_template
 }
 
 /// 在当前行找到命令或系统调用，并检查光标是否在有效的参数补全位置
 /// 返回：(命令名, 是否括号语法, 已有参数列表)
-pub fn find_command_at_position(line: &str, cursor_col: usize) -> Option<(String, bool, Vec<String>)> {
+pub fn find_command_at_position(
+    line: &str,
+    cursor_col: usize,
+) -> Option<(String, bool, Vec<String>)> {
     // 将字符索引转换为字节索引（处理多字节字符如中文）
     let mut char_count = 0;
     let mut byte_pos = 0;
@@ -168,18 +168,22 @@ pub fn find_command_at_position(line: &str, cursor_col: usize) -> Option<(String
         char_count += 1;
     }
     // 如果还没到达目标字符数，使用字符串末尾
-    let slice_end = if char_count < cursor_col { line.len() } else { byte_pos };
+    let slice_end = if char_count < cursor_col {
+        line.len()
+    } else {
+        byte_pos
+    };
     let line_prefix = &line[..slice_end];
-    
+
     // 检查是否在字符串内
     if is_inside_string(line_prefix) {
         return None;
     }
-    
+
     // 找到最后一个 @ 或 #
     let last_at = line_prefix.rfind('@');
     let last_hash = line_prefix.rfind('#');
-    
+
     let (trigger_idx, _trigger_char) = match (last_at, last_hash) {
         (Some(at), Some(hash)) => {
             if at > hash {
@@ -192,39 +196,38 @@ pub fn find_command_at_position(line: &str, cursor_col: usize) -> Option<(String
         (None, Some(hash)) => (hash, '#'),
         (None, None) => return None,
     };
-    
+
     let after_trigger = &line_prefix[trigger_idx + 1..];
-    
+
     // 提取命令名
     let cmd_end = after_trigger
         .find(|c: char| c.is_whitespace() || c == '(')
         .unwrap_or(after_trigger.len());
-    
+
     if cmd_end == 0 {
         // 命令名为空，不补全参数
         return None;
     }
-    
+
     let cmd_name = &after_trigger[..cmd_end];
     let after_cmd = &after_trigger[cmd_end..];
-    
+
     // 检查语法风格
     let is_paren = after_cmd.trim_start().starts_with('(');
-    
+
     if is_paren {
         // 括号语法：检查光标是否在 ) 之前
         let close_paren_pos = after_cmd.find(')');
-        if let Some(pos) = close_paren_pos {
-            if cmd_end + pos < after_trigger.len() {
+        if let Some(pos) = close_paren_pos
+            && cmd_end + pos < after_trigger.len() {
                 // 光标在 ) 之后，不补全
                 return None;
             }
-        }
     }
-    
+
     // 提取已有参数
     let existing_args = extract_argument_names(after_cmd, is_paren);
-    
+
     Some((cmd_name.to_string(), is_paren, existing_args))
 }
 
@@ -239,44 +242,44 @@ fn extract_argument_names(after_cmd: &str, is_paren: bool) -> Vec<String> {
     } else {
         after_cmd
     };
-    
+
     // 简单的参数提取：找到所有 identifier= 或 identifier 模式
     let mut i = 0;
     let chars: Vec<char> = content.chars().collect();
-    
+
     while i < chars.len() {
         // 跳过空白和逗号
         while i < chars.len() && (chars[i].is_whitespace() || chars[i] == ',') {
             i += 1;
         }
-        
+
         if i >= chars.len() {
             break;
         }
-        
+
         // 收集标识符
         let start = i;
         while i < chars.len() && (chars[i].is_alphanumeric() || chars[i] == '_') {
             i += 1;
         }
-        
+
         if i > start {
             let arg_name: String = chars[start..i].iter().collect();
             args.push(arg_name);
-            
+
             // 跳过 =value 部分
             while i < chars.len() && chars[i].is_whitespace() {
                 i += 1;
             }
-            
+
             if i < chars.len() && chars[i] == '=' {
                 i += 1; // skip =
-                
+
                 // 跳过值（可能是字符串、数字、变量等）
                 while i < chars.len() && chars[i].is_whitespace() {
                     i += 1;
                 }
-                
+
                 if i < chars.len() {
                     if chars[i] == '"' || chars[i] == '\'' || chars[i] == '`' {
                         // 字符串值
@@ -306,7 +309,7 @@ fn extract_argument_names(after_cmd: &str, is_paren: bool) -> Vec<String> {
             }
         }
     }
-    
+
     args
 }
 
@@ -323,7 +326,7 @@ mod tests {
         assert!(!is_inside_string("@command arg='value' "));
         assert!(is_inside_string("@command text=`template "));
         assert!(!is_inside_string("@command text=`template` "));
-        
+
         // 转义字符测试
         assert!(is_inside_string(r#"@command arg="test \" "#));
         assert!(!is_inside_string(r#"@command arg="test \"" "#));
@@ -407,11 +410,7 @@ mod tests {
         // 布尔标志
         assert_eq!(
             extract_argument_names(" flag1 arg2=123 flag3", false),
-            vec![
-                "flag1".to_string(),
-                "arg2".to_string(),
-                "flag3".to_string()
-            ]
+            vec!["flag1".to_string(), "arg2".to_string(), "flag3".to_string()]
         );
 
         // 混合引号

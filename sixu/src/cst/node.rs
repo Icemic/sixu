@@ -432,12 +432,12 @@ impl CstParameter {
     pub fn to_ast(&self) -> format::Parameter {
         format::Parameter {
             name: self.name.clone(),
-            default_value: self.default_value.as_ref().map(|v| {
+            default_value: self.default_value.as_ref().and_then(|v| {
                 match &v.parsed {
                     format::RValue::Literal(lit) => Some(lit.clone()),
                     _ => None,
                 }
-            }).flatten(),
+            }),
         }
     }
 }

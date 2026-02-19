@@ -19,7 +19,7 @@ pub fn command_line(input: &str) -> ParseResult<&str, ChildContent> {
         input,
         ChildContent::CommandLine(CommandLine {
             command: command.to_string(),
-            arguments: arguments,
+            arguments,
         }),
     ))
 }

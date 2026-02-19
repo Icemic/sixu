@@ -131,7 +131,7 @@ impl CstFormatter {
             output.push(')');
         }
 
-        output.push_str(" ");
+        output.push(' ');
         self.format_block(&para.block, indent_level, output);
     }
 

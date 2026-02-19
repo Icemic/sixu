@@ -65,7 +65,7 @@ impl Backend {
             
             for node in nodes {
                 match node {
-                    CstNode::Error { content, span, message } => {
+                    CstNode::Error { content: _, span, message } => {
                         diagnostics.push(Diagnostic {
                             range: span_to_range(span),
                             severity: Some(DiagnosticSeverity::ERROR),
@@ -416,7 +416,7 @@ impl LanguageServer for Backend {
                             } else if is_string {
                                 format!("{}=\"$1\"", key)
                             } else if is_pure_boolean {
-                                format!("{}", key)
+                                key.to_string()
                             } else {
                                 format!("{}=", key)
                             };
@@ -536,8 +536,8 @@ impl LanguageServer for Backend {
 
                     for arg in &cmd.arguments {
                         let arg_range = span_to_range(&arg.span);
-                        if contains(&arg_range, &position) {
-                            if let Some(prop) = def.properties.get(&arg.name) {
+                        if contains(&arg_range, &position)
+                            && let Some(prop) = def.properties.get(&arg.name) {
                                 return Ok(Some(Hover {
                                     contents: HoverContents::Markup(MarkupContent {
                                         kind: MarkupKind::Markdown,
@@ -546,7 +546,6 @@ impl LanguageServer for Backend {
                                     range: Some(arg_range),
                                 }));
                             }
-                        }
                     }
                 }
             }
@@ -589,24 +588,22 @@ impl LanguageServer for Backend {
             let mut is_on_para = false;
 
             // Check if cursor is on story argument value
-            if let Some(story_arg) = call.arguments.iter().find(|a| a.name == "story") {
-                if let Some(value) = &story_arg.value {
+            if let Some(story_arg) = call.arguments.iter().find(|a| a.name == "story")
+                && let Some(value) = &story_arg.value {
                     let value_range = span_to_range(&value.span);
                     if contains(&value_range, &position) {
                         is_on_story = true;
                     }
                 }
-            }
 
             // Check if cursor is on paragraph argument value
-            if let Some(para_arg) = call.arguments.iter().find(|a| a.name == "paragraph") {
-                if let Some(value) = &para_arg.value {
+            if let Some(para_arg) = call.arguments.iter().find(|a| a.name == "paragraph")
+                && let Some(value) = &para_arg.value {
                     let value_range = span_to_range(&value.span);
                     if contains(&value_range, &position) {
                         is_on_para = true;
                     }
                 }
-            }
 
             if !is_on_story && !is_on_para {
                 continue;
