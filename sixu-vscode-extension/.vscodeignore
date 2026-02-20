@@ -1,4 +1,13 @@
 .vscode/**
 .vscode-test/**
 .gitignore
+.github/**
+src/**
+node_modules/**
+esbuild.mjs
+scripts/**
 vsc-extension-quickstart.md
+*.map
+.yarn/**
+.yarnrc.yml
+../**

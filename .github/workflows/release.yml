@@ -1,0 +1,158 @@
+name: Release
+
+on:
+  push:
+    branches: [ "master" ]
+
+permissions:
+  contents: write
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build-server:
+    name: Build LSP Server (${{ matrix.vscode-target }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            rust-target: x86_64-pc-windows-msvc
+            vscode-target: win32-x64
+            binary: sixu-lsp.exe
+          - os: macos-13
+            rust-target: x86_64-apple-darwin
+            vscode-target: darwin-x64
+            binary: sixu-lsp
+          - os: macos-latest
+            rust-target: aarch64-apple-darwin
+            vscode-target: darwin-arm64
+            binary: sixu-lsp
+          - os: ubuntu-latest
+            rust-target: x86_64-unknown-linux-gnu
+            vscode-target: linux-x64
+            binary: sixu-lsp
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build LSP server
+        run: cargo build --release -p sixu-lsp --target ${{ matrix.rust-target }}
+
+      - name: Upload binary artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: server-${{ matrix.vscode-target }}
+          path: target/${{ matrix.rust-target }}/release/${{ matrix.binary }}
+
+  package-extension:
+    name: Package Extension (${{ matrix.vscode-target }})
+    needs: build-server
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - vscode-target: win32-x64
+            binary: sixu-lsp.exe
+          - vscode-target: darwin-x64
+            binary: sixu-lsp
+          - vscode-target: darwin-arm64
+            binary: sixu-lsp
+          - vscode-target: linux-x64
+            binary: sixu-lsp
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Enable Corepack (Yarn)
+        run: corepack enable
+
+      - name: Install dependencies
+        run: yarn install
+        working-directory: sixu-vscode-extension
+
+      - name: Download LSP binary
+        uses: actions/download-artifact@v4
+        with:
+          name: server-${{ matrix.vscode-target }}
+          path: sixu-vscode-extension/server
+
+      - name: Set binary permissions
+        if: matrix.vscode-target != 'win32-x64'
+        run: chmod +x sixu-vscode-extension/server/${{ matrix.binary }}
+
+      - name: Build extension
+        run: yarn build
+        working-directory: sixu-vscode-extension
+
+      - name: Package VSIX
+        run: npx @vscode/vsce package --no-dependencies --target ${{ matrix.vscode-target }}
+        working-directory: sixu-vscode-extension
+
+      - name: Upload VSIX artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: vsix-${{ matrix.vscode-target }}
+          path: sixu-vscode-extension/*.vsix
+
+  release:
+    name: Create Release
+    needs: package-extension
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download all VSIX artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: vsix-*
+          merge-multiple: true
+          path: vsix
+
+      - name: List artifacts
+        run: ls -la vsix/
+
+      - name: Create or update dev release
+        run: |
+          TAG_NAME="dev"
+          RELEASE_NAME="Development Build"
+
+          # Delete existing dev release and tag if present
+          if gh release view "$TAG_NAME" --repo ${{ github.repository }} >/dev/null 2>&1; then
+            echo "Deleting existing dev release"
+            gh release delete "$TAG_NAME" --yes --repo ${{ github.repository }}
+          fi
+          if git ls-remote --tags origin "$TAG_NAME" | grep -q .; then
+            git push origin ":refs/tags/$TAG_NAME" || true
+          fi
+
+          gh release create "$TAG_NAME" \
+            --title "$RELEASE_NAME" \
+            --prerelease \
+            --draft=false \
+            --notes "Latest development build from master branch ($(date -u +%Y-%m-%d %H:%M UTC))" \
+            --target master \
+            --repo ${{ github.repository }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload release assets
+        run: |
+          TAG_NAME="dev"
+          for file in vsix/*.vsix; do
+            if [ -f "$file" ]; then
+              echo "Uploading $file"
+              gh release upload "$TAG_NAME" "$file" --clobber --repo ${{ github.repository }}
+            fi
+          done
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

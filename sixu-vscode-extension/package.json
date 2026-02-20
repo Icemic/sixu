@@ -1,10 +1,25 @@
 {
   "name": "sixu-vscode-extension",
   "displayName": "SiXu Language Support",
-  "description": "SiXu Language Support",
+  "description": "Language support for SiXu visual novel scripting language",
   "version": "0.1.0",
-  "main": "./src/extension.mjs",
-  "dependencies": {
+  "publisher": "icemic",
+  "license": "MPL-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Icemic/sixu"
+  },
+  "main": "./dist/extension.js",
+  "scripts": {
+    "esbuild": "node esbuild.mjs",
+    "build": "node esbuild.mjs --production",
+    "watch": "node esbuild.mjs --watch",
+    "package": "vsce package --no-dependencies",
+    "vscode:prepublish": "yarn build"
+  },
+  "devDependencies": {
+    "@vscode/vsce": "^3.2.2",
+    "esbuild": "^0.24.2",
     "vscode-languageclient": "^10.0.0-next.19"
   },
   "engines": {
