@@ -186,3 +186,142 @@ LSP 通过标准输出 (stdout) 与编辑器通信。使用 `println!` 会破坏
 
 - **正确做法 1 (推荐)**: 使用 `eprintln!`。它会输出到 stderr，VS Code 会将其捕获并显示在 Output 面板中。
 - **正确做法 2**: 使用 `self.client.log_message(...)` 发送 LSP 日志消息。
+
+## 7. 测试方案
+
+项目采用多层次的测试策略，覆盖核心库和 LSP 服务器。
+
+### 7.1. 测试架构总览
+
+| 测试层      | 位置                                   | 运行命令                           | 说明                                    |
+| ----------- | -------------------------------------- | ---------------------------------- | --------------------------------------- |
+| 格式化单元测试 | `sixu/src/cst/formatter.rs` (mod tests) | `cargo test -p sixu --features cst` | CstFormatter 的单元测试，包含幂等性测试 |
+| Fixture 集成测试 | `sixu/tests/cst_format.rs`           | `cargo test -p sixu --test cst_format --features cst` | 基于 fixture 文件的格式化对比测试 |
+| 运行时测试   | `sixu/tests/usage.rs`                 | `cargo test -p sixu --test usage`    | Runtime + Executor 集成测试            |
+| LSP 集成测试 | `sixu-lsp/tests/formatting.rs`        | `cargo test -p sixu-lsp`             | 通过 LspService 进程内测试 LSP 格式化   |
+
+### 7.2. Fixture 测试框架
+
+格式化测试使用 **源文件/期望输出** 的 fixture 对比模式：
+
+```
+sixu/tests/fixtures/format/
+├── source/         # 输入文件（待格式化的代码）
+│   ├── 01_simple_paragraph.sixu
+│   ├── 02_command_basic.sixu
+│   ├── ...
+│   └── 10_multi_paragraphs.sixu
+├── output/         # 期望输出文件（标准格式）
+│   ├── 01_simple_paragraph.sixu
+│   └── ...
+└── README.md       # 测试用例清单和运行指南
+```
+
+共 **10 个 fixture 测试用例**：
+
+| 编号 | 文件名             | 覆盖内容               |
+| ---- | ------------------ | ---------------------- |
+| 01   | simple_paragraph   | 简单段落和文本         |
+| 02   | command_basic      | 基本命令（空格分隔参数）|
+| 03   | systemcall         | 系统调用               |
+| 04   | text_and_comment   | 文本和注释             |
+| 05   | nested_blocks      | 嵌套块                 |
+| 06   | embedded_code      | 嵌入代码（`##`/`@{}`） |
+| 07   | parameters         | 段落参数               |
+| 08   | mixed_content      | 混合内容               |
+| 09   | command_paren      | 括号语法命令           |
+| 10   | multi_paragraphs   | 多段落文件             |
+
+运行单个 fixture 测试：
+
+```bash
+cargo test -p sixu --test cst_format test_format_simple_paragraph --features cst -- --nocapture
+```
+
+### 7.3. 格式化幂等性测试
+
+格式化器必须满足**幂等性**：对任意输入，格式化 N 次的结果应与格式化 1 次的结果完全相同。这确保了用户多次保存文件不会产生不断累积的格式变化。
+
+#### 辅助函数
+
+`sixu/src/cst/formatter.rs` 中定义了 `format_n_times` 辅助函数：
+
+```rust
+fn format_n_times(input: &str, n: usize) -> Vec<String> {
+    let formatter = CstFormatter::new();
+    let mut results = Vec::new();
+    let mut current = input.to_string();
+    for _ in 0..n {
+        let cst = parse_tolerant("test", &current);
+        current = formatter.format(&cst);
+        results.push(current.clone());
+    }
+    results
+}
+```
+
+每个幂等性测试调用此函数格式化 5 次，然后断言第 2–5 次结果与第 1 次相同。
+
+#### 幂等性测试用例
+
+| 测试名                                          | 覆盖场景                           |
+| ------------------------------------------------ | ---------------------------------- |
+| `test_format_hash_multiline_idempotent`          | `## ... ##` 多行脚本块             |
+| `test_format_hash_multiline_no_indent_idempotent`| `## ... ##` 无缩进脚本块           |
+| `test_format_brace_multiline_idempotent`         | `@{ ... }` 多行代码块             |
+| `test_format_block_comment_with_stars_idempotent`| `/* * line */` 带星号多行注释      |
+| `test_format_block_comment_without_stars_idempotent` | `/* line */` 不带星号多行注释  |
+| `test_format_block_comment_inline_multiline_idempotent` | `/* ... \n ... */` 内联多行注释 |
+| `test_format_block_comment_empty_lines_idempotent` | 多行注释中含空行               |
+| `test_format_mixed_all_idempotent`               | 综合测试（代码块 + 注释混合）      |
+
+#### 已修复的幂等性问题
+
+以下三类格式化在修复前存在每次格式化都会累积变化的 bug：
+
+1. **`## ... ##` 多行脚本**：parser 捕获的 `code.code` 包含关闭 `##` 前的缩进空格，`trim_matches` 仅去除换行符而不去除空格，导致每轮多出一行空白。修复：使用 `trim_end()` 去除所有尾部空白。
+2. **`/* ... */` 块注释**：formatter 的 `format_trivia` 在输出每行时添加 ` * ` 前缀，但未检查原文是否已有 `* ` 前缀，导致每轮多出一个 `*`。修复：先剥离已有的 `*` 前缀再重新添加。
+3. **`@{ ... }` 大括号代码块**：与 `##` 相同的根因——`trim_matches` 不去除 `}` 前的缩进空格。修复：同样使用 `trim_end().trim_start_matches(newlines)`。
+
+### 7.4. LSP 集成测试
+
+LSP 测试通过 `tower-lsp-server` 内部测试模式运行，无需启动独立进程。
+
+#### 测试基础设施
+
+`sixu-lsp/tests/helpers/mod.rs` 提供 `TestContext`，封装了完整的 LSP 协议交互：
+
+```rust
+let mut ctx = TestContext::new().await;                           // initialize + initialized 握手
+let uri = ctx.open_document("file:///test/x.sixu", &source).await; // textDocument/didOpen
+let _ = ctx.read_diagnostics().await;                              // 消耗 publishDiagnostics 通知
+let formatted = ctx.format_document(&uri).await;                   // textDocument/formatting
+```
+
+> **注意**: 必须及时消耗 `ClientSocket` 上的通知（使用后台 `tokio::spawn` + `drain_socket`），否则 `client.log_message()` 等调用会因 channel 满而阻塞死锁。
+
+#### LSP 格式化测试用例
+
+| 测试名                                     | 类型     | 说明                                            |
+| ------------------------------------------ | -------- | ----------------------------------------------- |
+| `test_format_simple_paragraph` ~ `test_format_multi_paragraphs` | Fixture | 复用 `sixu/tests/fixtures/format/` 下 10 个文件 |
+| `test_format_empty_file`                   | 内联     | 空文件格式化后应为空                             |
+| `test_format_idempotent`                   | 内联     | 通用幂等性（命令 + 系统调用）                    |
+| `test_format_hash_multiline_idempotent`    | 内联     | `## ... ##` 多行脚本 LSP 端幂等性               |
+| `test_format_block_comment_stars_idempotent` | 内联   | 带星号块注释 LSP 端幂等性                        |
+
+### 7.5. 运行所有测试
+
+```bash
+# 运行 sixu 核心库全部测试（含 CST 格式化）
+cargo test -p sixu --features cst
+
+# 运行 sixu-lsp 全部测试（含 LSP 集成测试）
+cargo test -p sixu-lsp
+
+# 运行整个 workspace 的所有测试
+cargo test --workspace --features cst
+
+# 查看详细输出
+cargo test -p sixu --features cst -- --nocapture
+```
