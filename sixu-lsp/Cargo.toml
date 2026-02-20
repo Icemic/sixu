@@ -13,3 +13,7 @@ serde_json = "1"
 sixu = {path = "../sixu", features = ["cst"]}
 tokio = {version = "1", features = ["full"]}
 tower-lsp-server = "0.23"
+
+[dev-dependencies]
+futures = "0.3"
+tower = "0.5"

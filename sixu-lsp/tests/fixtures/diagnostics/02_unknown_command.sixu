@@ -1,0 +1,4 @@
+// 未知命令，应产生 WARNING
+::main {
+    @unknownCommand(src="test.jpg")
+}

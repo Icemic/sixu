@@ -1,0 +1,4 @@
+// 参数类型不匹配：fadeTime 期望 number，但给了 string
+::main {
+    @changebg(src="test.jpg", fadeTime="slow")
+}

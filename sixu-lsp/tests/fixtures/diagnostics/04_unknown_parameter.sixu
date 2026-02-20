@@ -1,0 +1,4 @@
+// 未知参数，应产生 WARNING
+::main {
+    @changebg(src="test.jpg", unknownParam=123)
+}

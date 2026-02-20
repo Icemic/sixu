@@ -1,0 +1,15 @@
+// 正确的 sixu 文件，不应产生任何诊断
+::main {
+    @changebg(src="background.jpg", fadeTime=600)
+    @sound(channel="bgm", src="music.opus", loop=true)
+
+    "这是一段文本"
+    裸文本也可以
+
+    #goto paragraph="other"
+}
+
+::other {
+    @soundStop(channel="bgm")
+    #finish
+}

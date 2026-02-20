@@ -1,0 +1,4 @@
+// 缺少必需参数 src，应产生 ERROR
+::main {
+    @changebg(fadeTime=600)
+}
