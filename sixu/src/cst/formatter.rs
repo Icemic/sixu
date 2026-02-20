@@ -85,17 +85,40 @@ impl CstFormatter {
                     output.push_str("*/");
                     output.push('\n');
                 } else {
-                    // 多行注释：/* 单独一行，每个内容行添加 * 前缀
-                    self.indent(indent_level, output);
-                    output.push_str("/*");
-                    output.push('\n');
-
+                    // 多行注释：提取有意义的内容行，剥除已有的 * 前缀后重新格式化
+                    let mut content_lines: Vec<&str> = Vec::new();
                     for line in &lines {
+                        let trimmed = line.trim();
+                        // 剥除已有的 * 前缀（避免重复格式化时不断叠加 *）
+                        let stripped = if trimmed.starts_with("* ") {
+                            &trimmed[2..]
+                        } else if trimmed == "*" {
+                            ""
+                        } else if trimmed.starts_with('*') {
+                            &trimmed[1..]
+                        } else {
+                            trimmed
+                        };
+                        content_lines.push(stripped);
+                    }
+
+                    // 去除首尾的空行（来自 /* 和 */ 边界）
+                    while content_lines.first().map(|s| s.is_empty()).unwrap_or(false) {
+                        content_lines.remove(0);
+                    }
+                    while content_lines.last().map(|s| s.is_empty()).unwrap_or(false) {
+                        content_lines.pop();
+                    }
+
+                    self.indent(indent_level, output);
+                    output.push_str("/*\n");
+
+                    for line in &content_lines {
                         self.indent(indent_level, output);
                         output.push_str(" *");
                         if !line.is_empty() {
                             output.push(' ');
-                            output.push_str(line.trim());
+                            output.push_str(line);
                         }
                         output.push('\n');
                     }
@@ -318,8 +341,13 @@ impl CstFormatter {
                     self.indent(indent_level, output);
                     output.push_str("@{\n");
 
-                    // 移除首尾的换行符，但保留内部的缩进
-                    let code_content = code.code.trim_matches(|c| c == '\n' || c == '\r');
+                    // 先去除尾部所有空白（包括 } 前的缩进空格），再去除首部换行。
+                    // 不能只用 trim_matches(\n|\r)，因为 parser 会把 } 前的缩进空格
+                    // 也捕获进 code.code，若不 trim 空格，每轮格式化会多出一行"空行"。
+                    let code_content = code
+                        .code
+                        .trim_end()
+                        .trim_start_matches(|c: char| c == '\n' || c == '\r');
                     output.push_str(code_content);
                     output.push('\n');
 
@@ -339,11 +367,11 @@ impl CstFormatter {
                     // 多行语法：开始和结束标记在独立的行上，代码内容保留原样
                     self.indent(indent_level, output);
                     output.push_str("##\n");
-                    // 直接输出代码内容，保留其原始格式（不额外缩进）
-                    output.push_str(&code.code);
-                    if !code.code.ends_with('\n') {
-                        output.push('\n');
-                    }
+                    // 去除尾部空白（parser 会捕获闭合 ## 前的缩进空白，
+                    // 若不 trim 会在每轮格式化中累积空行）
+                    let code_content = code.code.trim_end();
+                    output.push_str(code_content);
+                    output.push('\n');
                     self.indent(indent_level, output);
                     output.push_str("##\n");
                 } else {
@@ -576,5 +604,166 @@ mod tests {
 
         println!("Space-separated systemcall result:\n{}", result2);
         assert!(result2.contains("#goto paragraph=\"main\""));
+    }
+
+    /// 辅助函数：格式化 N 次，确保结果稳定（幂等性）
+    fn format_n_times(input: &str, n: usize) -> Vec<String> {
+        let formatter = CstFormatter::new();
+        let mut results = Vec::new();
+        let mut current = input.to_string();
+        for _ in 0..n {
+            let cst = parse_tolerant("test", &current);
+            current = formatter.format(&cst);
+            results.push(current.clone());
+        }
+        results
+    }
+
+    #[test]
+    fn test_format_hash_multiline_idempotent() {
+        let input = "::main {\n    ##\n    let x = 1;\n    let y = 2;\n    ##\n}\n";
+        let results = format_n_times(input, 5);
+
+        // 第一次格式化后的结果应和后续每次相同
+        for (i, result) in results.iter().enumerate().skip(1) {
+            assert_eq!(
+                &results[0],
+                result,
+                "## 多行脚本格式化不幂等：第 1 次和第 {} 次结果不同\n第 1 次:\n{}\n第 {} 次:\n{}",
+                i + 1,
+                &results[0],
+                i + 1,
+                result
+            );
+        }
+    }
+
+    #[test]
+    fn test_format_hash_multiline_no_indent_idempotent() {
+        // 代码内容无缩进的情况
+        let input = "::main {\n##\nconst y = \"hello\";\nconsole.log(y);\n##\n}\n";
+        let results = format_n_times(input, 5);
+
+        for (i, result) in results.iter().enumerate().skip(1) {
+            assert_eq!(
+                &results[0],
+                result,
+                "## 无缩进脚本块格式化不幂等：第 1 次和第 {} 次结果不同",
+                i + 1
+            );
+        }
+    }
+
+    #[test]
+    fn test_format_block_comment_with_stars_idempotent() {
+        let input = "::main {\n    /*\n     * line 1\n     * line 2\n     */\n    @cmd arg=1\n}\n";
+        let results = format_n_times(input, 5);
+
+        for (i, result) in results.iter().enumerate().skip(1) {
+            assert_eq!(
+                &results[0], result,
+                "带 * 的多行注释格式化不幂等：第 1 次和第 {} 次结果不同\n第 1 次:\n{}\n第 {} 次:\n{}",
+                i + 1, &results[0], i + 1, result
+            );
+        }
+    }
+
+    #[test]
+    fn test_format_block_comment_without_stars_idempotent() {
+        let input = "::main {\n    /*\n     line 1\n     line 2\n     */\n    @cmd arg=1\n}\n";
+        let results = format_n_times(input, 5);
+
+        for (i, result) in results.iter().enumerate().skip(1) {
+            assert_eq!(
+                &results[0], result,
+                "不带 * 的多行注释格式化不幂等：第 1 次和第 {} 次结果不同\n第 1 次:\n{}\n第 {} 次:\n{}",
+                i + 1, &results[0], i + 1, result
+            );
+        }
+    }
+
+    #[test]
+    fn test_format_block_comment_inline_multiline_idempotent() {
+        // /* 多行注释\n   第二行 */ 这种内联多行注释
+        let input = "::test {\n    /* 多行注释\n       第二行 */\n    @cmd arg=1\n}\n";
+        let results = format_n_times(input, 5);
+
+        for (i, result) in results.iter().enumerate().skip(1) {
+            assert_eq!(
+                &results[0],
+                result,
+                "内联多行注释格式化不幂等：第 1 次和第 {} 次结果不同\n第 1 次:\n{}\n第 {} 次:\n{}",
+                i + 1,
+                &results[0],
+                i + 1,
+                result
+            );
+        }
+    }
+
+    #[test]
+    fn test_format_block_comment_empty_lines_idempotent() {
+        // 多行注释中有空行
+        let input = "::test {\n    /*\n     * line 1\n     *\n     * line 2\n     */\n}\n";
+        let results = format_n_times(input, 5);
+
+        for (i, result) in results.iter().enumerate().skip(1) {
+            assert_eq!(
+                &results[0], result,
+                "含空行的多行注释格式化不幂等：第 1 次和第 {} 次结果不同\n第 1 次:\n{}\n第 {} 次:\n{}",
+                i + 1, &results[0], i + 1, result
+            );
+        }
+        // 验证空行被保留
+        assert!(results[0].contains(" *\n"), "多行注释中的空行应被保留");
+    }
+
+    #[test]
+    fn test_format_mixed_all_idempotent() {
+        // 综合测试：同时包含 ## 代码块和多行注释
+        let input = r#"::main {
+    /*
+     * 这是注释
+     * 第二行
+     */
+    ##
+    let x = 1;
+    let y = 2;
+    ##
+    @cmd arg=1
+}
+"#;
+        let results = format_n_times(input, 5);
+
+        for (i, result) in results.iter().enumerate().skip(1) {
+            assert_eq!(
+                &results[0],
+                result,
+                "综合格式化不幂等：第 1 次和第 {} 次结果不同\n第 1 次:\n{}\n第 {} 次:\n{}",
+                i + 1,
+                &results[0],
+                i + 1,
+                result
+            );
+        }
+    }
+
+    #[test]
+    fn test_format_brace_multiline_idempotent() {
+        // 测试 @{...} 多行代码块格式化幂等性
+        let input = "::code_test {\n    @{\n  const y = \"hello\";\n  console.log(y);\n    }\n}\n";
+        let results = format_n_times(input, 5);
+
+        for (i, result) in results.iter().enumerate().skip(1) {
+            assert_eq!(
+                &results[0],
+                result,
+                "@{{...}} 多行代码块格式化不幂等：第 1 次和第 {} 次结果不同\n第 1 次:\n{}\n第 {} 次:\n{}",
+                i + 1,
+                &results[0],
+                i + 1,
+                result
+            );
+        }
     }
 }

@@ -19,6 +19,7 @@ use tower_lsp_server::jsonrpc::{Request, Response};
 use tower_lsp_server::ls_types::*;
 use tower_lsp_server::{ClientSocket, LspService};
 
+#[allow(unused_imports)]
 use sixu_lsp::{Backend, create_lsp_service};
 
 /// 测试上下文，封装 LspService 和 ClientSocket
@@ -131,6 +132,54 @@ impl TestContext {
             }
 
             tokio::time::sleep(Duration::from_millis(10)).await;
+        }
+    }
+
+    /// 发送补全请求并返回补全项列表
+    pub async fn completion(
+        &mut self,
+        uri: &Uri,
+        line: u32,
+        character: u32,
+    ) -> Option<Vec<CompletionItem>> {
+        let id = self.next_id();
+
+        let request = Request::build("textDocument/completion")
+            .params(json!({
+                "textDocument": {
+                    "uri": uri.as_str()
+                },
+                "position": {
+                    "line": line,
+                    "character": character
+                }
+            }))
+            .id(id)
+            .finish();
+
+        let resp: Result<Option<Response>, _> =
+            self.service.ready().await.unwrap().call(request).await;
+
+        let resp = resp.expect("completion request failed");
+        let resp = resp.expect("completion should return a response");
+        let (_, result) = resp.into_parts();
+
+        match result {
+            Ok(value) => {
+                let value: serde_json::Value = value;
+                if value.is_null() {
+                    return None;
+                }
+                // CompletionResponse can be Array or CompletionList
+                if let Ok(items) = serde_json::from_value::<Vec<CompletionItem>>(value.clone()) {
+                    Some(items)
+                } else if let Ok(list) = serde_json::from_value::<CompletionList>(value) {
+                    Some(list.items)
+                } else {
+                    None
+                }
+            }
+            Err(_) => None,
         }
     }
 

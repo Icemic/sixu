@@ -155,3 +155,59 @@ async fn test_format_idempotent() {
 
     assert_text_eq(&second, &first, "格式化幂等性");
 }
+
+#[tokio::test(flavor = "multi_thread")]
+async fn test_format_hash_multiline_idempotent() {
+    let source = "::main {\n    ##\n    let x = 1;\n    let y = 2;\n    ##\n}\n";
+
+    let mut ctx = TestContext::new().await;
+    let uri = ctx
+        .open_document("file:///test/hash_idem.sixu", source)
+        .await;
+    let _ = ctx.read_diagnostics().await;
+
+    let first = ctx
+        .format_document(&uri)
+        .await
+        .expect("第一次格式化应返回结果");
+
+    let uri2 = ctx
+        .open_document("file:///test/hash_idem2.sixu", &first)
+        .await;
+    let _ = ctx.read_diagnostics().await;
+
+    let second = ctx
+        .format_document(&uri2)
+        .await
+        .expect("第二次格式化应返回结果");
+
+    assert_text_eq(&second, &first, "## 多行脚本格式化幂等性");
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn test_format_block_comment_stars_idempotent() {
+    let source = "::main {\n    /*\n     * line 1\n     * line 2\n     */\n    @changebg src=\"bg.jpg\"\n}\n";
+
+    let mut ctx = TestContext::new().await;
+    let uri = ctx
+        .open_document("file:///test/comment_idem.sixu", source)
+        .await;
+    let _ = ctx.read_diagnostics().await;
+
+    let first = ctx
+        .format_document(&uri)
+        .await
+        .expect("第一次格式化应返回结果");
+
+    let uri2 = ctx
+        .open_document("file:///test/comment_idem2.sixu", &first)
+        .await;
+    let _ = ctx.read_diagnostics().await;
+
+    let second = ctx
+        .format_document(&uri2)
+        .await
+        .expect("第二次格式化应返回结果");
+
+    assert_text_eq(&second, &first, "带 * 多行注释格式化幂等性");
+}

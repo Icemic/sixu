@@ -1,0 +1,4 @@
+// 命令后有多余内容
+::main {
+    @changebg(src="test.jpg", fadeTime=1000) aaaa
+}

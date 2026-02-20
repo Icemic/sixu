@@ -159,19 +159,19 @@ pub fn find_command_at_position(
 ) -> Option<(String, bool, Vec<String>)> {
     // 将字符索引转换为字节索引（处理多字节字符如中文）
     let mut char_count = 0;
-    let mut byte_pos = 0;
-    for (idx, _) in line.char_indices() {
+    let mut byte_end = 0;
+    for (idx, ch) in line.char_indices() {
         if char_count >= cursor_col {
             break;
         }
-        byte_pos = idx;
+        byte_end = idx + ch.len_utf8();
         char_count += 1;
     }
     // 如果还没到达目标字符数，使用字符串末尾
     let slice_end = if char_count < cursor_col {
         line.len()
     } else {
-        byte_pos
+        byte_end
     };
     let line_prefix = &line[..slice_end];
 
@@ -200,9 +200,12 @@ pub fn find_command_at_position(
     let after_trigger = &line_prefix[trigger_idx + 1..];
 
     // 提取命令名
-    let cmd_end = after_trigger
-        .find(|c: char| c.is_whitespace() || c == '(')
-        .unwrap_or(after_trigger.len());
+    let separator_pos = after_trigger.find(|c: char| c.is_whitespace() || c == '(');
+    let cmd_end = match separator_pos {
+        Some(pos) => pos,
+        // 光标仍在命令名上（没有分隔符），应由命令名补全处理
+        None => return None,
+    };
 
     if cmd_end == 0 {
         // 命令名为空，不补全参数

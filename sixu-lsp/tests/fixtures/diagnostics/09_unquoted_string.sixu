@@ -1,0 +1,4 @@
+// 字符串值缺少引号
+::main {
+    @changebg src=test.jpg
+}

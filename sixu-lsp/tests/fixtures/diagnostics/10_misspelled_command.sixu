@@ -1,0 +1,4 @@
+// 拼写错误的命令名（changebgg 而非 changebg）
+::main {
+    @changebgg src="test.jpg"
+}

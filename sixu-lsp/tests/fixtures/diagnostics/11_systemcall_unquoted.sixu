@@ -1,0 +1,4 @@
+// 系统调用参数值未加引号
+::main {
+    #goto paragraph=abc
+}

@@ -1,0 +1,6 @@
+// 多种错误混合
+::main {
+    @changebg fadeTime=1000
+    @unknownCmd arg=1
+    @changebg src="test.jpg" unknownParam=123
+}

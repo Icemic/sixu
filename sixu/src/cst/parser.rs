@@ -895,9 +895,12 @@ fn parse_embedded_code_hash(input: Span) -> ParseResult<CstEmbeddedCode> {
     let (input, _) = parse_whitespace_inline.parse(input)?;
     let (input, _) = opt(parse_line_ending).parse(input)?;
 
-    // 收集内容直到遇到：行内空格 + ##
-    let (input, content_chars) =
-        many_till(anychar, (parse_whitespace_inline, tag("##"))).parse(input)?;
+    // 收集内容直到遇到：## + 行内空格 + 换行（与 AST parser 对齐）
+    let (input, content_chars) = many_till(
+        anychar,
+        (tag("##"), parse_whitespace_inline, parse_line_ending),
+    )
+    .parse(input)?;
 
     let code: String = content_chars.0.into_iter().collect();
     let end_span = input;

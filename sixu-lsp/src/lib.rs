@@ -320,19 +320,19 @@ impl LanguageServer for Backend {
         let line = line_slice.to_string();
         // 将字符索引转换为字节索引（处理多字节字符如中文）
         let mut char_count = 0;
-        let mut byte_pos = 0;
-        for (idx, _) in line.char_indices() {
+        let mut byte_end = 0;
+        for (idx, ch) in line.char_indices() {
             if char_count >= col {
                 break;
             }
-            byte_pos = idx;
+            byte_end = idx + ch.len_utf8();
             char_count += 1;
         }
         // 如果还没到达目标字符数，使用字符串末尾
         let slice_end = if char_count < col {
             line.len()
         } else {
-            byte_pos
+            byte_end
         };
         let line_prefix = &line[..slice_end];
 
