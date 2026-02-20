@@ -2,7 +2,7 @@ name: Release
 
 on:
   push:
-    branches: [ "master" ]
+    branches: [ "main" ]
 
 permissions:
   contents: write
@@ -139,8 +139,8 @@ jobs:
             --title "$RELEASE_NAME" \
             --prerelease \
             --draft=false \
-            --notes "Latest development build from master branch ($(date -u +%Y-%m-%d %H:%M UTC))" \
-            --target master \
+            --notes "Latest development build from main branch ($(date -u +%Y-%m-%d %H:%M UTC))" \
+            --target main \
             --repo ${{ github.repository }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
