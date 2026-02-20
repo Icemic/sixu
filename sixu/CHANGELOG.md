@@ -5,7 +5,54 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## v0.9.0 (2026-02-21)
+
+### New Features
+
+ - <csr-id-d81bdbc3ca21a812ece8397f8bb2085a80d923da/> Rename loop/block control system calls
+ - <csr-id-d69f98325c51ccb66bb8fab3a1477abc2ae59beb/> impl flow control (cond, if, while, loop) via attribute
+ - <csr-id-b24640418bf77aeb6fda6e1edbd613e6bf77fecd/> add cst parser and use it for lsp
+
+### Bug Fixes
+
+ - <csr-id-6aee2bc2e98d247b365668ec306552f2e22a0533/> ensure default values for new fields in ExecutionState for archive compatibility
+ - <csr-id-3a5bb1a90d0adf5dfba2b42ad33e44154bb8d70f/> formatter
+
+### Refactor
+
+ - <csr-id-52826750cdc719a62620aa7f6f3350f15b8e7c92/> move and update test module organization
+
+### Commit Statistics
+
+<csr-read-only-do-not-edit/>
+
+ - 10 commits contributed to the release over the course of 54 calendar days.
+ - 60 days passed between releases.
+ - 6 commits were understood as [conventional](https://www.conventionalcommits.org).
+ - 0 issues like '(#ID)' were seen in commit messages
+
+### Commit Details
+
+<csr-read-only-do-not-edit/>
+
+<details><summary>view details</summary>
+
+ * **Uncategorized**
+    - Ensure default values for new fields in ExecutionState for archive compatibility ([`6aee2bc`](https://github.com/Icemic/sixu/commit/6aee2bc2e98d247b365668ec306552f2e22a0533))
+    - Add more lsp tests and fix bugs ([`af001ea`](https://github.com/Icemic/sixu/commit/af001ea7252ba4fa1d6a0979dc42697685cfdc6e))
+    - Format everything ([`7d203ad`](https://github.com/Icemic/sixu/commit/7d203adc11114d5cafb8640bd707ec5f2f039350))
+    - Rename loop/block control system calls ([`d81bdbc`](https://github.com/Icemic/sixu/commit/d81bdbc3ca21a812ece8397f8bb2085a80d923da))
+    - Lint ([`85d9c84`](https://github.com/Icemic/sixu/commit/85d9c8404b8fa27439c5081df9739b8378f0ad08))
+    - Impl flow control (cond, if, while, loop) via attribute ([`d69f983`](https://github.com/Icemic/sixu/commit/d69f98325c51ccb66bb8fab3a1477abc2ae59beb))
+    - Move and update test module organization ([`5282675`](https://github.com/Icemic/sixu/commit/52826750cdc719a62620aa7f6f3350f15b8e7c92))
+    - Formatter ([`3a5bb1a`](https://github.com/Icemic/sixu/commit/3a5bb1a90d0adf5dfba2b42ad33e44154bb8d70f))
+    - Add integrated test and fix problems ([`229f815`](https://github.com/Icemic/sixu/commit/229f8154e4cd34bef2f4239a40a608d9ace76428))
+    - Add cst parser and use it for lsp ([`b246404`](https://github.com/Icemic/sixu/commit/b24640418bf77aeb6fda6e1edbd613e6bf77fecd))
+</details>
+
 ## v0.8.0 (2025-12-22)
+
+<csr-id-0177191766ddff6c78a7d0b6a646301333d902df/>
 
 ### Refactor
 
@@ -18,8 +65,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <csr-read-only-do-not-edit/>
 
- - 1 commit contributed to the release.
- - 4 days passed between releases.
+ - 2 commits contributed to the release.
+ - 5 days passed between releases.
  - 1 commit was understood as [conventional](https://www.conventionalcommits.org).
  - 0 issues like '(#ID)' were seen in commit messages
 
@@ -30,6 +77,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 <details><summary>view details</summary>
 
  * **Uncategorized**
+    - Release sixu v0.8.0 ([`4c58acf`](https://github.com/Icemic/sixu/commit/4c58acf70162bf363ad2a1f26ec10aa515da4e53))
     - Simplify argument model by removing flags and optionals ([`0177191`](https://github.com/Icemic/sixu/commit/0177191766ddff6c78a7d0b6a646301333d902df))
 </details>
 
