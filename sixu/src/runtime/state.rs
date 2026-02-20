@@ -4,8 +4,11 @@ use serde::{Deserialize, Serialize};
 use crate::format::{Block, Child};
 
 /// Represents a state in the stack of the runtime.
-#[derive(Debug, Clone)]
+#[derive(Debug, Default, Clone)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+// It is essential for save archive compatibility that old archives can be loaded with new versions of the software,
+// so we must ensure that new fields have default values when deserializing old archives.
+#[serde(default)]
 pub struct ExecutionState {
     /// Story name
     pub story: String,
