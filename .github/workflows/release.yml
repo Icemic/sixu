@@ -2,7 +2,7 @@ name: Release
 
 on:
   push:
-    branches: [ "main" ]
+    branches: ['main']
 
 permissions:
   contents: write
@@ -116,37 +116,42 @@ jobs:
         run: ls -la vsix/
 
       - name: Create or update dev release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          TAG_NAME: dev
         run: |
-          TAG_NAME="dev"
           RELEASE_NAME="Development Build"
 
-          # Delete existing dev release and tag if present
-          if gh release view "$TAG_NAME" --repo ${{ github.repository }} >/dev/null 2>&1; then
+          # Delete existing dev release if present
+          if gh release view "$TAG_NAME" --repo "$REPO" >/dev/null 2>&1; then
             echo "Deleting existing dev release"
-            gh release delete "$TAG_NAME" --yes --repo ${{ github.repository }}
-          fi
-          if git ls-remote --tags origin "$TAG_NAME" | grep -q .; then
-            git push origin ":refs/tags/$TAG_NAME" || true
+            gh release delete "$TAG_NAME" --yes --cleanup-tag --repo "$REPO" || true
           fi
 
+          # Delete tag if it still exists (in case release delete didn't clean it up)
+          # We ignore errors here in case the tag doesn't exist
+          gh api "repos/$REPO/git/refs/tags/$TAG_NAME" -X DELETE >/dev/null 2>&1 || true
+
+          # Create new release
+          # Using GITHUB_SHA ensures the tag points to the current commit triggering this workflow
           gh release create "$TAG_NAME" \
             --title "$RELEASE_NAME" \
             --prerelease \
             --draft=false \
             --notes "Latest development build from main branch ($(date -u +%Y-%m-%d %H:%M UTC))" \
-            --target main \
-            --repo ${{ github.repository }}
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+            --target $GITHUB_SHA \
+            --repo "$REPO"
 
       - name: Upload release assets
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          TAG_NAME: dev
         run: |
-          TAG_NAME="dev"
           for file in vsix/*.vsix; do
             if [ -f "$file" ]; then
               echo "Uploading $file"
-              gh release upload "$TAG_NAME" "$file" --clobber --repo ${{ github.repository }}
+              gh release upload "$TAG_NAME" "$file" --clobber --repo "$REPO"
             fi
           done
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
