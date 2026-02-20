@@ -22,10 +22,6 @@ jobs:
             rust-target: x86_64-pc-windows-msvc
             vscode-target: win32-x64
             binary: sixu-lsp.exe
-          - os: macos-13
-            rust-target: x86_64-apple-darwin
-            vscode-target: darwin-x64
-            binary: sixu-lsp
           - os: macos-latest
             rust-target: aarch64-apple-darwin
             vscode-target: darwin-arm64
@@ -57,8 +53,6 @@ jobs:
         include:
           - vscode-target: win32-x64
             binary: sixu-lsp.exe
-          - vscode-target: darwin-x64
-            binary: sixu-lsp
           - vscode-target: darwin-arm64
             binary: sixu-lsp
           - vscode-target: linux-x64
