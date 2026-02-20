@@ -3,19 +3,9 @@
   "displayName": "SiXu Language Support",
   "description": "SiXu Language Support",
   "version": "0.1.0",
-  "main": "./dist/extension.js",
-  "scripts": {
-    "vscode:prepublish": "npm run compile",
-    "compile": "tsc -p ./",
-    "watch": "tsc -watch -p ./"
-  },
+  "main": "./src/extension.mjs",
   "dependencies": {
     "vscode-languageclient": "^10.0.0-next.19"
-  },
-  "devDependencies": {
-    "@types/node": "^24",
-    "@types/vscode": "^1.99.0",
-    "typescript": "^5.9.3"
   },
   "engines": {
     "vscode": "^1.99.0"
@@ -28,6 +18,7 @@
       {
         "id": "sixu",
         "aliases": [
+          "思绪",
           "SiXu",
           "sixu"
         ],
