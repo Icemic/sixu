@@ -40,6 +40,7 @@ jobs:
       - name: Build LSP server
         run: |
           cargo build --release -p sixu-lsp --target ${{ matrix.rust-target }}
+          mkdir -p sixu-vscode-extension/server
           cp -r target/${{ matrix.rust-target }}/release/${{ matrix.binary }} sixu-vscode-extension/server/${{ matrix.binary }}
 
       - name: Set binary permissions
