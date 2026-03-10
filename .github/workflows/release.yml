@@ -48,7 +48,9 @@ jobs:
         run: chmod +x sixu-vscode-extension/server/${{ matrix.binary }}
 
       - name: Install Node.js dependencies
-        run: yarn install
+        run: |
+          corepack enable
+          yarn install
 
       - name: Build extension
         run: yarn build
