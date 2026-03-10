@@ -47,10 +47,16 @@ jobs:
         if: matrix.vscode-target != 'win32-x64'
         run: chmod +x sixu-vscode-extension/server/${{ matrix.binary }}
 
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Enable Corepack (Yarn)
+        run: corepack enable
+
       - name: Install Node.js dependencies
-        run: |
-          corepack enable
-          yarn install
+        run: yarn install
 
       - name: Build extension
         run: yarn build
