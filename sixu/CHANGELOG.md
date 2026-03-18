@@ -5,7 +5,43 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## v0.9.1 (2026-03-19)
+
+### Bug Fixes
+
+ - <csr-id-d7628b40949acabde90ef7c6896125c15a58a352/> update version to 0.9.1 in Cargo.toml
+ - <csr-id-b4430ffd28d9fb34ff8858a5f45198c082e7f273/> clarify handling of tailing text in plain text parsing
+
+### New Features
+
+ - <csr-id-f9ab37a22b0937d62491698a8ba915ac7566eadf/> normalize array formatting to compact style and add tests
+ - <csr-id-978d31797e1023ddf698ba8eb6c6029756228568/> add array value support in CST and implement array parsing
+
+### Commit Statistics
+
+<csr-read-only-do-not-edit/>
+
+ - 4 commits contributed to the release.
+ - 8 days passed between releases.
+ - 4 commits were understood as [conventional](https://www.conventionalcommits.org).
+ - 0 issues like '(#ID)' were seen in commit messages
+
+### Commit Details
+
+<csr-read-only-do-not-edit/>
+
+<details><summary>view details</summary>
+
+ * **Uncategorized**
+    - Update version to 0.9.1 in Cargo.toml ([`d7628b4`](https://github.com/Icemic/sixu/commit/d7628b40949acabde90ef7c6896125c15a58a352))
+    - Normalize array formatting to compact style and add tests ([`f9ab37a`](https://github.com/Icemic/sixu/commit/f9ab37a22b0937d62491698a8ba915ac7566eadf))
+    - Add array value support in CST and implement array parsing ([`978d317`](https://github.com/Icemic/sixu/commit/978d31797e1023ddf698ba8eb6c6029756228568))
+    - Clarify handling of tailing text in plain text parsing ([`b4430ff`](https://github.com/Icemic/sixu/commit/b4430ffd28d9fb34ff8858a5f45198c082e7f273))
+</details>
+
 ## v0.9.0 (2026-02-21)
+
+<csr-id-52826750cdc719a62620aa7f6f3350f15b8e7c92/>
 
 ### New Features
 
@@ -26,7 +62,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <csr-read-only-do-not-edit/>
 
- - 10 commits contributed to the release over the course of 54 calendar days.
+ - 11 commits contributed to the release over the course of 54 calendar days.
  - 60 days passed between releases.
  - 6 commits were understood as [conventional](https://www.conventionalcommits.org).
  - 0 issues like '(#ID)' were seen in commit messages
@@ -38,6 +74,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 <details><summary>view details</summary>
 
  * **Uncategorized**
+    - Release sixu v0.9.0 ([`6530376`](https://github.com/Icemic/sixu/commit/6530376e6f8767f630a8290c70617364a26e0268))
     - Ensure default values for new fields in ExecutionState for archive compatibility ([`6aee2bc`](https://github.com/Icemic/sixu/commit/6aee2bc2e98d247b365668ec306552f2e22a0533))
     - Add more lsp tests and fix bugs ([`af001ea`](https://github.com/Icemic/sixu/commit/af001ea7252ba4fa1d6a0979dc42697685cfdc6e))
     - Format everything ([`7d203ad`](https://github.com/Icemic/sixu/commit/7d203adc11114d5cafb8640bd707ec5f2f039350))
