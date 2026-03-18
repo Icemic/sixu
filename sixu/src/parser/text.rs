@@ -110,9 +110,10 @@ pub fn text(input: &str) -> ParseResult<&str, Text> {
 }
 
 pub fn plain_text(input: &str) -> ParseResult<&str, String> {
-    // Find the end of plain text, which is either:
-    // 1. A newline character
-    // 2. A '#' followed by a non-whitespace character (tailing text)
+    // Find the end of plain text, which is a newline character.
+    // Note: '#' is NOT a stop character here — tailing text (#tag) is only
+    // allowed after quoted text ("...", '...', or `...`). When text is plain/bare,
+    // any '#' and subsequent characters become part of the text itself.
 
     let mut end_pos = 0;
     let chars: Vec<char> = input.chars().collect();
@@ -123,15 +124,6 @@ pub fn plain_text(input: &str) -> ParseResult<&str, String> {
         // Stop at newline
         if ch == '\n' || ch == '\r' {
             break;
-        }
-
-        // Check if this is a '#' followed by non-whitespace (potential tailing text)
-        if ch == '#' {
-            // Check if there's a next character and it's not whitespace
-            if i + 1 < chars.len() && !chars[i + 1].is_whitespace() {
-                // This is the start of tailing text, stop here
-                break;
-            }
         }
 
         end_pos = i + 1;
@@ -526,15 +518,15 @@ mod tests {
             ))
         );
 
-        // Test with plain text
+        // Test with plain text - # is NOT a tailing separator; it becomes part of the text
         assert_eq!(
             text_line(r##"hello world #tag"##),
             Ok((
                 "",
                 ChildContent::TextLine(
                     LeadingText::None,
-                    Text::Text("hello world ".to_string()),
-                    TailingText::Text("tag".to_string())
+                    Text::Text("hello world #tag".to_string()),
+                    TailingText::None
                 )
             ))
         );
@@ -650,15 +642,15 @@ mod tests {
             ))
         );
 
-        // Test tailing text after space
+        // Test tailing text not allowed after plain text — # becomes part of the text
         assert_eq!(
             text_line(r##"some text #tag"##),
             Ok((
                 "",
                 ChildContent::TextLine(
                     LeadingText::None,
-                    Text::Text("some text ".to_string()),
-                    TailingText::Text("tag".to_string())
+                    Text::Text("some text #tag".to_string()),
+                    TailingText::None
                 )
             ))
         );

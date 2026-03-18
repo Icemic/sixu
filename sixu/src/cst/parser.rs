@@ -1070,10 +1070,9 @@ fn parse_text(input: Span) -> ParseResult<CstText> {
         }
     }
 
-    // 裸文本：读取到行尾或特殊字符
+    // 裸文本：读取到行尾
     let (i, text) =
-        take_while1(|c: char| c != '\n' && c != '\r' && c != '#' && c != '@' && c != '{')
-            .parse(input)?;
+        take_while1(|c: char| c != '\n' && c != '\r' && c != '@' && c != '{').parse(input)?;
 
     let span = SpanInfo::from_range(start_span, i);
     let text_str = text.fragment().trim_end().to_string();
@@ -1846,13 +1845,26 @@ mod tests {
 
     #[test]
     fn test_parse_text_line_with_tailing() {
-        let input = "对话内容 #wait\n";
+        // Tailing text is only allowed after quoted text
+        let input = "\"对话内容\" #wait\n";
         let result = parse_text_line(Span::new(input));
         assert!(result.is_ok());
 
         let (_, line) = result.unwrap();
         assert!(line.text.is_some());
         assert!(line.tailing.is_some());
+    }
+
+    #[test]
+    fn test_parse_text_line_plain_no_tailing() {
+        // Plain (bare) text: # is NOT a tailing separator — it becomes part of the text
+        let input = "对话内容 #wait\n";
+        let result = parse_text_line(Span::new(input));
+        assert!(result.is_ok());
+
+        let (_, line) = result.unwrap();
+        assert!(line.text.is_some());
+        assert!(line.tailing.is_none());
     }
 
     #[test]
