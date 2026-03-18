@@ -330,6 +330,9 @@ pub enum CstValueKind {
 
     /// 变量引用 foo.bar.baz
     Variable,
+
+    /// 数组 [...]
+    Array,
 }
 
 /// 值节点（字符串、数字、变量等）

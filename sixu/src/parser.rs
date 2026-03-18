@@ -6,7 +6,7 @@ mod comment;
 mod identifier;
 mod paragraph;
 mod parameter;
-mod primitive;
+pub(crate) mod primitive;
 mod rvalue;
 mod systemcall_line;
 mod template;

@@ -154,6 +154,9 @@ impl Backend {
                                             expected_types.contains(&"boolean".to_string())
                                         }
                                         CstValueKind::Variable => true, // Variables can be anything at runtime
+                                        CstValueKind::Array => {
+                                            expected_types.contains(&"array".to_string())
+                                        }
                                     }
                                 } else {
                                     true // No value means boolean flag

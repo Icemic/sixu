@@ -310,6 +310,7 @@ fn parse_value(input: Span) -> ParseResult<CstValue> {
         parse_template_string_value,
         parse_number_value,
         parse_boolean_value,
+        parse_array_value,
         parse_variable_value,
     ))
     .parse(input)
@@ -446,6 +447,61 @@ fn parse_variable_value(input: Span) -> ParseResult<CstValue> {
             kind: CstValueKind::Variable,
             raw,
             parsed: format::RValue::Variable(format::Variable { chain }),
+            span: SpanInfo::from_range(start_span, end_span),
+        },
+    ))
+}
+
+/// 解析数组值 [elem1, elem2, ...]（支持嵌套）
+fn parse_array_value(input: Span) -> ParseResult<CstValue> {
+    let start_span = input;
+    let fragment = input.fragment();
+
+    if !fragment.starts_with('[') {
+        return Err(nom::Err::Error(nom::error::Error::new(
+            input,
+            nom::error::ErrorKind::Tag,
+        )));
+    }
+
+    // 通过括号深度计数找到匹配的 ']'
+    let mut depth = 0usize;
+    let mut end = None;
+    for (i, ch) in fragment.char_indices() {
+        match ch {
+            '[' => depth += 1,
+            ']' => {
+                depth -= 1;
+                if depth == 0 {
+                    end = Some(i + 1);
+                    break;
+                }
+            }
+            _ => {}
+        }
+    }
+
+    let end = end.ok_or_else(|| {
+        nom::Err::Error(nom::error::Error::new(input, nom::error::ErrorKind::Tag))
+    })?;
+
+    let raw = fragment[..end].to_string();
+    let (input, _) = take(end)(input)?;
+    let end_span = input;
+
+    // 复用 AST primitive 解析器获取结构化的 Literal::Array
+    let parsed = crate::parser::primitive::array(&raw)
+        .map_err(|_| {
+            nom::Err::Error(nom::error::Error::new(start_span, nom::error::ErrorKind::Tag))
+        })
+        .map(|(_, lit)| format::RValue::Literal(lit))?;
+
+    Ok((
+        input,
+        CstValue {
+            kind: CstValueKind::Array,
+            raw,
+            parsed,
             span: SpanInfo::from_range(start_span, end_span),
         },
     ))
@@ -1483,6 +1539,44 @@ mod tests {
             let (_, value) = result.unwrap();
             assert_eq!(value.kind, expected_kind);
         }
+    }
+
+    #[test]
+    fn test_parse_array_value() {
+        // 基本整数数组
+        let (_, v) = parse_array_value(Span::new("[0,0]")).unwrap();
+        assert!(matches!(v.kind, CstValueKind::Array));
+        assert_eq!(v.raw, "[0,0]");
+
+        // 空数组
+        let (_, v) = parse_array_value(Span::new("[]")).unwrap();
+        assert!(matches!(v.kind, CstValueKind::Array));
+        assert_eq!(v.raw, "[]");
+
+        // 嵌套数组
+        let (_, v) = parse_array_value(Span::new("[[1,2],[3,4]]")).unwrap();
+        assert!(matches!(v.kind, CstValueKind::Array));
+        assert_eq!(v.raw, "[[1,2],[3,4]]");
+
+        // 混合类型
+        let (_, v) = parse_array_value(Span::new(r#"[1, "hello", true]"#)).unwrap();
+        assert!(matches!(v.kind, CstValueKind::Array));
+
+        // 作为命令参数：整条行格式化后应完整保留（紧缩格式）
+        let cst = parse_tolerant("test", "@cmd x=[0,0] y=false\n");
+        let formatter = crate::cst::formatter::CstFormatter::new();
+        let result = formatter.format(&cst);
+        assert!(result.contains("@cmd x=[0,0] y=false"), "got: {}", result);
+
+        // 含空格的输入格式化后应规范化为紧缩格式（无空格）
+        let cst = parse_tolerant("test", "@cmd x=[ 0, 0 ] y=false\n");
+        let result = formatter.format(&cst);
+        assert!(result.contains("@cmd x=[0,0] y=false"), "got: {}", result);
+
+        // 嵌套数组也应紧缩
+        let cst = parse_tolerant("test", "@cmd pts=[[1, 2], [3, 4]]\n");
+        let result = formatter.format(&cst);
+        assert!(result.contains("@cmd pts=[[1,2],[3,4]]"), "got: {}", result);
     }
 
     #[test]
