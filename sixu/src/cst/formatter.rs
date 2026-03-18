@@ -265,8 +265,30 @@ impl CstFormatter {
     }
 
     fn format_value(&self, value: &CstValue, output: &mut String) {
-        // raw 字段已经包含了引号等原始文本
+        // 数组类型统一规范化为紧缩格式（不含空格），其余类型直接输出原始文本
+        if matches!(value.kind, CstValueKind::Array) {
+            if let crate::format::RValue::Literal(lit) = &value.parsed {
+                output.push_str(&Self::format_literal_compact(lit));
+                return;
+            }
+        }
         output.push_str(&value.raw);
+    }
+
+    /// 将 Literal 格式化为紧缩形式（数组内部无空格）
+    fn format_literal_compact(lit: &crate::format::Literal) -> String {
+        use crate::format::Literal;
+        match lit {
+            Literal::Array(elements) => {
+                let parts: Vec<String> = elements
+                    .iter()
+                    .map(Self::format_literal_compact)
+                    .collect();
+                format!("[{}]", parts.join(","))
+            }
+            Literal::String(s) => format!("\"{}\"", s),
+            other => other.to_string(),
+        }
     }
 
     fn format_textline(&self, text: &CstTextLine, indent_level: usize, output: &mut String) {
@@ -405,6 +427,36 @@ mod tests {
         let result = formatter.format(&cst);
 
         assert!(result.contains("@command(arg=1)"));
+    }
+
+    #[test]
+    fn test_format_array_compact() {
+        let formatter = CstFormatter::new();
+
+        // 已紧缩的输入应原样保留
+        let cst = parse_tolerant("test", "@cmd x=[0,0]\n");
+        let result = formatter.format(&cst);
+        assert!(result.contains("@cmd x=[0,0]"), "got: {}", result);
+
+        // 含空格的输入应规范化为紧缩格式
+        let cst = parse_tolerant("test", "@cmd x=[ 0, 0 ]\n");
+        let result = formatter.format(&cst);
+        assert!(result.contains("@cmd x=[0,0]"), "got: {}", result);
+
+        // 嵌套数组
+        let cst = parse_tolerant("test", "@cmd pts=[[1, 2], [3, 4]]\n");
+        let result = formatter.format(&cst);
+        assert!(result.contains("@cmd pts=[[1,2],[3,4]]"), "got: {}", result);
+
+        // 含字符串元素的数组（规范化为双引号）
+        let cst = parse_tolerant("test", "@cmd tags=[\"a\", \"b\"]\n");
+        let result = formatter.format(&cst);
+        assert!(result.contains(r#"@cmd tags=["a","b"]"#), "got: {}", result);
+
+        // 格式化幂等性：再次格式化结果不变
+        let cst2 = parse_tolerant("test", &result);
+        let result2 = formatter.format(&cst2);
+        assert_eq!(result, result2, "Array formatting is not idempotent");
     }
 
     #[test]
