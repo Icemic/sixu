@@ -11,6 +11,7 @@
 
  "sdfsdf" #+
 
+// 裸文本中的 # 现在是普通字符，不再被解析为后缀标记
  sdsdfsdfds#啊啊啊
  sdsdfsdfds#啊啊 啊
 
@@ -94,40 +95,42 @@ sfssdfdsafdsdsfds
 
 ::demo_paragraph {
     // Test tailing text syntax highlighting
-    
+    // NOTE: 后缀标记 (#tag) 只允许出现在引号文本之后。
     // Quoted text with tailing text
     "Hello, world!"#greeting
     "How are you?"#question
     'Single quoted text'#tag
-    
+
     // With space before tailing
     "Some text" #tag_with_space
-    
-    // Plain text with tailing
+
+    // Plain text - # is treated as a literal character, NOT a tailing separator
     This is plain text #plain_tag
     Plain text with special chars #tag-123_test.ext
-    
-    // With leading and tailing text
+
+    // With leading text: quoted dialogue supports tailing, plain dialogue does not
     [Character] "Dialogue text"#dialogue
     [Speaker] Plain dialogue #speech
-    
-    // Unicode in tailing
+
+    // Unicode in tailing (quoted)
     "中文文本"#中文标签
     "English text"#标签123
-    
+
     // Template literal with tailing
     `Template ${variable}`#template_tag
-    
+
     // Without tailing text (for comparison)
     "Regular text without tag"
     Plain text without any tag
+    // 下面这行中 #tag 是普通文本的一部分（不是后缀标记）
     Plain text without any #tag sdfs
-    
+
     // Edge cases
     "Text with # in middle but no tailing"
     "Text ending with #"
+    // 下面这行中 #onlylastistag 是普通文本的一部分（不是后缀标记）
     Text with multiple words #onlylastistag
-    
+
     // With command for context
     @show_text speaker="hero" content="Hello!"
     #goto paragraph="next_scene"
