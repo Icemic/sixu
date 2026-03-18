@@ -210,8 +210,8 @@
     "text-line": {
       "patterns": [
         {
-          "comment": "Text line with leading text, main text, and optional tailing text",
-          "match": "^\\s*(?<![}@#:(),.{])(?:\\[([^\\]]+)\\]\\s+)?(.+?)(#\\S+)?\\s*$",
+          "comment": "Quoted/template text line with optional leading and optional tailing tag",
+          "match": "^\\s*(?:\\[([^\\]]+)\\]\\s+)?(\"(?:[^\"\\\\]|\\\\.)*\"|'(?:[^'\\\\]|\\\\.)*'|`(?:[^`\\\\]|\\\\.)*`)(?:\\s*(#\\S+))?\\s*$",
           "captures": {
             "1": {
               "name": "string.unquoted.leading.sixu",
@@ -232,6 +232,29 @@
             },
             "3": {
               "name": "entity.name.tag.tailing.sixu"
+            }
+          }
+        },
+        {
+          "comment": "Plain text line with optional leading; # is not a tailing separator here",
+          "match": "^\\s*(?<![}@#:(),.{])(?:\\[([^\\]]+)\\]\\s+)?(.+?)\\s*$",
+          "captures": {
+            "1": {
+              "name": "string.unquoted.leading.sixu",
+              "patterns": [
+                { "include": "#quoted-string" },
+                { "include": "#template-literal" },
+                {
+                  "match": "^\\s*(?<![}@#:(),.{])(.+)$"
+                }
+              ]
+            },
+            "2": {
+              "name": "markup.raw.sixu",
+              "patterns": [
+                { "include": "#quoted-string" },
+                { "include": "#template-literal" }
+              ]
             }
           }
         }
