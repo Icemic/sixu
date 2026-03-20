@@ -285,7 +285,7 @@ impl<E: RuntimeExecutor> Runtime<E> {
                         "cond" | "if" => {
                             if let Some(condition) = &attr.condition {
                                 let result =
-                                    self.executor.eval_condition(&self.context, condition)?;
+                                    self.executor.eval_condition(&self.context, condition).await?;
                                 if !result {
                                     // Condition not met, skip this child
                                     continue;
@@ -296,7 +296,7 @@ impl<E: RuntimeExecutor> Runtime<E> {
                         "while" => {
                             if let Some(condition) = &attr.condition {
                                 let result =
-                                    self.executor.eval_condition(&self.context, condition)?;
+                                    self.executor.eval_condition(&self.context, condition).await?;
                                 if !result {
                                     // Condition not met, skip this child
                                     continue;
@@ -384,7 +384,7 @@ impl<E: RuntimeExecutor> Runtime<E> {
                         is_continue = self.handle_system_call(&systemcall).await?;
                     }
                     ChildContent::EmbeddedCode(script) => {
-                        is_continue = self.executor.eval_script(&mut self.context, &script)?.1;
+                        is_continue = self.executor.eval_script(&mut self.context, &script).await?.1;
                     }
                 }
             } else {

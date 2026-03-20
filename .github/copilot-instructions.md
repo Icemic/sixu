@@ -32,7 +32,7 @@ Story { paragraphs: Vec<Paragraph> }
 #### 2. 运行时 Trait 模式
 
 - `RuntimeExecutor` trait 定义了所有运行时行为（[sixu/src/runtime/executor.rs](../sixu/src/runtime/executor.rs)）
-- 实现者需要处理：`handle_command()`, `handle_text()`, `eval_script()`, `read_story_file()`
+- 实现者需要处理：`handle_command()`, `handle_text()`, `eval_script()` (async), `eval_condition()` (async), `read_story_file()` (async)
 - 使用泛型 `Runtime<E: RuntimeExecutor>` 实现依赖注入
 
 #### 3. Parser 组合子（基于 nom）

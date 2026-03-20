@@ -78,7 +78,7 @@ impl RuntimeExecutor for TestExecutor {
         Ok(false) // pause after text
     }
 
-    fn eval_script(
+    async fn eval_script(
         &mut self,
         _ctx: &mut RuntimeContext,
         _script: &String,
@@ -86,7 +86,7 @@ impl RuntimeExecutor for TestExecutor {
         Ok((None, true))
     }
 
-    fn eval_condition(
+    async fn eval_condition(
         &mut self,
         _ctx: &RuntimeContext,
         condition: &str,

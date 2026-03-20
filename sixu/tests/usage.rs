@@ -148,7 +148,7 @@ impl RuntimeExecutor for SampleExecutor {
         Ok(false)
     }
 
-    fn eval_script(
+    async fn eval_script(
         &mut self,
         _ctx: &mut RuntimeContext,
         script: &String,
@@ -162,7 +162,7 @@ impl RuntimeExecutor for SampleExecutor {
         Ok((None, false))
     }
 
-    fn eval_condition(
+    async fn eval_condition(
         &mut self,
         _ctx: &RuntimeContext,
         _condition: &str,
