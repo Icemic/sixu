@@ -1,5 +1,3 @@
-use std::future::Future;
-
 use crate::error::Result;
 use crate::format::*;
 
@@ -27,27 +25,8 @@ pub trait RuntimeExecutor: Send + Sync {
         text: Option<&str>,
         tailing: Option<&str>,
     ) -> Result<bool>;
-    /// Evaluate a script, returns the result and whether next line should be executed immediately
-    fn eval_script(
-        &mut self,
-        ctx: &mut RuntimeContext,
-        script: &String,
-    ) -> impl Future<Output = Result<(Option<RValue>, bool)>>;
-    /// Evaluate a condition expression, returns true if the condition is met.
-    /// Used by attribute-based control flow (`#[cond(...)]`, `#[while(...)]`, etc.)
-    fn eval_condition(
-        &mut self,
-        ctx: &RuntimeContext,
-        condition: &str,
-    ) -> impl Future<Output = Result<bool>>;
     /// Called when the scenario execution is finished
     fn finished(&mut self, ctx: &mut RuntimeContext);
-
-    fn read_story_file(
-        &mut self,
-        ctx: &mut RuntimeContext,
-        story_name: &str,
-    ) -> impl Future<Output = Result<Vec<u8>>>;
 
     /// Helper method to get variable value from context
     ///

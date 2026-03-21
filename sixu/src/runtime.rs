@@ -11,10 +11,53 @@ pub use self::state::ExecutionState;
 use crate::error::{Result, RuntimeError};
 use crate::format::*;
 
+/// Result of a single step of runtime execution
+#[derive(Debug)]
+pub enum StepResult {
+    /// Execution paused normally (e.g. awaiting user input)
+    Done,
+    /// The runtime needs a condition to be evaluated externally.
+    /// Call `resume_condition()` with the result, then call `step()` again.
+    NeedsCondition(String),
+    /// The runtime needs a script to be evaluated externally.
+    /// Call `resume_script()` with the result, then call `step()` again.
+    NeedsScript(String),
+    /// The runtime needs a story file to be loaded.
+    /// Call `provide_story_data()` with the file contents, then call `step()` again.
+    NeedsStoryFile(String),
+}
+
+/// Internal state tracking for step/resume execution
+enum StepPhase {
+    /// Ready for normal execution
+    Ready,
+    /// Yielded for condition evaluation; child is saved for resumption
+    AwaitingCondition { child: Child },
+    /// Yielded for script evaluation
+    AwaitingScript,
+    /// Yielded for story file loading; paragraph target saved
+    AwaitingStoryFile {
+        story_name: String,
+        paragraph_name: String,
+    },
+}
+
+impl Default for StepPhase {
+    fn default() -> Self {
+        StepPhase::Ready
+    }
+}
+
 /// Runtime manages the execution context and executor together
 pub struct Runtime<E: RuntimeExecutor> {
     context: RuntimeContext,
     executor: E,
+    /// Internal phase for step/resume execution
+    phase: StepPhase,
+    /// Condition result provided by the caller after NeedsCondition
+    condition_result: Option<bool>,
+    /// Script result provided by the caller after NeedsScript
+    script_result: Option<(Option<RValue>, bool)>,
 }
 
 impl<E: RuntimeExecutor> Runtime<E> {
@@ -22,11 +65,20 @@ impl<E: RuntimeExecutor> Runtime<E> {
         Self {
             context: RuntimeContext::new(),
             executor,
+            phase: StepPhase::default(),
+            condition_result: None,
+            script_result: None,
         }
     }
 
     pub fn new_with_context(executor: E, context: RuntimeContext) -> Self {
-        Self { context, executor }
+        Self {
+            context,
+            executor,
+            phase: StepPhase::default(),
+            condition_result: None,
+            script_result: None,
+        }
     }
 
     pub fn context(&self) -> &RuntimeContext {
@@ -49,27 +101,6 @@ impl<E: RuntimeExecutor> Runtime<E> {
         self.context.stories_mut().push(story);
     }
 
-    pub async fn load_story(&mut self, story_name: &str) -> Result<()> {
-        let data = self
-            .executor
-            .read_story_file(&mut self.context, story_name)
-            .await?;
-
-        let text = String::from_utf8(data)
-            .map_err(|e| anyhow::anyhow!("Failed to parse story file: {}", e))?;
-
-        let (_, story) = crate::parser::parse(story_name, &text).map_err(|e| {
-            anyhow::anyhow!(
-                "Failed to parse story file '{}': {}",
-                story_name,
-                e.to_string()
-            )
-        })?;
-
-        self.context.stories_mut().push(story);
-        Ok(())
-    }
-
     pub fn has_story(&self, name: &str) -> bool {
         self.context.stories().iter().any(|s| s.name == name)
     }
@@ -89,19 +120,6 @@ impl<E: RuntimeExecutor> Runtime<E> {
             .iter()
             .find(|s| s.name == name)
             .ok_or(RuntimeError::ParagraphNotFound(name.to_string()))
-    }
-
-    pub async fn get_paragraph_or_load(
-        &mut self,
-        story_name: &str,
-        name: &str,
-    ) -> Result<&Paragraph> {
-        if self.has_story(story_name) {
-            return self.get_paragraph(story_name, name);
-        }
-
-        self.load_story(story_name).await?;
-        self.get_paragraph(story_name, name)
     }
 
     pub fn list_stories(&self) -> Vec<String> {
@@ -244,159 +262,272 @@ impl<E: RuntimeExecutor> Runtime<E> {
         Ok(resolved_args)
     }
 
-    pub async fn next(&mut self) -> Result<()> {
+    /// Execute steps synchronously until paused or an external async operation is needed.
+    ///
+    /// Returns `StepResult::Done` when execution pauses (e.g. awaiting user input).
+    /// Returns `StepResult::NeedsCondition`, `NeedsScript`, or `NeedsStoryFile` when
+    /// an external async operation is required. The caller should perform the operation,
+    /// call the corresponding resume method, then call `step()` again.
+    pub fn step(&mut self) -> Result<StepResult> {
         loop {
-            // Check loop control signal from #break / #continue
-            if let Some(control) = self.context.take_loop_control() {
-                // Pop states until we find the loop body state
-                let found = self.pop_to_loop_body();
-                if found {
-                    match control {
-                        LoopControl::Break => {
-                            // Advance parent index past the loop child (undo the decrement)
-                            if let Ok(parent_state) = self.get_current_state_mut() {
-                                parent_state.index += 1;
-                            }
-                        }
-                        LoopControl::Continue => {
-                            // Parent index is already at the loop child (decremented),
-                            // so the next iteration will re-evaluate the condition
-                        }
-                    }
+            if let Some(result) = self.step_one()? {
+                return Ok(result);
+            }
+        }
+    }
+
+    /// Process one iteration of the execution loop.
+    /// Returns `None` if the loop should continue, or `Some(StepResult)` to yield.
+    fn step_one(&mut self) -> Result<Option<StepResult>> {
+        // Handle resume from pending phase
+        match std::mem::replace(&mut self.phase, StepPhase::Ready) {
+            StepPhase::Ready => {} // normal path
+            StepPhase::AwaitingCondition { child } => {
+                // Resuming after condition evaluation
+                return self.process_child(child);
+            }
+            StepPhase::AwaitingScript => {
+                // Resuming after script evaluation
+                let (_, is_continue) = self
+                    .script_result
+                    .take()
+                    .expect("resumed from AwaitingScript without script result");
+                return Ok(if is_continue {
+                    None
                 } else {
-                    log::warn!("Loop control signal received but no loop body found in stack");
-                }
-                continue;
+                    Some(StepResult::Done)
+                });
             }
-
-            let is_continue;
-            let current_state = self.get_current_state_mut()?;
-            if let Some(child) = current_state.next_line() {
-                let content = child.content;
-
-                // Process attributes: only the last attribute is used
-                let mut is_loop = false; // whether this is a while/loop attribute
-                if !child.attributes.is_empty() {
-                    if child.attributes.len() > 1 {
-                        log::warn!("Multiple attributes on same child, only last one is used");
-                    }
-                    let attr = child.attributes.last().unwrap();
-                    match attr.keyword.as_str() {
-                        "cond" | "if" => {
-                            if let Some(condition) = &attr.condition {
-                                let result =
-                                    self.executor.eval_condition(&self.context, condition).await?;
-                                if !result {
-                                    // Condition not met, skip this child
-                                    continue;
-                                }
-                                // Condition met, fall through to normal execution
-                            }
-                        }
-                        "while" => {
-                            if let Some(condition) = &attr.condition {
-                                let result =
-                                    self.executor.eval_condition(&self.context, condition).await?;
-                                if !result {
-                                    // Condition not met, skip this child
-                                    continue;
-                                }
-                                // Condition met: decrement index for replay
-                                let current_state = self.get_current_state_mut()?;
-                                current_state.index -= 1;
-                                is_loop = true;
-                            }
-                        }
-                        "loop" => {
-                            // Unconditional loop: always execute, decrement index for replay
-                            let current_state = self.get_current_state_mut()?;
-                            current_state.index -= 1;
-                            is_loop = true;
-                        }
-                        _ => {
-                            log::warn!("Unknown attribute keyword: {}", attr.keyword);
-                        }
-                    }
-                }
-
-                match content {
-                    ChildContent::Block(block) => {
-                        let current_state = self.get_current_state()?.clone();
-                        if is_loop {
-                            self.context.stack_mut().push(ExecutionState::new_loop_body(
-                                current_state.story,
-                                current_state.paragraph,
-                                block.clone(),
-                            ));
-                        } else {
-                            self.context.stack_mut().push(ExecutionState::new(
-                                current_state.story,
-                                current_state.paragraph,
-                                block.clone(),
-                            ));
-                        }
-                        is_continue = true;
-                    }
-                    ChildContent::TextLine(leading, text, tailing) => {
-                        let leading = match leading {
-                            LeadingText::None => None,
-                            LeadingText::Text(t) => Some(t),
-                            LeadingText::TemplateLiteral(template_literal) => {
-                                let text = self
-                                    .executor
-                                    .calculate_template_literal(&self.context, &template_literal)?;
-                                Some(text)
-                            }
-                        };
-                        let text = match text {
-                            Text::None => None,
-                            Text::Text(t) => Some(t),
-                            Text::TemplateLiteral(template_literal) => {
-                                let text = self
-                                    .executor
-                                    .calculate_template_literal(&self.context, &template_literal)?;
-                                Some(text)
-                            }
-                        };
-                        let tailing = match tailing {
-                            TailingText::None => None,
-                            TailingText::Text(t) => Some(t),
-                        };
-                        is_continue = self.executor.handle_text(
-                            &mut self.context,
-                            leading.as_deref(),
-                            text.as_deref(),
-                            tailing.as_deref(),
-                        )?;
-                    }
-                    ChildContent::CommandLine(command) => {
-                        let command = ResolvedCommandLine {
-                            command: command.command,
-                            arguments: self.resolve_arguments(command.arguments)?,
-                        };
-                        is_continue = self.executor.handle_command(&mut self.context, &command)?;
-                    }
-                    ChildContent::SystemCallLine(systemcall) => {
-                        let systemcall = ResolvedSystemCallLine {
-                            command: systemcall.command,
-                            arguments: self.resolve_arguments(systemcall.arguments)?,
-                        };
-                        is_continue = self.handle_system_call(&systemcall).await?;
-                    }
-                    ChildContent::EmbeddedCode(script) => {
-                        is_continue = self.executor.eval_script(&mut self.context, &script).await?.1;
-                    }
-                }
-            } else {
-                self.break_current_block()?;
-                is_continue = true;
-            }
-
-            if !is_continue {
-                break;
+            StepPhase::AwaitingStoryFile {
+                story_name,
+                paragraph_name,
+            } => {
+                // Story should now be loaded, look up the paragraph and push state
+                let paragraph = self.get_paragraph(&story_name, &paragraph_name)?.clone();
+                self.context.stack_mut().push(ExecutionState::new(
+                    story_name,
+                    paragraph_name,
+                    paragraph.block,
+                ));
+                return Ok(None); // continue execution
             }
         }
 
+        // Check loop control signal from #break / #continue
+        if let Some(control) = self.context.take_loop_control() {
+            // Pop states until we find the loop body state
+            let found = self.pop_to_loop_body();
+            if found {
+                match control {
+                    LoopControl::Break => {
+                        // Advance parent index past the loop child (undo the decrement)
+                        if let Ok(parent_state) = self.get_current_state_mut() {
+                            parent_state.index += 1;
+                        }
+                    }
+                    LoopControl::Continue => {
+                        // Parent index is already at the loop child (decremented),
+                        // so the next iteration will re-evaluate the condition
+                    }
+                }
+            } else {
+                log::warn!("Loop control signal received but no loop body found in stack");
+            }
+            return Ok(None); // continue
+        }
+
+        let current_state = self.get_current_state_mut()?;
+        if let Some(child) = current_state.next_line() {
+            self.process_child(child)
+        } else {
+            self.break_current_block()?;
+            Ok(None) // continue
+        }
+    }
+
+    /// Process a single child (attributes + content).
+    /// Called both for fresh children and when resuming after condition evaluation.
+    fn process_child(&mut self, child: Child) -> Result<Option<StepResult>> {
+        let mut is_loop = false;
+
+        // Extract attribute info before potentially moving child
+        let (keyword, condition) = if !child.attributes.is_empty() {
+            if child.attributes.len() > 1 {
+                log::warn!("Multiple attributes on same child, only last one is used");
+            }
+            let attr = child.attributes.last().unwrap();
+            (attr.keyword.clone(), attr.condition.clone())
+        } else {
+            (String::new(), None)
+        };
+
+        // Process attributes
+        if !keyword.is_empty() {
+            match keyword.as_str() {
+                "cond" | "if" => {
+                    if let Some(ref cond_str) = condition {
+                        let result = match self.condition_result.take() {
+                            Some(r) => r,
+                            None => {
+                                let cond_str = cond_str.clone();
+                                self.phase = StepPhase::AwaitingCondition { child };
+                                return Ok(Some(StepResult::NeedsCondition(cond_str)));
+                            }
+                        };
+                        if !result {
+                            return Ok(None); // condition not met, skip this child
+                        }
+                    }
+                }
+                "while" => {
+                    if let Some(ref cond_str) = condition {
+                        let result = match self.condition_result.take() {
+                            Some(r) => r,
+                            None => {
+                                let cond_str = cond_str.clone();
+                                self.phase = StepPhase::AwaitingCondition { child };
+                                return Ok(Some(StepResult::NeedsCondition(cond_str)));
+                            }
+                        };
+                        if !result {
+                            return Ok(None); // condition not met, skip this child
+                        }
+                        self.get_current_state_mut()?.index -= 1;
+                        is_loop = true;
+                    }
+                }
+                "loop" => {
+                    self.get_current_state_mut()?.index -= 1;
+                    is_loop = true;
+                }
+                _ => {
+                    log::warn!("Unknown attribute keyword: {}", keyword);
+                }
+            }
+        }
+
+        // Process content
+        let is_continue = match child.content {
+            ChildContent::Block(block) => {
+                let current_state = self.get_current_state()?.clone();
+                if is_loop {
+                    self.context.stack_mut().push(ExecutionState::new_loop_body(
+                        current_state.story,
+                        current_state.paragraph,
+                        block.clone(),
+                    ));
+                } else {
+                    self.context.stack_mut().push(ExecutionState::new(
+                        current_state.story,
+                        current_state.paragraph,
+                        block.clone(),
+                    ));
+                }
+                true
+            }
+            ChildContent::TextLine(leading, text, tailing) => {
+                let leading = match leading {
+                    LeadingText::None => None,
+                    LeadingText::Text(t) => Some(t),
+                    LeadingText::TemplateLiteral(template_literal) => {
+                        let text = self
+                            .executor
+                            .calculate_template_literal(&self.context, &template_literal)?;
+                        Some(text)
+                    }
+                };
+                let text = match text {
+                    Text::None => None,
+                    Text::Text(t) => Some(t),
+                    Text::TemplateLiteral(template_literal) => {
+                        let text = self
+                            .executor
+                            .calculate_template_literal(&self.context, &template_literal)?;
+                        Some(text)
+                    }
+                };
+                let tailing = match tailing {
+                    TailingText::None => None,
+                    TailingText::Text(t) => Some(t),
+                };
+                self.executor.handle_text(
+                    &mut self.context,
+                    leading.as_deref(),
+                    text.as_deref(),
+                    tailing.as_deref(),
+                )?
+            }
+            ChildContent::CommandLine(command) => {
+                let command = ResolvedCommandLine {
+                    command: command.command,
+                    arguments: self.resolve_arguments(command.arguments)?,
+                };
+                self.executor.handle_command(&mut self.context, &command)?
+            }
+            ChildContent::SystemCallLine(systemcall) => {
+                let systemcall = ResolvedSystemCallLine {
+                    command: systemcall.command,
+                    arguments: self.resolve_arguments(systemcall.arguments)?,
+                };
+                match self.handle_system_call(&systemcall)? {
+                    Some(v) => v,
+                    None => {
+                        // Phase was set to AwaitingStoryFile by handle_system_call
+                        let story_name = match &self.phase {
+                            StepPhase::AwaitingStoryFile { story_name, .. } => story_name.clone(),
+                            _ => unreachable!(),
+                        };
+                        return Ok(Some(StepResult::NeedsStoryFile(story_name)));
+                    }
+                }
+            }
+            ChildContent::EmbeddedCode(script) => {
+                if let Some((_, is_continue)) = self.script_result.take() {
+                    is_continue
+                } else {
+                    self.phase = StepPhase::AwaitingScript;
+                    return Ok(Some(StepResult::NeedsScript(script)));
+                }
+            }
+        };
+
+        Ok(if is_continue {
+            None
+        } else {
+            Some(StepResult::Done)
+        })
+    }
+
+    /// Provide the result of a condition evaluation after `step()` returned `NeedsCondition`.
+    /// Call `step()` again after this to continue execution.
+    pub fn resume_condition(&mut self, result: bool) {
+        self.condition_result = Some(result);
+    }
+
+    /// Provide the result of a script evaluation after `step()` returned `NeedsScript`.
+    /// `result` is the evaluated value (or None), `is_continue` indicates whether
+    /// execution should continue immediately after this script.
+    /// Call `step()` again after this to continue execution.
+    pub fn resume_script(&mut self, result: Option<RValue>, is_continue: bool) {
+        self.script_result = Some((result, is_continue));
+    }
+
+    /// Provide story file data after `step()` returned `NeedsStoryFile`.
+    /// The data will be parsed and added to the story list.
+    /// Call `step()` again after this to continue execution.
+    pub fn provide_story_data(&mut self, story_name: &str, data: Vec<u8>) -> Result<()> {
+        let text = String::from_utf8(data)
+            .map_err(|e| anyhow::anyhow!("Failed to parse story file: {}", e))?;
+
+        let (_, story) = crate::parser::parse(story_name, &text).map_err(|e| {
+            anyhow::anyhow!(
+                "Failed to parse story file '{}': {}",
+                story_name,
+                e.to_string()
+            )
+        })?;
+
+        self.context.stories_mut().push(story);
         Ok(())
     }
 
@@ -411,13 +542,14 @@ impl<E: RuntimeExecutor> Runtime<E> {
         false
     }
 
-    /// Handle system call line, returns true if next() should be called again
-    async fn handle_system_call(
+    /// Handle system call line synchronously.
+    /// Returns `Ok(Some(is_continue))` for normal completion, or `Ok(None)` when
+    /// a story file needs to be loaded (phase set to `AwaitingStoryFile`).
+    fn handle_system_call(
         &mut self,
         systemcall_line: &ResolvedSystemCallLine,
-    ) -> Result<bool> {
+    ) -> Result<Option<bool>> {
         match systemcall_line.command.as_str() {
-            // This method will clear the stack and push a new state with the story and paragraph name
             "goto" => {
                 let story_name = match systemcall_line.get_argument("story") {
                     Some(v) => {
@@ -443,26 +575,28 @@ impl<E: RuntimeExecutor> Runtime<E> {
 
                     self.context.stack_mut().clear();
 
-                    let paragraph = self
-                        .get_paragraph_or_load(&story_name, &paragraph_name)
-                        .await?
-                        .clone();
-
-                    self.context.stack_mut().push(ExecutionState::new(
-                        story_name,
-                        paragraph_name.to_string(),
-                        paragraph.block,
-                    ));
+                    if self.has_story(&story_name) {
+                        let paragraph = self.get_paragraph(&story_name, &paragraph_name)?.clone();
+                        self.context.stack_mut().push(ExecutionState::new(
+                            story_name,
+                            paragraph_name,
+                            paragraph.block,
+                        ));
+                    } else {
+                        self.phase = StepPhase::AwaitingStoryFile {
+                            story_name,
+                            paragraph_name,
+                        };
+                        return Ok(None);
+                    }
                 } else {
                     return Err(RuntimeError::WrongArgumentSystemCallLine(
                         "Paragraph name not provided".to_string(),
                     ));
                 }
 
-                Ok(true)
+                Ok(Some(true))
             }
-            // This method will replace the current state with a new state with the story and paragraph name
-            // once this new state is ended, it will return to the previous state
             "replace" => {
                 let story_name = match systemcall_line.get_argument("story") {
                     Some(v) => {
@@ -509,26 +643,28 @@ impl<E: RuntimeExecutor> Runtime<E> {
                         }
                     }
 
-                    let paragraph = self
-                        .get_paragraph_or_load(&story_name, &paragraph_name)
-                        .await?
-                        .clone();
-
-                    self.context.stack_mut().push(ExecutionState::new(
-                        story_name,
-                        paragraph_name.to_string(),
-                        paragraph.block,
-                    ));
+                    if self.has_story(&story_name) {
+                        let paragraph = self.get_paragraph(&story_name, &paragraph_name)?.clone();
+                        self.context.stack_mut().push(ExecutionState::new(
+                            story_name,
+                            paragraph_name,
+                            paragraph.block,
+                        ));
+                    } else {
+                        self.phase = StepPhase::AwaitingStoryFile {
+                            story_name,
+                            paragraph_name,
+                        };
+                        return Ok(None);
+                    }
                 } else {
                     return Err(RuntimeError::WrongArgumentSystemCallLine(
                         "Paragraph name not provided".to_string(),
                     ));
                 }
 
-                Ok(true)
+                Ok(Some(true))
             }
-            // This method will push a new state with the story and paragraph name,
-            // once this new state is ended, it will return to the previous state
             "call" => {
                 let story_name = match systemcall_line.get_argument("story") {
                     Some(v) => {
@@ -552,47 +688,49 @@ impl<E: RuntimeExecutor> Runtime<E> {
                         ));
                     };
 
-                    let paragraph = self
-                        .get_paragraph_or_load(&story_name, &paragraph_name)
-                        .await?
-                        .clone();
-
-                    self.context.stack_mut().push(ExecutionState::new(
-                        story_name,
-                        paragraph_name.to_string(),
-                        paragraph.block,
-                    ));
+                    if self.has_story(&story_name) {
+                        let paragraph = self.get_paragraph(&story_name, &paragraph_name)?.clone();
+                        self.context.stack_mut().push(ExecutionState::new(
+                            story_name,
+                            paragraph_name,
+                            paragraph.block,
+                        ));
+                    } else {
+                        self.phase = StepPhase::AwaitingStoryFile {
+                            story_name,
+                            paragraph_name,
+                        };
+                        return Ok(None);
+                    }
                 } else {
                     return Err(RuntimeError::WrongArgumentSystemCallLine(
                         "Paragraph name not provided".to_string(),
                     ));
                 }
 
-                Ok(true)
+                Ok(Some(true))
             }
-            // This method will quit the current paragraph and return to the previous one
             "leave" => {
                 self.break_current_block()?;
-                Ok(true)
+                Ok(Some(true))
             }
-            // Break out of the current while/loop attribute loop
             "break" => {
                 self.context.set_loop_control(LoopControl::Break);
-                Ok(true)
+                Ok(Some(true))
             }
-            // Skip the rest of the current loop iteration and re-evaluate the condition
             "continue" => {
                 self.context.set_loop_control(LoopControl::Continue);
-                Ok(true)
+                Ok(Some(true))
             }
             "finish" => {
                 self.context.stack_mut().clear();
                 self.executor.finished(&mut self.context);
-                Ok(false)
+                Ok(Some(false))
             }
             _ => self
                 .executor
-                .handle_extra_system_call(&mut self.context, systemcall_line),
+                .handle_extra_system_call(&mut self.context, systemcall_line)
+                .map(Some),
         }
     }
 }

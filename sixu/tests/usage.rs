@@ -1,7 +1,7 @@
 use sixu::error::RuntimeError;
 use sixu::format::*;
 use sixu::parser::parse;
-use sixu::runtime::{Runtime, RuntimeContext, RuntimeExecutor};
+use sixu::runtime::{Runtime, RuntimeContext, RuntimeExecutor, StepResult};
 
 const SAMPLE: &str = r#"
 ::entry {
@@ -48,15 +48,29 @@ first line1
 }
 "#;
 
-#[tokio::test]
-async fn main() {
+#[test]
+fn main() {
     let mut sample = Sample::new();
     sample.init();
 
     loop {
-        match sample.next().await {
-            Ok(()) => {
-                // Continue execution - no sync needed since Sample holds the Runtime
+        match sample.runtime.step() {
+            Ok(StepResult::Done) => {
+                // Execution paused (e.g. text line); continue to next step
+            }
+            Ok(StepResult::NeedsCondition(_)) => {
+                // This test always evaluates conditions as true
+                sample.runtime.resume_condition(true);
+            }
+            Ok(StepResult::NeedsScript(script)) => {
+                let force_parse_int = script.trim().parse::<u32>().unwrap();
+                assert_eq!(force_parse_int, 512, "script should be 512");
+                println!("force_parse_int: {}", force_parse_int);
+                sample.runtime.executor_mut().last_value += force_parse_int;
+                sample.runtime.resume_script(None, false);
+            }
+            Ok(StepResult::NeedsStoryFile(_)) => {
+                unreachable!("story file loading not used in this test")
             }
             Err(RuntimeError::StoryFinished) => {
                 println!("Story finished");
@@ -148,39 +162,9 @@ impl RuntimeExecutor for SampleExecutor {
         Ok(false)
     }
 
-    async fn eval_script(
-        &mut self,
-        _ctx: &mut RuntimeContext,
-        script: &String,
-    ) -> sixu::error::Result<(Option<RValue>, bool)> {
-        let force_parse_int = script.trim().parse::<u32>().unwrap();
-        assert_eq!(force_parse_int, 512, "script should be 512");
-
-        println!("force_parse_int: {}", force_parse_int);
-        self.last_value += force_parse_int;
-
-        Ok((None, false))
-    }
-
-    async fn eval_condition(
-        &mut self,
-        _ctx: &RuntimeContext,
-        _condition: &str,
-    ) -> sixu::error::Result<bool> {
-        Ok(true)
-    }
-
     fn finished(&mut self, _ctx: &mut RuntimeContext) {
         println!("Finished execution");
         assert_eq!(self.last_value, 1023, "last value should be 1023");
-    }
-
-    async fn read_story_file(
-        &mut self,
-        _ctx: &mut RuntimeContext,
-        _story_name: &str,
-    ) -> sixu::error::Result<Vec<u8>> {
-        todo!()
     }
 }
 
@@ -201,12 +185,6 @@ impl Sample {
         // Load stories into the runtime's context
         self.runtime.context_mut().stories_mut().push(story);
 
-        // Find the entry paragraph and set up initial execution state
-        // We need to clone the block to avoid borrow conflicts
         self.runtime.start("test", Some("entry")).unwrap();
-    }
-
-    pub async fn next(&mut self) -> sixu::error::Result<()> {
-        self.runtime.next().await
     }
 }
