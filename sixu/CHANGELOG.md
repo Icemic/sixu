@@ -5,6 +5,32 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## v0.10.0 (2026-03-21)
+
+### New Features
+
+ - <csr-id-62fe239267281dddcbecd3fadb357af84de7cddd/> makes executor eval methods async
+
+### Commit Statistics
+
+<csr-read-only-do-not-edit/>
+
+ - 2 commits contributed to the release.
+ - 2 days passed between releases.
+ - 1 commit was understood as [conventional](https://www.conventionalcommits.org).
+ - 0 issues like '(#ID)' were seen in commit messages
+
+### Commit Details
+
+<csr-read-only-do-not-edit/>
+
+<details><summary>view details</summary>
+
+ * **Uncategorized**
+    - Add step-based execution and resume API ([`a39e45a`](https://github.com/Icemic/sixu/commit/a39e45a50f758b987fe4f91ffbcbf3685b9fc6c1))
+    - Makes executor eval methods async ([`62fe239`](https://github.com/Icemic/sixu/commit/62fe239267281dddcbecd3fadb357af84de7cddd))
+</details>
+
 ## v0.9.1 (2026-03-19)
 
 ### Bug Fixes
@@ -21,8 +47,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <csr-read-only-do-not-edit/>
 
- - 4 commits contributed to the release.
- - 8 days passed between releases.
+ - 5 commits contributed to the release.
+ - 25 days passed between releases.
  - 4 commits were understood as [conventional](https://www.conventionalcommits.org).
  - 0 issues like '(#ID)' were seen in commit messages
 
@@ -33,6 +59,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 <details><summary>view details</summary>
 
  * **Uncategorized**
+    - Release sixu v0.9.1 ([`ba08332`](https://github.com/Icemic/sixu/commit/ba083328f40fa089f03431acf62c424c9c238f2a))
     - Update version to 0.9.1 in Cargo.toml ([`d7628b4`](https://github.com/Icemic/sixu/commit/d7628b40949acabde90ef7c6896125c15a58a352))
     - Normalize array formatting to compact style and add tests ([`f9ab37a`](https://github.com/Icemic/sixu/commit/f9ab37a22b0937d62491698a8ba915ac7566eadf))
     - Add array value support in CST and implement array parsing ([`978d317`](https://github.com/Icemic/sixu/commit/978d31797e1023ddf698ba8eb6c6029756228568))
