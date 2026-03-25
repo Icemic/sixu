@@ -98,7 +98,7 @@ yarn compile                   # 编译TypeScript
 
 ### 系统调用
 
-- 使用 `#` 前缀：`#goto paragraph_name`, `#call story::paragraph`
+- 使用 `#` 前缀：`#goto`, `#call`
 - LSP 提供跳转定义功能（[sixu-lsp/src/main.rs](../sixu-lsp/src/main.rs) 中的 `goto_definition`）
 
 ## 常见修改场景
