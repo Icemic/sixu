@@ -5,6 +5,36 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## v0.10.1 (2026-04-09)
+
+### Bug Fixes
+
+ - <csr-id-df55041da692ed237c18167d4fc2950105e92ee6/> improve escaped text parsing for empty strings and single quotes
+
+### Test
+
+ - <csr-id-f229c40dde64eab96bab3a49e3d20c6ae8fa27aa/> add tests for handling empty string parameters and quoted strings
+
+### Commit Statistics
+
+<csr-read-only-do-not-edit/>
+
+ - 2 commits contributed to the release.
+ - 18 days passed between releases.
+ - 2 commits were understood as [conventional](https://www.conventionalcommits.org).
+ - 0 issues like '(#ID)' were seen in commit messages
+
+### Commit Details
+
+<csr-read-only-do-not-edit/>
+
+<details><summary>view details</summary>
+
+ * **Uncategorized**
+    - Add tests for handling empty string parameters and quoted strings ([`f229c40`](https://github.com/Icemic/sixu/commit/f229c40dde64eab96bab3a49e3d20c6ae8fa27aa))
+    - Improve escaped text parsing for empty strings and single quotes ([`df55041`](https://github.com/Icemic/sixu/commit/df55041da692ed237c18167d4fc2950105e92ee6))
+</details>
+
 ## v0.10.0 (2026-03-21)
 
 ### New Features
@@ -15,7 +45,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <csr-read-only-do-not-edit/>
 
- - 2 commits contributed to the release.
+ - 3 commits contributed to the release.
  - 2 days passed between releases.
  - 1 commit was understood as [conventional](https://www.conventionalcommits.org).
  - 0 issues like '(#ID)' were seen in commit messages
@@ -27,6 +57,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 <details><summary>view details</summary>
 
  * **Uncategorized**
+    - Release sixu v0.10.0 ([`5772536`](https://github.com/Icemic/sixu/commit/5772536fcc4ca68468d615f8d93efed5d6fb831b))
     - Add step-based execution and resume API ([`a39e45a`](https://github.com/Icemic/sixu/commit/a39e45a50f758b987fe4f91ffbcbf3685b9fc6c1))
     - Makes executor eval methods async ([`62fe239`](https://github.com/Icemic/sixu/commit/62fe239267281dddcbecd3fadb357af84de7cddd))
 </details>
