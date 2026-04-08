@@ -151,40 +151,46 @@ pub fn escaped_text(input: &str) -> ParseResult<&str, String> {
         alt((
             delimited(
                 char('"'),
-                cut(escaped_transform(
-                    none_of("\"\\\n\r"),
-                    '\\',
-                    alt((
-                        parse_unicode,
-                        value('\n', char('n')),
-                        value('\r', char('r')),
-                        value('\t', char('t')),
-                        value('\\', char('\\')),
-                        value('/', char('/')),
-                        value('"', char('"')),
-                        value('\'', char('\'')),
-                        value('`', char('`')),
-                    )),
-                )),
+                cut(alt((
+                    value(String::new(), peek(char('"'))),
+                    escaped_transform(
+                        none_of("\"\\\n\r"),
+                        '\\',
+                        alt((
+                            parse_unicode,
+                            value('\n', char('n')),
+                            value('\r', char('r')),
+                            value('\t', char('t')),
+                            value('\\', char('\\')),
+                            value('/', char('/')),
+                            value('"', char('"')),
+                            value('\'', char('\'')),
+                            value('`', char('`')),
+                        )),
+                    ),
+                ))),
                 char('"'),
             ),
             delimited(
                 char('\''),
-                cut(escaped_transform(
-                    none_of("\'\\\n\r"),
-                    '\\',
-                    alt((
-                        parse_unicode,
-                        value('\n', char('n')),
-                        value('\r', char('r')),
-                        value('\t', char('t')),
-                        value('\\', char('\\')),
-                        value('/', char('/')),
-                        value('"', char('"')),
-                        value('\'', char('\'')),
-                        value('`', char('`')),
-                    )),
-                )),
+                cut(alt((
+                    value(String::new(), peek(char('\''))),
+                    escaped_transform(
+                        none_of("\'\\\n\r"),
+                        '\\',
+                        alt((
+                            parse_unicode,
+                            value('\n', char('n')),
+                            value('\r', char('r')),
+                            value('\t', char('t')),
+                            value('\\', char('\\')),
+                            value('/', char('/')),
+                            value('"', char('"')),
+                            value('\'', char('\'')),
+                            value('`', char('`')),
+                        )),
+                    ),
+                ))),
                 char('\''),
             ),
         )),
@@ -245,6 +251,8 @@ mod tests {
 
     #[test]
     fn test_escaped_text() {
+        assert_eq!(escaped_text(r#""""#), Ok(("", "".to_string())));
+        assert_eq!(escaped_text("''"), Ok(("", "".to_string())));
         assert_eq!(escaped_text(r#""foo""#), Ok(("", "foo".to_string())));
         assert_eq!(escaped_text(r#""foo\n""#), Ok(("", "foo\n".to_string())));
         assert_eq!(
