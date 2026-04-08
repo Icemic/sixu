@@ -326,8 +326,10 @@ mod tests {
         assert!(!is_inside_string("@command "));
         assert!(is_inside_string("@command arg=\""));
         assert!(!is_inside_string("@command arg=\"value\" "));
+        assert!(!is_inside_string("@command arg=\"\" "));
         assert!(is_inside_string("@command arg='"));
         assert!(!is_inside_string("@command arg='value' "));
+        assert!(!is_inside_string("@command arg='' "));
         assert!(is_inside_string("@command text=`template "));
         assert!(!is_inside_string("@command text=`template` "));
 
@@ -358,6 +360,13 @@ mod tests {
                 false,
                 vec!["src".to_string(), "fadeTime".to_string()]
             ))
+        );
+
+        // 空字符串参数值也应正确识别已有参数，且不应误判仍在字符串内
+        let result = find_command_at_position("@changebg src=\"\" ", 18);
+        assert_eq!(
+            result,
+            Some(("changebg".to_string(), false, vec!["src".to_string()]))
         );
 
         // 括号语法

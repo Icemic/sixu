@@ -189,6 +189,23 @@ async fn test_empty_file_no_crash() {
     assert!(diagnostics.is_empty(), "空文件不应产生诊断");
 }
 
+#[tokio::test(flavor = "multi_thread")]
+async fn test_empty_string_no_diagnostics() {
+    let mut ctx = TestContext::new().await;
+    ctx.open_document(
+        "file:///test/empty_string.sixu",
+        "::test {\n    \"\"\n    @changebg src=\"\"\n}\n",
+    )
+    .await;
+
+    let diagnostics = ctx.read_diagnostics().await;
+    assert!(
+        diagnostics.is_empty(),
+        "空字符串文本和参数值不应产生诊断，实际: {:?}",
+        diagnostics.iter().map(|d| &d.message).collect::<Vec<_>>()
+    );
+}
+
 // ============================================================
 // Script Block 测试
 // ============================================================

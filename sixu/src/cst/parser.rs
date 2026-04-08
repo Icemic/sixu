@@ -1797,6 +1797,16 @@ mod tests {
     }
 
     #[test]
+    fn test_parse_quoted_string_empty_double() {
+        let input = r#""""#;
+        let result = parse_quoted_string(Span::new(input));
+        assert!(result.is_ok());
+
+        let (_, text) = result.unwrap();
+        assert_eq!(text, "");
+    }
+
+    #[test]
     fn test_parse_quoted_string_single() {
         let input = r#"'hello world'"#;
         let result = parse_quoted_string(Span::new(input));
@@ -1804,6 +1814,16 @@ mod tests {
 
         let (_, text) = result.unwrap();
         assert_eq!(text, "hello world");
+    }
+
+    #[test]
+    fn test_parse_quoted_string_empty_single() {
+        let input = "''";
+        let result = parse_quoted_string(Span::new(input));
+        assert!(result.is_ok());
+
+        let (_, text) = result.unwrap();
+        assert_eq!(text, "");
     }
 
     #[test]
