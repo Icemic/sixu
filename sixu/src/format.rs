@@ -8,6 +8,7 @@ use crate::error::{Result, RuntimeError};
 /// The format represents the structure of a `story`, which is commonly came from a single file.
 #[derive(Debug, Default, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
 pub struct Story {
     pub name: String,
     pub paragraphs: Vec<Paragraph>,
@@ -16,6 +17,7 @@ pub struct Story {
 /// The format represents the structure of a `paragraph` inside a `story`.
 #[derive(Debug, Default, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
 pub struct Paragraph {
     pub name: String,
     pub parameters: Vec<Parameter>,
@@ -263,13 +265,14 @@ impl From<serde_json::Value> for Literal {
 
 #[derive(Debug, Default, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
 pub struct Variable {
     pub chain: Vec<String>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-#[cfg_attr(feature = "serde", serde(untagged))]
+#[cfg_attr(feature = "serde", serde(rename_all = "camelCase", tag = "type", content = "value"))]
 pub enum RValue {
     Literal(Literal),
     Variable(Variable),
@@ -277,12 +280,14 @@ pub enum RValue {
 
 #[derive(Debug, Default, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
 pub struct Block {
     pub children: Vec<Child>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
 pub struct Child {
     pub attributes: Vec<Attribute>,
     pub content: ChildContent,
@@ -290,6 +295,7 @@ pub struct Child {
 
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serde", serde(rename_all = "camelCase", tag = "type", content = "value"))]
 pub enum ChildContent {
     Block(Block),
     TextLine(LeadingText, Text, TailingText),
@@ -300,6 +306,7 @@ pub enum ChildContent {
 
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serde", serde(rename_all = "camelCase", tag = "type", content = "value"))]
 pub enum LeadingText {
     None,
     Text(String),
@@ -308,6 +315,7 @@ pub enum LeadingText {
 
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serde", serde(rename_all = "camelCase", tag = "type", content = "value"))]
 pub enum TailingText {
     None,
     Text(String),
@@ -315,6 +323,7 @@ pub enum TailingText {
 
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serde", serde(rename_all = "camelCase", tag = "type", content = "value"))]
 pub enum Text {
     None,
     Text(String),
@@ -323,6 +332,7 @@ pub enum Text {
 
 #[derive(Debug, Default, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
 pub struct TemplateLiteral {
     pub parts: Vec<TemplateLiteralPart>,
 }
@@ -350,6 +360,7 @@ impl TemplateLiteral {
 
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serde", serde(rename_all = "camelCase", tag = "type", content = "value"))]
 pub enum TemplateLiteralPart {
     Text(String),
     Value(RValue),
@@ -357,6 +368,7 @@ pub enum TemplateLiteralPart {
 
 #[derive(Debug, Default, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
 pub struct CommandLine {
     pub command: String,
     pub arguments: Vec<Argument>,
@@ -391,6 +403,7 @@ impl ResolvedCommandLine {
 
 #[derive(Debug, Default, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
 pub struct SystemCallLine {
     pub command: String,
     pub arguments: Vec<Argument>,
@@ -425,6 +438,7 @@ impl ResolvedSystemCallLine {
 
 #[derive(Debug, Default, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
 pub struct Attribute {
     pub keyword: String,
     pub condition: Option<String>,
