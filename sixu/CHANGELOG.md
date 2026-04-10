@@ -5,7 +5,34 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## v0.11.0 (2026-04-10)
+
+### New Features
+
+ - <csr-id-3422c4f617a7367384c9161441ecba889152ddbf/> add BlockFingerprint implementation and tests for fingerprinting logic
+
+### Commit Statistics
+
+<csr-read-only-do-not-edit/>
+
+ - 1 commit contributed to the release.
+ - 1 day passed between releases.
+ - 1 commit was understood as [conventional](https://www.conventionalcommits.org).
+ - 0 issues like '(#ID)' were seen in commit messages
+
+### Commit Details
+
+<csr-read-only-do-not-edit/>
+
+<details><summary>view details</summary>
+
+ * **Uncategorized**
+    - Add BlockFingerprint implementation and tests for fingerprinting logic ([`3422c4f`](https://github.com/Icemic/sixu/commit/3422c4f617a7367384c9161441ecba889152ddbf))
+</details>
+
 ## v0.10.1 (2026-04-09)
+
+<csr-id-f229c40dde64eab96bab3a49e3d20c6ae8fa27aa/>
 
 ### Bug Fixes
 
@@ -19,7 +46,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <csr-read-only-do-not-edit/>
 
- - 2 commits contributed to the release.
+ - 3 commits contributed to the release.
  - 18 days passed between releases.
  - 2 commits were understood as [conventional](https://www.conventionalcommits.org).
  - 0 issues like '(#ID)' were seen in commit messages
@@ -31,6 +58,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 <details><summary>view details</summary>
 
  * **Uncategorized**
+    - Release sixu v0.10.1 ([`1238f30`](https://github.com/Icemic/sixu/commit/1238f30aac907934de68e12b61d8bf2d8f21da83))
     - Add tests for handling empty string parameters and quoted strings ([`f229c40`](https://github.com/Icemic/sixu/commit/f229c40dde64eab96bab3a49e3d20c6ae8fa27aa))
     - Improve escaped text parsing for empty strings and single quotes ([`df55041`](https://github.com/Icemic/sixu/commit/df55041da692ed237c18167d4fc2950105e92ee6))
 </details>
