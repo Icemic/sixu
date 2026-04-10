@@ -5,6 +5,35 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## v0.12.0 (2026-04-11)
+
+### New Features
+
+ - <csr-id-ff38195a138b466496402a513c028f25b2bf4f26/> add serde camelCase renaming for various structs and enums in format.rs
+
+### Bug Fixes
+
+ - <csr-id-045cca905f4d97b91fd9b80a53d4743b883184b2/> update ts-rs and ts-rs-macros versions to 12.0.1 in Cargo files
+
+### Commit Statistics
+
+<csr-read-only-do-not-edit/>
+
+ - 2 commits contributed to the release.
+ - 2 commits were understood as [conventional](https://www.conventionalcommits.org).
+ - 0 issues like '(#ID)' were seen in commit messages
+
+### Commit Details
+
+<csr-read-only-do-not-edit/>
+
+<details><summary>view details</summary>
+
+ * **Uncategorized**
+    - Update ts-rs and ts-rs-macros versions to 12.0.1 in Cargo files ([`045cca9`](https://github.com/Icemic/sixu/commit/045cca905f4d97b91fd9b80a53d4743b883184b2))
+    - Add serde camelCase renaming for various structs and enums in format.rs ([`ff38195`](https://github.com/Icemic/sixu/commit/ff38195a138b466496402a513c028f25b2bf4f26))
+</details>
+
 ## v0.11.0 (2026-04-10)
 
 ### New Features
@@ -15,7 +44,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <csr-read-only-do-not-edit/>
 
- - 1 commit contributed to the release.
+ - 2 commits contributed to the release.
  - 1 day passed between releases.
  - 1 commit was understood as [conventional](https://www.conventionalcommits.org).
  - 0 issues like '(#ID)' were seen in commit messages
@@ -27,6 +56,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 <details><summary>view details</summary>
 
  * **Uncategorized**
+    - Release sixu v0.11.0 ([`7c43072`](https://github.com/Icemic/sixu/commit/7c43072615a7f0afb6d4be8841b8c697fd4c9978))
     - Add BlockFingerprint implementation and tests for fingerprinting logic ([`3422c4f`](https://github.com/Icemic/sixu/commit/3422c4f617a7367384c9161441ecba889152ddbf))
 </details>
 
