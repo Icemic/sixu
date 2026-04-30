@@ -285,10 +285,30 @@ pub struct Block {
     pub children: Vec<Child>,
 }
 
+#[derive(Debug, Default, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
+pub struct LineMarker {
+    pub id: String,
+}
+
+impl LineMarker {
+    pub fn parse_id(id: &str) -> Option<Self> {
+        if id.is_empty() || !id.chars().all(|ch| ch.is_ascii_alphanumeric() || ch == '_') {
+            return None;
+        }
+
+        Some(Self {
+            id: id.to_string(),
+        })
+    }
+}
+
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
 pub struct Child {
+    pub marker: Option<LineMarker>,
     pub attributes: Vec<Attribute>,
     pub content: ChildContent,
 }

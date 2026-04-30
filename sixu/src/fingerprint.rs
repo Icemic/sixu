@@ -495,6 +495,7 @@ mod tests {
 
     fn text_child(value: &str) -> Child {
         Child {
+            marker: None,
             attributes: Vec::new(),
             content: ChildContent::TextLine(
                 LeadingText::None,
@@ -506,6 +507,7 @@ mod tests {
 
     fn command_child(command: &str, arguments: Vec<(&str, RValue)>) -> Child {
         Child {
+            marker: None,
             attributes: Vec::new(),
             content: ChildContent::CommandLine(CommandLine {
                 command: command.to_string(),
@@ -536,6 +538,7 @@ mod tests {
     fn fingerprint_ignores_attribute_order() {
         let first = Block {
             children: vec![Child {
+                marker: None,
                 attributes: vec![
                     Attribute {
                         keyword: "if".to_string(),
@@ -551,6 +554,7 @@ mod tests {
         };
         let second = Block {
             children: vec![Child {
+                marker: None,
                 attributes: vec![
                     Attribute {
                         keyword: "while".to_string(),
@@ -626,12 +630,14 @@ mod tests {
     fn fingerprint_normalizes_embedded_code_text() {
         let first = Block {
             children: vec![Child {
+                marker: None,
                 attributes: Vec::new(),
                 content: ChildContent::EmbeddedCode("\r\n  let a = 1;\r\n".to_string()),
             }],
         };
         let second = Block {
             children: vec![Child {
+                marker: None,
                 attributes: Vec::new(),
                 content: ChildContent::EmbeddedCode("let a = 1;\n".to_string()),
             }],

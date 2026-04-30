@@ -1,26 +1,51 @@
 use nom::branch::alt;
 use nom::bytes::complete::*;
-use nom::character::complete::{anychar, line_ending};
+use nom::character::complete::{anychar, line_ending, multispace1};
 use nom::combinator::{cut, opt};
+use nom::error::ParseError;
 use nom::multi::{many0, many_till};
 use nom::sequence::*;
 use nom::Parser;
+use nom_language::error::VerboseError;
 
-use crate::format::{Child, ChildContent};
+use crate::format::{Child, ChildContent, LineMarker};
 use crate::result::ParseResult;
 
 use super::attribute::{attribute, balanced_delimiters};
 use super::command_line::command_line;
-use super::comment::{span0, span0_inline};
+use super::comment::{comment, marker_directive_comment, span0, span0_inline};
 use super::systemcall_line::systemcall_line;
 use super::text::text_line;
 use super::Block;
 
 pub fn block(input: &str) -> ParseResult<&str, Block> {
     let (input, _) = tag("{").parse(input)?;
-    let (input, children) = cut(many0(preceded(span0, child))).parse(input)?;
+    let (input, children) = cut(block_children).parse(input)?;
     let (input, _) = preceded(span0, tag("}")).parse(input)?;
     Ok((input, Block { children }))
+}
+
+fn block_children(mut input: &str) -> ParseResult<&str, Vec<Child>> {
+    let mut children = Vec::new();
+
+    loop {
+        let (next_input, marker) = leading_child_trivia(input)?;
+
+        if let Ok((_, _)) = tag::<&str, &str, VerboseError<&str>>("}").parse(next_input) {
+            if marker.is_some() {
+                return Err(nom::Err::Error(VerboseError::from_error_kind(
+                    next_input,
+                    nom::error::ErrorKind::Tag,
+                )));
+            }
+            return Ok((next_input, children));
+        }
+
+        let (after_child, mut child) = child(next_input)?;
+        child.marker = marker;
+        children.push(child);
+        input = after_child;
+    }
 }
 
 pub fn block_child(input: &str) -> ParseResult<&str, ChildContent> {
@@ -43,10 +68,41 @@ pub fn child(input: &str) -> ParseResult<&str, Child> {
     Ok((
         input,
         Child {
+            marker: None,
             attributes,
             content: child,
         },
     ))
+}
+
+fn leading_child_trivia(mut input: &str) -> ParseResult<&str, Option<LineMarker>> {
+    let mut marker = None;
+
+    loop {
+        if let Ok((next_input, next_marker)) = marker_directive_comment(input) {
+            if marker.is_some() {
+                return Err(nom::Err::Error(VerboseError::from_error_kind(
+                    input,
+                    nom::error::ErrorKind::Tag,
+                )));
+            }
+            marker = Some(next_marker);
+            input = next_input;
+            continue;
+        }
+
+        if let Ok((next_input, _)) = comment(input) {
+            input = next_input;
+            continue;
+        }
+
+        if let Ok((next_input, _)) = multispace1::<&str, VerboseError<&str>>(input) {
+            input = next_input;
+            continue;
+        }
+
+        return Ok((input, marker));
+    }
 }
 
 pub fn embedded_code(input: &str) -> ParseResult<&str, ChildContent> {
@@ -91,6 +147,7 @@ mod tests {
                 "",
                 Block {
                     children: vec![Child {
+                        marker: None,
                         attributes: vec![],
                         content: ChildContent::CommandLine(CommandLine {
                             command: "command".to_string(),
@@ -110,6 +167,7 @@ mod tests {
                 Block {
                     children: vec![
                         Child {
+                            marker: None,
                             attributes: vec![],
                             content: ChildContent::CommandLine(CommandLine {
                                 command: "command".to_string(),
@@ -120,6 +178,7 @@ mod tests {
                             }),
                         },
                         Child {
+                            marker: None,
                             attributes: vec![],
                             content: ChildContent::TextLine(
                                 LeadingText::None,
@@ -138,6 +197,7 @@ mod tests {
                 Block {
                     children: vec![
                         Child {
+                            marker: None,
                             attributes: vec![],
                             content: ChildContent::SystemCallLine(SystemCallLine {
                                 command: "command".to_string(),
@@ -148,6 +208,7 @@ mod tests {
                             }),
                         },
                         Child {
+                            marker: None,
                             attributes: vec![],
                             content: ChildContent::TextLine(
                                 LeadingText::None,
@@ -167,6 +228,7 @@ mod tests {
                 Block {
                     children: vec![
                         Child {
+                            marker: None,
                             attributes: vec![],
                             content: ChildContent::CommandLine(CommandLine {
                                 command: "command".to_string(),
@@ -177,6 +239,7 @@ mod tests {
                             }),
                         },
                         Child {
+                            marker: None,
                             attributes: vec![],
                             content: ChildContent::TextLine(
                                 LeadingText::None,
@@ -185,9 +248,11 @@ mod tests {
                             ),
                         },
                         Child {
+                            marker: None,
                             attributes: vec![],
                             content: ChildContent::Block(Block {
                                 children: vec![Child {
+                                    marker: None,
                                     attributes: vec![],
                                     content: ChildContent::CommandLine(CommandLine {
                                         command: "command".to_string(),
@@ -203,6 +268,64 @@ mod tests {
                 }
             ))
         );
+    }
+
+    #[test]
+    fn test_block_marker_directive_binds_next_child() {
+        assert_eq!(
+            block("{\n//#marker id=Labc123\n@command foo=false\n}"),
+            Ok((
+                "",
+                Block {
+                    children: vec![Child {
+                        marker: Some(LineMarker {
+                            id: "Labc123".to_string(),
+                        }),
+                        attributes: vec![],
+                        content: ChildContent::CommandLine(CommandLine {
+                            command: "command".to_string(),
+                            arguments: vec![Argument {
+                                name: "foo".to_string(),
+                                value: RValue::Literal(Literal::Boolean(false)),
+                            }],
+                        }),
+                    }],
+                }
+            ))
+        );
+    }
+
+    #[test]
+    fn test_block_marker_directive_allows_regular_comments_between() {
+        assert_eq!(
+            block("{\n//#marker id=Labc123\n// comment\ntext\n}"),
+            Ok((
+                "",
+                Block {
+                    children: vec![Child {
+                        marker: Some(LineMarker {
+                            id: "Labc123".to_string(),
+                        }),
+                        attributes: vec![],
+                        content: ChildContent::TextLine(
+                            LeadingText::None,
+                            Text::Text("text".to_string()),
+                            TailingText::None,
+                        ),
+                    }],
+                }
+            ))
+        );
+    }
+
+    #[test]
+    fn test_block_marker_directive_rejects_duplicate_before_child() {
+        assert!(block("{\n//#marker id=Labc123\n//#marker id=Ldef456\ntext\n}").is_err());
+    }
+
+    #[test]
+    fn test_block_marker_directive_rejects_dangling_marker() {
+        assert!(block("{\n//#marker id=Labc123\n}").is_err());
     }
 
     #[test]
@@ -317,10 +440,12 @@ mod tests {
                 Block {
                     children: vec![
                         Child {
+                            marker: None,
                             attributes: vec![],
                             content: ChildContent::EmbeddedCode("let a = 1;".to_string()),
                         },
                         Child {
+                            marker: None,
                             attributes: vec![],
                             content: ChildContent::EmbeddedCode("let b = 2;".to_string()),
                         }
@@ -341,6 +466,7 @@ mod tests {
                 "",
                 Block {
                     children: vec![Child {
+                        marker: None,
                         attributes: vec![Attribute {
                             keyword: "condition".to_string(),
                             condition: Some("a > b".to_string()),
@@ -363,6 +489,7 @@ mod tests {
                 Block {
                     children: vec![
                         Child {
+                            marker: None,
                             attributes: vec![],
                             content: ChildContent::TextLine(
                                 LeadingText::None,
@@ -383,6 +510,7 @@ mod tests {
                             ),
                         },
                         Child {
+                            marker: None,
                             attributes: vec![],
                             content: ChildContent::CommandLine(CommandLine {
                                 command: "command".to_string(),
@@ -408,6 +536,7 @@ mod tests {
                 "",
                 Block {
                     children: vec![Child {
+                        marker: None,
                         attributes: vec![Attribute {
                             keyword: "attribute_name".to_string(),
                             condition: Some("a = 123".to_string()),
@@ -434,6 +563,7 @@ mod tests {
                 "",
                 Block {
                     children: vec![Child {
+                        marker: None,
                         attributes: vec![
                             Attribute {
                                 keyword: "attribute_name".to_string(),
@@ -464,12 +594,14 @@ mod tests {
                 "",
                 Block {
                     children: vec![Child {
+                        marker: None,
                         attributes: vec![Attribute {
                             keyword: "cond".to_string(),
                             condition: Some("x > 0".to_string()),
                         }],
                         content: ChildContent::Block(Block {
                             children: vec![Child {
+                                marker: None,
                                 attributes: vec![],
                                 content: ChildContent::TextLine(
                                     LeadingText::None,
@@ -493,6 +625,7 @@ mod tests {
                 "",
                 Block {
                     children: vec![Child {
+                        marker: None,
                         attributes: vec![Attribute {
                             keyword: "if".to_string(),
                             condition: Some("save.x = 1".to_string()),
@@ -517,12 +650,14 @@ mod tests {
                 "",
                 Block {
                     children: vec![Child {
+                        marker: None,
                         attributes: vec![Attribute {
                             keyword: "while".to_string(),
                             condition: Some("counter < 3".to_string()),
                         }],
                         content: ChildContent::Block(Block {
                             children: vec![Child {
+                                marker: None,
                                 attributes: vec![],
                                 content: ChildContent::CommandLine(CommandLine {
                                     command: "cmd".to_string(),
@@ -548,6 +683,7 @@ mod tests {
                 "",
                 Block {
                     children: vec![Child {
+                        marker: None,
                         attributes: vec![Attribute {
                             keyword: "loop".to_string(),
                             condition: None,
@@ -555,6 +691,7 @@ mod tests {
                         content: ChildContent::Block(Block {
                             children: vec![
                                 Child {
+                                    marker: None,
                                     attributes: vec![],
                                     content: ChildContent::CommandLine(CommandLine {
                                         command: "cmd".to_string(),
@@ -565,6 +702,7 @@ mod tests {
                                     }),
                                 },
                                 Child {
+                                    marker: None,
                                     attributes: vec![],
                                     content: ChildContent::SystemCallLine(SystemCallLine {
                                         command: "break".to_string(),

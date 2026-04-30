@@ -455,37 +455,51 @@ impl CstBlock {
     pub fn to_ast(&self) -> crate::error::Result<format::Block> {
         let mut children = Vec::new();
         let mut pending_attributes: Vec<format::Attribute> = Vec::new();
+        let mut pending_marker: Option<format::LineMarker> = None;
 
         for node in &self.children {
             match node {
                 CstNode::Attribute(attr) => {
                     pending_attributes.push(attr.to_ast());
                 }
+                CstNode::Trivia(CstTrivia::LineComment { content, .. }) => {
+                    if let Some(marker) = parse_marker_directive_content(content)? {
+                        if pending_marker.is_some() {
+                            return Err(anyhow::anyhow!("duplicate marker directive before child").into());
+                        }
+                        pending_marker = Some(marker);
+                    }
+                }
                 CstNode::Command(cmd) => {
                     children.push(format::Child {
+                        marker: pending_marker.take(),
                         attributes: std::mem::take(&mut pending_attributes),
                         content: format::ChildContent::CommandLine(cmd.to_ast()),
                     });
                 }
                 CstNode::SystemCall(sc) => {
                     children.push(format::Child {
+                        marker: pending_marker.take(),
                         attributes: std::mem::take(&mut pending_attributes),
                         content: format::ChildContent::SystemCallLine(sc.to_ast()),
                     });
                 }
                 CstNode::TextLine(tl) => {
                     let mut child = tl.to_ast()?;
+                    child.marker = pending_marker.take();
                     child.attributes = std::mem::take(&mut pending_attributes);
                     children.push(child);
                 }
                 CstNode::Block(b) => {
                     children.push(format::Child {
+                        marker: pending_marker.take(),
                         attributes: std::mem::take(&mut pending_attributes),
                         content: format::ChildContent::Block(b.to_ast()?),
                     });
                 }
                 CstNode::EmbeddedCode(ec) => {
                     children.push(format::Child {
+                        marker: pending_marker.take(),
                         attributes: std::mem::take(&mut pending_attributes),
                         content: format::ChildContent::EmbeddedCode(ec.code.clone()),
                     });
@@ -502,8 +516,25 @@ impl CstBlock {
             }
         }
 
+        if pending_marker.is_some() {
+            return Err(anyhow::anyhow!("dangling marker directive at end of block").into());
+        }
+
         Ok(format::Block { children })
     }
+}
+
+fn parse_marker_directive_content(
+    content: &str,
+) -> crate::error::Result<Option<format::LineMarker>> {
+    let Some(id) = content.strip_prefix("#marker id=") else {
+        return Ok(None);
+    };
+
+    let marker = format::LineMarker::parse_id(id)
+        .ok_or_else(|| anyhow::anyhow!("marker directive requires a strict alphanumeric id"))?;
+
+    Ok(Some(marker))
 }
 
 /// 文本行 [leading] text #tailing
@@ -544,6 +575,7 @@ impl CstTextLine {
         };
 
         Ok(format::Child {
+            marker: None,
             attributes: vec![],
             content: format::ChildContent::TextLine(leading_ast, text_ast, tailing_ast),
         })
@@ -720,6 +752,7 @@ pub struct CstEmbeddedCode {
 impl CstEmbeddedCode {
     pub fn to_ast(&self) -> crate::error::Result<format::Child> {
         Ok(format::Child {
+            marker: None,
             attributes: vec![],
             content: format::ChildContent::EmbeddedCode(self.code.clone()),
         })

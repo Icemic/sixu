@@ -98,6 +98,7 @@ mod tests {
                     parameters: vec![],
                     block: Block {
                         children: vec![Child {
+                            marker: None,
                             attributes: vec![],
                             content: ChildContent::CommandLine(CommandLine {
                                 command: "command".to_string(),

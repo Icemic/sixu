@@ -2,10 +2,12 @@ use nom::branch::*;
 use nom::bytes::complete::*;
 use nom::character::complete::*;
 use nom::combinator::*;
+use nom::error::ParseError;
 use nom::multi::*;
 use nom::sequence::*;
 use nom::Parser;
 
+use crate::format::LineMarker;
 use crate::result::ParseResult;
 
 /// parse comment like `// C++/EOL-style comments`
@@ -16,6 +18,21 @@ pub fn comment(input: &str) -> ParseResult<&str, &str> {
 /// parse comment like `// C++/EOL-style comments`
 pub fn comment_single(input: &str) -> ParseResult<&str, &str> {
     preceded(tag("//"), cut(is_not("\r\n"))).parse(input)
+}
+
+pub fn marker_directive_comment(input: &str) -> ParseResult<&str, LineMarker> {
+    let (input, _) = tag("//#marker id=").parse(input)?;
+    let (input, id) = cut(take_while1(|ch: char| ch.is_ascii_alphanumeric() || ch == '_')).parse(input)?;
+    let (input, _) = opt(line_ending).parse(input)?;
+
+    let marker = LineMarker::parse_id(id).ok_or_else(|| {
+        nom::Err::Error(nom_language::error::VerboseError::from_error_kind(
+            input,
+            nom::error::ErrorKind::Tag,
+        ))
+    })?;
+
+    Ok((input, marker))
 }
 
 /**
@@ -54,6 +71,21 @@ mod tests {
         assert_eq!(comment("// comment\n"), Ok(("\n", " comment")));
         assert_eq!(comment("// comment\nnext"), Ok(("\nnext", " comment")));
         assert_eq!(comment("// comment\nnext\n"), Ok(("\nnext\n", " comment")));
+    }
+
+    #[test]
+    fn test_marker_directive_comment() {
+        assert_eq!(
+            marker_directive_comment("//#marker id=Labc123\nnext"),
+            Ok((
+                "next",
+                LineMarker {
+                    id: "Labc123".to_string(),
+                },
+            ))
+        );
+        assert!(marker_directive_comment("// #marker id=Labc123\n").is_err());
+        assert!(marker_directive_comment("//#marker id=\n").is_err());
     }
 
     #[test]
