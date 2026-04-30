@@ -5,6 +5,15 @@ use super::RuntimeContext;
 
 /// Trait defining the executor behavior for runtime execution
 pub trait RuntimeExecutor: Send + Sync {
+    /// Handle a marker enter event before attributes and content are evaluated.
+    fn handle_marker(
+        &mut self,
+        _ctx: &mut RuntimeContext,
+        _marker: &LineMarker,
+    ) -> Result<()> {
+        Ok(())
+    }
+
     /// Handle a command line input, returns true if next line should be executed immediately
     fn handle_command(
         &mut self,

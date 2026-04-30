@@ -11,6 +11,8 @@ struct TestExecutor {
     texts: Arc<Mutex<Vec<String>>>,
     /// Collected command names
     commands: Arc<Mutex<Vec<String>>>,
+    /// Collected marker ids
+    markers: Arc<Mutex<Vec<String>>>,
     /// Counter for condition evaluation (used to control while loops)
     counter: Arc<Mutex<i32>>,
     /// Condition evaluator: maps condition string to a closure
@@ -23,6 +25,7 @@ impl TestExecutor {
         Self {
             texts: Arc::new(Mutex::new(Vec::new())),
             commands: Arc::new(Mutex::new(Vec::new())),
+            markers: Arc::new(Mutex::new(Vec::new())),
             counter: Arc::new(Mutex::new(0)),
             finished_called: Arc::new(Mutex::new(false)),
         }
@@ -34,6 +37,10 @@ impl TestExecutor {
 
     fn commands(&self) -> Vec<String> {
         self.commands.lock().unwrap().clone()
+    }
+
+    fn markers(&self) -> Vec<String> {
+        self.markers.lock().unwrap().clone()
     }
 
     fn eval_condition_str(&self, condition: &str) -> bool {
@@ -48,6 +55,15 @@ impl TestExecutor {
 }
 
 impl RuntimeExecutor for TestExecutor {
+    fn handle_marker(
+        &mut self,
+        _ctx: &mut RuntimeContext,
+        marker: &LineMarker,
+    ) -> sixu::error::Result<()> {
+        self.markers.lock().unwrap().push(marker.id.clone());
+        Ok(())
+    }
+
     fn handle_command(
         &mut self,
         _ctx: &mut RuntimeContext,
@@ -204,6 +220,41 @@ fn test_cond_on_command() {
 "#;
     let (_, commands) = run_story(script);
     assert_eq!(commands, vec!["visible_cmd", "always_cmd"]);
+}
+
+#[test]
+fn test_marker_emitted_before_condition_evaluation_and_not_repeated_on_resume() {
+    let script = r#"
+::entry {
+//#marker id=Lcond1
+#[cond("false")]
+hidden
+after
+}
+"#;
+
+    let (_, story) = parse("test", script).unwrap();
+    let executor = TestExecutor::new();
+    let mut runtime = Runtime::new(executor);
+    runtime.add_story(story);
+    runtime.start("test", Some("entry")).unwrap();
+
+    match runtime.step() {
+        Ok(StepResult::NeedsCondition(condition)) => {
+            assert_eq!(condition, "false");
+            assert_eq!(runtime.executor().markers(), vec!["Lcond1"]);
+            runtime.resume_condition(false);
+        }
+        other => panic!("Expected NeedsCondition, got {:?}", other),
+    }
+
+    match runtime.step() {
+        Ok(StepResult::Done) => {}
+        other => panic!("Expected Done after resume, got {:?}", other),
+    }
+
+    assert_eq!(runtime.executor().markers(), vec!["Lcond1"]);
+    assert_eq!(runtime.executor().texts(), vec!["after"]);
 }
 
 #[test]
