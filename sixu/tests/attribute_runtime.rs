@@ -258,6 +258,58 @@ after
 }
 
 #[test]
+fn test_markers_survive_across_text_and_empty_argument_boundaries() {
+    let script = r##"
+::entry {
+//#marker id=L4
+"line"
+//#marker id=L5
+@textClear
+//#marker id=L6
+@textBoxHide
+//#marker id=L7
+@bgTint tint="#000" fadeTime=0
+//#marker id=L8
+@bg src="room.webp" fadeTime=0
+//#marker id=L9
+#finish
+}
+"##;
+
+    let (_, story) = parse("test", script).unwrap();
+    let executor = TestExecutor::new();
+    let mut runtime = Runtime::new(executor);
+    runtime.add_story(story);
+    runtime.start("test", Some("entry")).unwrap();
+
+    let mut iterations = 0;
+    loop {
+        match runtime.step() {
+            Ok(StepResult::Done) => {
+                iterations += 1;
+                if iterations > 100 {
+                    panic!("Too many iterations, possible infinite loop");
+                }
+            }
+            Ok(StepResult::NeedsCondition(condition)) => {
+                let result = runtime.executor().eval_condition_str(&condition);
+                runtime.resume_condition(result);
+            }
+            Ok(StepResult::NeedsScript(_)) => {
+                runtime.resume_script(None, true);
+            }
+            Ok(StepResult::NeedsStoryFile(_)) => {
+                unimplemented!("story file loading not supported in this test")
+            }
+            Err(RuntimeError::StoryFinished) | Err(RuntimeError::StoryNotStarted) => break,
+            Err(e) => panic!("Unexpected error: {:?}", e),
+        }
+    }
+
+    assert_eq!(runtime.executor().markers(), vec!["L4", "L5", "L6", "L7", "L8", "L9"]);
+}
+
+#[test]
 fn test_multiple_attributes_only_last_used() {
     // Multiple attributes: only the last one is used
     let script = r#"

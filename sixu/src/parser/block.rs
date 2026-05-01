@@ -329,6 +329,43 @@ mod tests {
     }
 
     #[test]
+    fn test_block_marker_directive_survives_after_text_and_empty_arg_commands() {
+        let parsed = block(
+            "{\n//#marker id=L4\n\"line\"\n//#marker id=L5\n@textClear\n//#marker id=L6\n@textBoxHide\n//#marker id=L7\n@bgTint tint=\"#000\" fadeTime=0\n//#marker id=L8\n@bg src=\"room.webp\" fadeTime=0\n}",
+        )
+        .unwrap()
+        .1;
+
+        let markers = parsed
+            .children
+            .iter()
+            .map(|child| child.marker.as_ref().map(|marker| marker.id.as_str()))
+            .collect::<Vec<_>>();
+
+        assert_eq!(
+            markers,
+            vec![Some("L4"), Some("L5"), Some("L6"), Some("L7"), Some("L8")]
+        );
+    }
+
+    #[test]
+    fn test_block_marker_directive_survives_after_empty_arg_systemcall() {
+        let parsed = block(
+            "{\n//#marker id=L1\n#finish\n//#marker id=L2\n\"after\"\n}",
+        )
+        .unwrap()
+        .1;
+
+        let markers = parsed
+            .children
+            .iter()
+            .map(|child| child.marker.as_ref().map(|marker| marker.id.as_str()))
+            .collect::<Vec<_>>();
+
+        assert_eq!(markers, vec![Some("L1"), Some("L2")]);
+    }
+
+    #[test]
     fn test_embedded_code_hash() {
         // inline code
         assert_eq!(

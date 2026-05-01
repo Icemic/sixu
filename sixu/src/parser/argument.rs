@@ -14,7 +14,7 @@ use super::rvalue::rvalue;
 use super::Argument;
 
 pub fn arguments(input: &str) -> ParseResult<&str, Vec<Argument>> {
-    let (input, _) = span0.parse(input)?;
+    let (input, _) = span0_inline.parse(input)?;
     let (input, arguments) = cut(alt((arguments_type_a, arguments_type_b))).parse(input)?;
     Ok((input, arguments))
 }

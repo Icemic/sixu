@@ -40,7 +40,7 @@ pub fn text_line(input: &str) -> ParseResult<&str, ChildContent> {
             span0_inline,
             alt((tailing_text, success(TailingText::None))),
         ),
-        span0,
+        span0_inline,
     )
     .parse(input)?;
 
