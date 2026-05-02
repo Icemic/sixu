@@ -284,7 +284,7 @@ impl<E: RuntimeExecutor> Runtime<E> {
             StepPhase::Ready => {} // normal path
             StepPhase::AwaitingCondition { child } => {
                 // Resuming after condition evaluation
-                return self.process_child(child, false);
+                return self.process_child(child);
             }
             StepPhase::AwaitingScript => {
                 // Resuming after script evaluation
@@ -338,7 +338,7 @@ impl<E: RuntimeExecutor> Runtime<E> {
 
         let current_state = self.get_current_state_mut()?;
         if let Some(child) = current_state.next_line() {
-            self.process_child(child, true)
+            self.process_child(child)
         } else {
             self.break_current_block()?;
             Ok(None) // continue
@@ -347,14 +347,9 @@ impl<E: RuntimeExecutor> Runtime<E> {
 
     /// Process a single child (attributes + content).
     /// Called both for fresh children and when resuming after condition evaluation.
-    fn process_child(&mut self, child: Child, emit_marker: bool) -> Result<Option<StepResult>> {
+    fn process_child(&mut self, child: Child) -> Result<Option<StepResult>> {
         let mut is_loop = false;
-
-        if emit_marker {
-            if let Some(marker) = child.marker.as_ref() {
-                self.executor.handle_marker(&mut self.context, marker)?;
-            }
-        }
+        let marker = child.marker.clone();
 
         // Extract attribute info before potentially moving child
         let (keyword, condition) = if !child.attributes.is_empty() {
@@ -381,6 +376,9 @@ impl<E: RuntimeExecutor> Runtime<E> {
                             }
                         };
                         if !result {
+                            if let Some(marker) = marker.as_ref() {
+                                self.executor.handle_marker(&mut self.context, marker)?;
+                            }
                             return Ok(None); // condition not met, skip this child
                         }
                     }
@@ -396,6 +394,9 @@ impl<E: RuntimeExecutor> Runtime<E> {
                             }
                         };
                         if !result {
+                            if let Some(marker) = marker.as_ref() {
+                                self.executor.handle_marker(&mut self.context, marker)?;
+                            }
                             return Ok(None); // condition not met, skip this child
                         }
                         self.get_current_state_mut()?.index -= 1;
@@ -496,6 +497,10 @@ impl<E: RuntimeExecutor> Runtime<E> {
                 }
             }
         };
+
+        if let Some(marker) = marker.as_ref() {
+            self.executor.handle_marker(&mut self.context, marker)?;
+        }
 
         Ok(if is_continue {
             None

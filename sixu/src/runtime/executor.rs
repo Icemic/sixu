@@ -5,7 +5,7 @@ use super::RuntimeContext;
 
 /// Trait defining the executor behavior for runtime execution
 pub trait RuntimeExecutor: Send + Sync {
-    /// Handle a marker enter event before attributes and content are evaluated.
+    /// Handle a marker event after a marked child has finished processing.
     fn handle_marker(
         &mut self,
         _ctx: &mut RuntimeContext,
