@@ -333,7 +333,7 @@ mod tests {
         assert_eq!(
             text_line("foo\n  \r"),
             Ok((
-                "",
+                "\n  \r",
                 ChildContent::TextLine(
                     LeadingText::None,
                     Text::Text("foo".to_string()),
@@ -420,7 +420,7 @@ mod tests {
         assert_eq!(
             text_line("[ foo bar ] aaaaaa\n"),
             Ok((
-                "",
+                "\n",
                 ChildContent::TextLine(
                     LeadingText::Text(" foo bar ".to_string()),
                     Text::Text("aaaaaa".to_string()),
@@ -432,7 +432,7 @@ mod tests {
         assert_eq!(
             text_line("[ 'foo bar' ] \naaaaaa\r\n"),
             Ok((
-                "aaaaaa\r\n",
+                "\naaaaaa\r\n",
                 ChildContent::TextLine(
                     LeadingText::Text("foo bar".to_string()),
                     Text::Text("".to_string()),
@@ -444,7 +444,7 @@ mod tests {
         assert_eq!(
             text_line("[ 'foo bar' ''] \naaaaaa\r\n"),
             Ok((
-                "aaaaaa\r\n",
+                "\naaaaaa\r\n",
                 ChildContent::TextLine(
                     LeadingText::Text(" 'foo bar' ''".to_string()),
                     Text::Text("".to_string()),
@@ -456,7 +456,7 @@ mod tests {
         assert_eq!(
             text_line("[ `foo ${bar}` ] \naaaaaa\r\n"),
             Ok((
-                "aaaaaa\r\n",
+                "\naaaaaa\r\n",
                 ChildContent::TextLine(
                     LeadingText::TemplateLiteral(TemplateLiteral {
                         parts: vec![
@@ -477,7 +477,7 @@ mod tests {
     fn test_template_line() {
         let input = "  \n `hello \n${world} ${123} world` \n";
         let (remaining, result) = text_line.parse(input).unwrap();
-        assert_eq!(remaining, "");
+        assert_eq!(remaining, "\n");
         assert_eq!(
             result,
             ChildContent::TextLine(
