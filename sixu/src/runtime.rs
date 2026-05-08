@@ -350,6 +350,9 @@ impl<E: RuntimeExecutor> Runtime<E> {
     fn process_child(&mut self, child: Child) -> Result<Option<StepResult>> {
         let mut is_loop = false;
         let marker = child.marker.clone();
+        // Tracks whether the marker has already been emitted (e.g. before yielding NeedsCondition),
+        // to prevent double-emission at the end of this method.
+        let mut marker_emitted = false;
 
         // Extract attribute info before potentially moving child
         let (keyword, condition) = if !child.attributes.is_empty() {
@@ -370,15 +373,18 @@ impl<E: RuntimeExecutor> Runtime<E> {
                         let result = match self.condition_result.take() {
                             Some(r) => r,
                             None => {
+                                // Emit marker before yielding so callers see it immediately
+                                if let Some(marker) = marker.as_ref() {
+                                    self.executor.handle_marker(&mut self.context, marker)?;
+                                }
                                 let cond_str = cond_str.clone();
                                 self.phase = StepPhase::AwaitingCondition { child };
                                 return Ok(Some(StepResult::NeedsCondition(cond_str)));
                             }
                         };
+                        // Marker was already emitted before the condition yield
+                        marker_emitted = true;
                         if !result {
-                            if let Some(marker) = marker.as_ref() {
-                                self.executor.handle_marker(&mut self.context, marker)?;
-                            }
                             return Ok(None); // condition not met, skip this child
                         }
                     }
@@ -388,15 +394,18 @@ impl<E: RuntimeExecutor> Runtime<E> {
                         let result = match self.condition_result.take() {
                             Some(r) => r,
                             None => {
+                                // Emit marker before yielding so callers see it immediately
+                                if let Some(marker) = marker.as_ref() {
+                                    self.executor.handle_marker(&mut self.context, marker)?;
+                                }
                                 let cond_str = cond_str.clone();
                                 self.phase = StepPhase::AwaitingCondition { child };
                                 return Ok(Some(StepResult::NeedsCondition(cond_str)));
                             }
                         };
+                        // Marker was already emitted before the condition yield
+                        marker_emitted = true;
                         if !result {
-                            if let Some(marker) = marker.as_ref() {
-                                self.executor.handle_marker(&mut self.context, marker)?;
-                            }
                             return Ok(None); // condition not met, skip this child
                         }
                         self.get_current_state_mut()?.index -= 1;
@@ -498,8 +507,10 @@ impl<E: RuntimeExecutor> Runtime<E> {
             }
         };
 
-        if let Some(marker) = marker.as_ref() {
-            self.executor.handle_marker(&mut self.context, marker)?;
+        if !marker_emitted {
+            if let Some(marker) = marker.as_ref() {
+                self.executor.handle_marker(&mut self.context, marker)?;
+            }
         }
 
         Ok(if is_continue {

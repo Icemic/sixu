@@ -258,6 +258,43 @@ after
 }
 
 #[test]
+fn test_marker_on_after_line_emitted_at_after_position() {
+    let script = r#"
+::entry {
+//#marker id=Lcond1
+#[cond("false")]
+hidden
+//#marker id=Lcond2
+after
+}
+"#;
+
+    let (_, story) = parse("test", script).unwrap();
+    let executor = TestExecutor::new();
+    let mut runtime = Runtime::new(executor);
+    runtime.add_story(story);
+    runtime.start("test", Some("entry")).unwrap();
+
+    match runtime.step() {
+        Ok(StepResult::NeedsCondition(condition)) => {
+            assert_eq!(condition, "false");
+            assert_eq!(runtime.executor().markers(), vec!["Lcond1"]);
+            runtime.resume_condition(false);
+        }
+        other => panic!("Expected NeedsCondition, got {:?}", other),
+    }
+
+    // "after" has Lcond2, it should be emitted when "after" is processed
+    match runtime.step() {
+        Ok(StepResult::Done) => {
+            assert_eq!(runtime.executor().texts(), vec!["after"]);
+            assert_eq!(runtime.executor().markers(), vec!["Lcond1", "Lcond2"]);
+        }
+        other => panic!("Expected Done, got {:?}", other),
+    }
+}
+
+#[test]
 fn test_markers_survive_across_text_and_empty_argument_boundaries() {
     let script = r##"
 ::entry {
