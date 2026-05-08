@@ -1,4 +1,4 @@
-use std::cell::RefCell;
+use std::cell::OnceCell;
 use std::collections::HashMap;
 
 #[cfg(feature = "serde")]
@@ -284,37 +284,48 @@ pub enum RValue {
     Variable(Variable),
 }
 
-#[derive(Debug, Default, Clone, PartialEq)]
+#[derive(Debug, Default, Clone)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
 pub struct Block {
     children: Vec<Child>,
-    _fingerprint: RefCell<Option<BlockFingerprint>>,
+    #[cfg_attr(feature = "serde", serde(skip, default))]
+    _fingerprint: OnceCell<BlockFingerprint>,
+}
+
+impl PartialEq for Block {
+    fn eq(&self, other: &Self) -> bool {
+        // Cached fingerprints can safely prove inequality, but equality still
+        // needs a structural comparison to avoid hash-collision semantics.
+        if let (Some(fp1), Some(fp2)) = (self._fingerprint.get(), other._fingerprint.get()) {
+            if fp1 != fp2 {
+                return false;
+            }
+        }
+
+        self.children == other.children
+    }
 }
 
 impl Block {
     pub(crate) fn new(children: Vec<Child>) -> Self {
         Self {
             children,
-            _fingerprint: RefCell::new(None),
+            _fingerprint: OnceCell::new(),
         }
     }
 
-    pub fn children(&self) -> &Vec<Child> {
+    pub fn children(&self) -> &[Child] {
         &self.children
     }
 
     pub fn fingerprint(&self) -> BlockFingerprint {
-        if let Some(fp) = &*self._fingerprint.borrow() {
-            return fp.clone();
-        }
-
-        let mut writer = FingerprintWriter::new();
-        writer.write_bytes(BlockFingerprint::VERSION.as_bytes());
-        self.encode(&mut writer);
-        let fp = writer.finish();
-        *self._fingerprint.borrow_mut() = Some(fp.clone());
-        fp
+        *self._fingerprint.get_or_init(|| {
+            let mut writer = FingerprintWriter::new();
+            writer.write_bytes(BlockFingerprint::VERSION.as_bytes());
+            self.encode(&mut writer);
+            writer.finish()
+        })
     }
 }
 
