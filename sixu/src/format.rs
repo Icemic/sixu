@@ -1,9 +1,12 @@
+use std::cell::RefCell;
 use std::collections::HashMap;
 
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 
 use crate::error::{Result, RuntimeError};
+use crate::fingerprint::{FingerprintEncode, FingerprintWriter};
+use crate::BlockFingerprint;
 
 /// The format represents the structure of a `story`, which is commonly came from a single file.
 #[derive(Debug, Default, Clone, PartialEq)]
@@ -272,7 +275,10 @@ pub struct Variable {
 
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-#[cfg_attr(feature = "serde", serde(rename_all = "camelCase", tag = "type", content = "value"))]
+#[cfg_attr(
+    feature = "serde",
+    serde(rename_all = "camelCase", tag = "type", content = "value")
+)]
 pub enum RValue {
     Literal(Literal),
     Variable(Variable),
@@ -282,7 +288,34 @@ pub enum RValue {
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
 pub struct Block {
-    pub children: Vec<Child>,
+    children: Vec<Child>,
+    _fingerprint: RefCell<Option<BlockFingerprint>>,
+}
+
+impl Block {
+    pub(crate) fn new(children: Vec<Child>) -> Self {
+        Self {
+            children,
+            _fingerprint: RefCell::new(None),
+        }
+    }
+
+    pub fn children(&self) -> &Vec<Child> {
+        &self.children
+    }
+
+    pub fn fingerprint(&self) -> BlockFingerprint {
+        if let Some(fp) = &*self._fingerprint.borrow() {
+            return fp.clone();
+        }
+
+        let mut writer = FingerprintWriter::new();
+        writer.write_bytes(BlockFingerprint::VERSION.as_bytes());
+        self.encode(&mut writer);
+        let fp = writer.finish();
+        *self._fingerprint.borrow_mut() = Some(fp.clone());
+        fp
+    }
 }
 
 #[derive(Debug, Default, Clone, PartialEq)]
@@ -298,9 +331,7 @@ impl LineMarker {
             return None;
         }
 
-        Some(Self {
-            id: id.to_string(),
-        })
+        Some(Self { id: id.to_string() })
     }
 }
 
@@ -315,7 +346,10 @@ pub struct Child {
 
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-#[cfg_attr(feature = "serde", serde(rename_all = "camelCase", tag = "type", content = "value"))]
+#[cfg_attr(
+    feature = "serde",
+    serde(rename_all = "camelCase", tag = "type", content = "value")
+)]
 pub enum ChildContent {
     Block(Block),
     TextLine(LeadingText, Text, TailingText),
@@ -326,7 +360,10 @@ pub enum ChildContent {
 
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-#[cfg_attr(feature = "serde", serde(rename_all = "camelCase", tag = "type", content = "value"))]
+#[cfg_attr(
+    feature = "serde",
+    serde(rename_all = "camelCase", tag = "type", content = "value")
+)]
 pub enum LeadingText {
     None,
     Text(String),
@@ -335,7 +372,10 @@ pub enum LeadingText {
 
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-#[cfg_attr(feature = "serde", serde(rename_all = "camelCase", tag = "type", content = "value"))]
+#[cfg_attr(
+    feature = "serde",
+    serde(rename_all = "camelCase", tag = "type", content = "value")
+)]
 pub enum TailingText {
     None,
     Text(String),
@@ -343,7 +383,10 @@ pub enum TailingText {
 
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-#[cfg_attr(feature = "serde", serde(rename_all = "camelCase", tag = "type", content = "value"))]
+#[cfg_attr(
+    feature = "serde",
+    serde(rename_all = "camelCase", tag = "type", content = "value")
+)]
 pub enum Text {
     None,
     Text(String),
@@ -380,7 +423,10 @@ impl TemplateLiteral {
 
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-#[cfg_attr(feature = "serde", serde(rename_all = "camelCase", tag = "type", content = "value"))]
+#[cfg_attr(
+    feature = "serde",
+    serde(rename_all = "camelCase", tag = "type", content = "value")
+)]
 pub enum TemplateLiteralPart {
     Text(String),
     Value(RValue),

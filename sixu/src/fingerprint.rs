@@ -13,7 +13,7 @@ const VERSION_PREFIX: &str = "sixu:block-fingerprint:v1";
 
 #[derive(Clone, Copy)]
 #[repr(u8)]
-enum Tag {
+pub(crate) enum Tag {
     Block = 0x01,
     Child = 0x02,
     Attribute = 0x03,
@@ -136,64 +136,55 @@ impl<'de> Deserialize<'de> for BlockFingerprint {
     }
 }
 
-impl Block {
-    pub fn fingerprint(&self) -> BlockFingerprint {
-        let mut writer = FingerprintWriter::new();
-        writer.write_bytes(BlockFingerprint::VERSION.as_bytes());
-        self.encode(&mut writer);
-        writer.finish()
-    }
-}
-
-struct FingerprintWriter {
+pub(crate) struct FingerprintWriter {
     hasher: XxHash3_128,
 }
 
 impl FingerprintWriter {
-    fn new() -> Self {
+    pub(crate) fn new() -> Self {
         Self {
             hasher: XxHash3_128::new(),
         }
     }
 
-    fn finish(self) -> BlockFingerprint {
+    pub(crate) fn finish(self) -> BlockFingerprint {
         BlockFingerprint(self.hasher.finish_128().to_be_bytes())
     }
 
-    fn write_bytes(&mut self, bytes: &[u8]) {
+    pub(crate) fn write_bytes(&mut self, bytes: &[u8]) {
         self.hasher.write(bytes);
     }
 
-    fn write_tag(&mut self, tag: Tag) {
+    pub(crate) fn write_tag(&mut self, tag: Tag) {
         self.write_u8(tag as u8);
     }
 
-    fn write_u8(&mut self, value: u8) {
+    pub(crate) fn write_u8(&mut self, value: u8) {
         self.write_bytes(&[value]);
     }
 
-    fn write_u32(&mut self, value: u32) {
+    pub(crate) fn write_u32(&mut self, value: u32) {
         self.write_bytes(&value.to_le_bytes());
     }
 
-    fn write_i64(&mut self, value: i64) {
+    pub(crate) fn write_i64(&mut self, value: i64) {
         self.write_bytes(&value.to_le_bytes());
     }
 
-    fn write_bool(&mut self, value: bool) {
+    pub(crate) fn write_bool(&mut self, value: bool) {
         self.write_u8(u8::from(value));
     }
 
-    fn write_len(&mut self, value: usize) {
+    pub(crate) fn write_len(&mut self, value: usize) {
         self.write_u32(u32::try_from(value).expect("fingerprint length exceeds u32"));
     }
 
-    fn write_str(&mut self, value: &str) {
+    pub(crate) fn write_str(&mut self, value: &str) {
         self.write_len(value.len());
         self.write_bytes(value.as_bytes());
     }
 
-    fn write_optional_str(&mut self, value: Option<&str>) {
+    pub(crate) fn write_optional_str(&mut self, value: Option<&str>) {
         match value {
             Some(value) => {
                 self.write_tag(Tag::OptionSome);
@@ -203,21 +194,21 @@ impl FingerprintWriter {
         }
     }
 
-    fn write_f64(&mut self, value: f64) {
+    pub(crate) fn write_f64(&mut self, value: f64) {
         self.write_bytes(&normalize_f64_bits(value).to_le_bytes());
     }
 }
 
-trait FingerprintEncode {
+pub(crate) trait FingerprintEncode {
     fn encode(&self, writer: &mut FingerprintWriter);
 }
 
 impl FingerprintEncode for Block {
     fn encode(&self, writer: &mut FingerprintWriter) {
         writer.write_tag(Tag::Block);
-        writer.write_len(self.children.len());
+        writer.write_len(self.children().len());
 
-        for child in &self.children {
+        for child in self.children() {
             child.encode(writer);
         }
     }
@@ -456,7 +447,11 @@ impl FingerprintEncode for Literal {
 }
 
 fn normalize_embedded_code(value: &str) -> String {
-    value.replace("\r\n", "\n").replace('\r', "\n").trim().to_string()
+    value
+        .replace("\r\n", "\n")
+        .replace('\r', "\n")
+        .trim()
+        .to_string()
 }
 
 fn normalize_f64_bits(value: f64) -> u64 {
@@ -524,160 +519,144 @@ mod tests {
 
     #[test]
     fn fingerprint_changes_when_children_order_changes() {
-        let first = Block {
-            children: vec![text_child("first"), text_child("second")],
-        };
-        let second = Block {
-            children: vec![text_child("second"), text_child("first")],
-        };
+        let first = Block::new(vec![text_child("first"), text_child("second")]);
+        let second = Block::new(vec![text_child("second"), text_child("first")]);
 
         assert_ne!(first.fingerprint(), second.fingerprint());
     }
 
     #[test]
     fn fingerprint_ignores_attribute_order() {
-        let first = Block {
-            children: vec![Child {
-                marker: None,
-                attributes: vec![
-                    Attribute {
-                        keyword: "if".to_string(),
-                        condition: Some("a".to_string()),
-                    },
-                    Attribute {
-                        keyword: "while".to_string(),
-                        condition: Some("b".to_string()),
-                    },
-                ],
-                content: ChildContent::Block(Block { children: vec![] }),
-            }],
-        };
-        let second = Block {
-            children: vec![Child {
-                marker: None,
-                attributes: vec![
-                    Attribute {
-                        keyword: "while".to_string(),
-                        condition: Some("b".to_string()),
-                    },
-                    Attribute {
-                        keyword: "if".to_string(),
-                        condition: Some("a".to_string()),
-                    },
-                ],
-                content: ChildContent::Block(Block { children: vec![] }),
-            }],
-        };
+        let first = Block::new(vec![Child {
+            marker: None,
+            attributes: vec![
+                Attribute {
+                    keyword: "if".to_string(),
+                    condition: Some("a".to_string()),
+                },
+                Attribute {
+                    keyword: "while".to_string(),
+                    condition: Some("b".to_string()),
+                },
+            ],
+            content: ChildContent::Block(Block::new(vec![])),
+        }]);
+        let second = Block::new(vec![Child {
+            marker: None,
+            attributes: vec![
+                Attribute {
+                    keyword: "while".to_string(),
+                    condition: Some("b".to_string()),
+                },
+                Attribute {
+                    keyword: "if".to_string(),
+                    condition: Some("a".to_string()),
+                },
+            ],
+            content: ChildContent::Block(Block::new(vec![])),
+        }]);
 
         assert_eq!(first.fingerprint(), second.fingerprint());
     }
 
     #[test]
     fn fingerprint_ignores_argument_order() {
-        let first = Block {
-            children: vec![command_child(
-                "say",
-                vec![
-                    ("speaker", RValue::Literal(Literal::String("alice".to_string()))),
-                    ("line", RValue::Literal(Literal::String("hello".to_string()))),
-                ],
-            )],
-        };
-        let second = Block {
-            children: vec![command_child(
-                "say",
-                vec![
-                    ("line", RValue::Literal(Literal::String("hello".to_string()))),
-                    ("speaker", RValue::Literal(Literal::String("alice".to_string()))),
-                ],
-            )],
-        };
+        let first = Block::new(vec![command_child(
+            "say",
+            vec![
+                (
+                    "speaker",
+                    RValue::Literal(Literal::String("alice".to_string())),
+                ),
+                (
+                    "line",
+                    RValue::Literal(Literal::String("hello".to_string())),
+                ),
+            ],
+        )]);
+        let second = Block::new(vec![command_child(
+            "say",
+            vec![
+                (
+                    "line",
+                    RValue::Literal(Literal::String("hello".to_string())),
+                ),
+                (
+                    "speaker",
+                    RValue::Literal(Literal::String("alice".to_string())),
+                ),
+            ],
+        )]);
 
         assert_eq!(first.fingerprint(), second.fingerprint());
     }
 
     #[test]
     fn fingerprint_ignores_object_insertion_order() {
-        let first = Block {
-            children: vec![command_child(
-                "config",
-                vec![(
-                    "value",
-                    RValue::Literal(Literal::Object(HashMap::from([
-                        ("foo".to_string(), Literal::Integer(1)),
-                        ("bar".to_string(), Literal::Integer(2)),
-                    ]))),
-                )],
+        let first = Block::new(vec![command_child(
+            "config",
+            vec![(
+                "value",
+                RValue::Literal(Literal::Object(HashMap::from([
+                    ("foo".to_string(), Literal::Integer(1)),
+                    ("bar".to_string(), Literal::Integer(2)),
+                ]))),
             )],
-        };
-        let second = Block {
-            children: vec![command_child(
-                "config",
-                vec![(
-                    "value",
-                    RValue::Literal(Literal::Object(HashMap::from([
-                        ("bar".to_string(), Literal::Integer(2)),
-                        ("foo".to_string(), Literal::Integer(1)),
-                    ]))),
-                )],
+        )]);
+        let second = Block::new(vec![command_child(
+            "config",
+            vec![(
+                "value",
+                RValue::Literal(Literal::Object(HashMap::from([
+                    ("bar".to_string(), Literal::Integer(2)),
+                    ("foo".to_string(), Literal::Integer(1)),
+                ]))),
             )],
-        };
+        )]);
 
         assert_eq!(first.fingerprint(), second.fingerprint());
     }
 
     #[test]
     fn fingerprint_normalizes_embedded_code_text() {
-        let first = Block {
-            children: vec![Child {
-                marker: None,
-                attributes: Vec::new(),
-                content: ChildContent::EmbeddedCode("\r\n  let a = 1;\r\n".to_string()),
-            }],
-        };
-        let second = Block {
-            children: vec![Child {
-                marker: None,
-                attributes: Vec::new(),
-                content: ChildContent::EmbeddedCode("let a = 1;\n".to_string()),
-            }],
-        };
+        let first = Block::new(vec![Child {
+            marker: None,
+            attributes: Vec::new(),
+            content: ChildContent::EmbeddedCode("\r\n  let a = 1;\r\n".to_string()),
+        }]);
+        let second = Block::new(vec![Child {
+            marker: None,
+            attributes: Vec::new(),
+            content: ChildContent::EmbeddedCode("let a = 1;\n".to_string()),
+        }]);
 
         assert_eq!(first.fingerprint(), second.fingerprint());
     }
 
     #[test]
     fn fingerprint_normalizes_negative_zero_and_nan() {
-        let zero = Block {
-            children: vec![command_child(
-                "set",
-                vec![("value", RValue::Literal(Literal::Float(0.0)))],
+        let zero = Block::new(vec![command_child(
+            "set",
+            vec![("value", RValue::Literal(Literal::Float(0.0)))],
+        )]);
+        let negative_zero = Block::new(vec![command_child(
+            "set",
+            vec![("value", RValue::Literal(Literal::Float(-0.0)))],
+        )]);
+        let nan_a = Block::new(vec![command_child(
+            "set",
+            vec![(
+                "value",
+                RValue::Literal(Literal::Float(f64::from_bits(0x7ff8_0000_0000_0001))),
             )],
-        };
-        let negative_zero = Block {
-            children: vec![command_child(
-                "set",
-                vec![("value", RValue::Literal(Literal::Float(-0.0)))],
+        )]);
+        let nan_b = Block::new(vec![command_child(
+            "set",
+            vec![(
+                "value",
+                RValue::Literal(Literal::Float(f64::from_bits(0x7ff8_0000_0000_0010))),
             )],
-        };
-        let nan_a = Block {
-            children: vec![command_child(
-                "set",
-                vec![(
-                    "value",
-                    RValue::Literal(Literal::Float(f64::from_bits(0x7ff8_0000_0000_0001))),
-                )],
-            )],
-        };
-        let nan_b = Block {
-            children: vec![command_child(
-                "set",
-                vec![(
-                    "value",
-                    RValue::Literal(Literal::Float(f64::from_bits(0x7ff8_0000_0000_0010))),
-                )],
-            )],
-        };
+        )]);
 
         assert_eq!(zero.fingerprint(), negative_zero.fingerprint());
         assert_eq!(nan_a.fingerprint(), nan_b.fingerprint());
@@ -686,10 +665,7 @@ mod tests {
     #[cfg(feature = "serde")]
     #[test]
     fn fingerprint_serde_round_trip_uses_lowercase_hex() {
-        let fingerprint = Block {
-            children: vec![text_child("hello")],
-        }
-        .fingerprint();
+        let fingerprint = Block::new(vec![text_child("hello")]).fingerprint();
 
         let serialized = serde_json::to_string(&fingerprint).unwrap();
         let deserialized: BlockFingerprint = serde_json::from_str(&serialized).unwrap();

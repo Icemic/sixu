@@ -44,7 +44,7 @@ impl ExecutionState {
         }
     }
     pub fn next_line(&mut self) -> Option<Child> {
-        let line = self.block.children.get(self.index).cloned();
+        let line = self.block.children().get(self.index).cloned();
         self.index += 1;
         line
     }

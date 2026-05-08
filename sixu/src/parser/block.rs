@@ -22,7 +22,7 @@ pub fn block(input: &str) -> ParseResult<&str, Block> {
     let (input, _) = tag("{").parse(input)?;
     let (input, children) = cut(block_children).parse(input)?;
     let (input, _) = preceded(span0, tag("}")).parse(input)?;
-    Ok((input, Block { children }))
+    Ok((input, Block::new(children)))
 }
 
 fn block_children(mut input: &str) -> ParseResult<&str, Vec<Child>> {
@@ -139,14 +139,31 @@ mod tests {
 
     #[test]
     fn test_block() {
-        assert_eq!(block("{}"), Ok(("", Block { children: vec![] })));
-        assert_eq!(block("{\n}"), Ok(("", Block { children: vec![] })));
+        assert_eq!(block("{}"), Ok(("", Block::new(vec![]))));
+        assert_eq!(block("{\n}"), Ok(("", Block::new(vec![]))));
         assert_eq!(
             block("{\n@command foo=false}"),
             Ok((
                 "",
-                Block {
-                    children: vec![Child {
+                Block::new(vec![Child {
+                    marker: None,
+                    attributes: vec![],
+                    content: ChildContent::CommandLine(CommandLine {
+                        command: "command".to_string(),
+                        arguments: vec![Argument {
+                            name: "foo".to_string(),
+                            value: RValue::Literal(Literal::Boolean(false)),
+                        }],
+                    }),
+                }],)
+            ))
+        );
+        assert_eq!(
+            block("{\n@command foo=false\ntext\n}"),
+            Ok((
+                "",
+                Block::new(vec![
+                    Child {
                         marker: None,
                         attributes: vec![],
                         content: ChildContent::CommandLine(CommandLine {
@@ -156,68 +173,45 @@ mod tests {
                                 value: RValue::Literal(Literal::Boolean(false)),
                             }],
                         }),
-                    }],
-                }
-            ))
-        );
-        assert_eq!(
-            block("{\n@command foo=false\ntext\n}"),
-            Ok((
-                "",
-                Block {
-                    children: vec![
-                        Child {
-                            marker: None,
-                            attributes: vec![],
-                            content: ChildContent::CommandLine(CommandLine {
-                                command: "command".to_string(),
-                                arguments: vec![Argument {
-                                    name: "foo".to_string(),
-                                    value: RValue::Literal(Literal::Boolean(false)),
-                                }],
-                            }),
-                        },
-                        Child {
-                            marker: None,
-                            attributes: vec![],
-                            content: ChildContent::TextLine(
-                                LeadingText::None,
-                                Text::Text("text".to_string()),
-                                TailingText::None,
-                            ),
-                        }
-                    ],
-                }
+                    },
+                    Child {
+                        marker: None,
+                        attributes: vec![],
+                        content: ChildContent::TextLine(
+                            LeadingText::None,
+                            Text::Text("text".to_string()),
+                            TailingText::None,
+                        ),
+                    }
+                ],)
             ))
         );
         assert_eq!(
             block("{\n#command(foo=false)\ntext\n}"),
             Ok((
                 "",
-                Block {
-                    children: vec![
-                        Child {
-                            marker: None,
-                            attributes: vec![],
-                            content: ChildContent::SystemCallLine(SystemCallLine {
-                                command: "command".to_string(),
-                                arguments: vec![Argument {
-                                    name: "foo".to_string(),
-                                    value: RValue::Literal(Literal::Boolean(false)),
-                                }],
-                            }),
-                        },
-                        Child {
-                            marker: None,
-                            attributes: vec![],
-                            content: ChildContent::TextLine(
-                                LeadingText::None,
-                                Text::Text("text".to_string()),
-                                TailingText::None,
-                            ),
-                        }
-                    ],
-                }
+                Block::new(vec![
+                    Child {
+                        marker: None,
+                        attributes: vec![],
+                        content: ChildContent::SystemCallLine(SystemCallLine {
+                            command: "command".to_string(),
+                            arguments: vec![Argument {
+                                name: "foo".to_string(),
+                                value: RValue::Literal(Literal::Boolean(false)),
+                            }],
+                        }),
+                    },
+                    Child {
+                        marker: None,
+                        attributes: vec![],
+                        content: ChildContent::TextLine(
+                            LeadingText::None,
+                            Text::Text("text".to_string()),
+                            TailingText::None,
+                        ),
+                    }
+                ],)
             ))
         );
         // recursive blocks
@@ -225,47 +219,43 @@ mod tests {
             block("{\n@command foo=false\ntext\n{\n@command bar=true\n}\n}"),
             Ok((
                 "",
-                Block {
-                    children: vec![
-                        Child {
+                Block::new(vec![
+                    Child {
+                        marker: None,
+                        attributes: vec![],
+                        content: ChildContent::CommandLine(CommandLine {
+                            command: "command".to_string(),
+                            arguments: vec![Argument {
+                                name: "foo".to_string(),
+                                value: RValue::Literal(Literal::Boolean(false)),
+                            }],
+                        }),
+                    },
+                    Child {
+                        marker: None,
+                        attributes: vec![],
+                        content: ChildContent::TextLine(
+                            LeadingText::None,
+                            Text::Text("text".to_string()),
+                            TailingText::None,
+                        ),
+                    },
+                    Child {
+                        marker: None,
+                        attributes: vec![],
+                        content: ChildContent::Block(Block::new(vec![Child {
                             marker: None,
                             attributes: vec![],
                             content: ChildContent::CommandLine(CommandLine {
                                 command: "command".to_string(),
                                 arguments: vec![Argument {
-                                    name: "foo".to_string(),
-                                    value: RValue::Literal(Literal::Boolean(false)),
+                                    name: "bar".to_string(),
+                                    value: RValue::Literal(Literal::Boolean(true)),
                                 }],
                             }),
-                        },
-                        Child {
-                            marker: None,
-                            attributes: vec![],
-                            content: ChildContent::TextLine(
-                                LeadingText::None,
-                                Text::Text("text".to_string()),
-                                TailingText::None,
-                            ),
-                        },
-                        Child {
-                            marker: None,
-                            attributes: vec![],
-                            content: ChildContent::Block(Block {
-                                children: vec![Child {
-                                    marker: None,
-                                    attributes: vec![],
-                                    content: ChildContent::CommandLine(CommandLine {
-                                        command: "command".to_string(),
-                                        arguments: vec![Argument {
-                                            name: "bar".to_string(),
-                                            value: RValue::Literal(Literal::Boolean(true)),
-                                        }],
-                                    }),
-                                }],
-                            }),
-                        }
-                    ],
-                }
+                        }],)),
+                    }
+                ],)
             ))
         );
     }
@@ -276,21 +266,19 @@ mod tests {
             block("{\n//#marker id=Labc123\n@command foo=false\n}"),
             Ok((
                 "",
-                Block {
-                    children: vec![Child {
-                        marker: Some(LineMarker {
-                            id: "Labc123".to_string(),
-                        }),
-                        attributes: vec![],
-                        content: ChildContent::CommandLine(CommandLine {
-                            command: "command".to_string(),
-                            arguments: vec![Argument {
-                                name: "foo".to_string(),
-                                value: RValue::Literal(Literal::Boolean(false)),
-                            }],
-                        }),
-                    }],
-                }
+                Block::new(vec![Child {
+                    marker: Some(LineMarker {
+                        id: "Labc123".to_string(),
+                    }),
+                    attributes: vec![],
+                    content: ChildContent::CommandLine(CommandLine {
+                        command: "command".to_string(),
+                        arguments: vec![Argument {
+                            name: "foo".to_string(),
+                            value: RValue::Literal(Literal::Boolean(false)),
+                        }],
+                    }),
+                }],)
             ))
         );
     }
@@ -301,19 +289,17 @@ mod tests {
             block("{\n//#marker id=Labc123\n// comment\ntext\n}"),
             Ok((
                 "",
-                Block {
-                    children: vec![Child {
-                        marker: Some(LineMarker {
-                            id: "Labc123".to_string(),
-                        }),
-                        attributes: vec![],
-                        content: ChildContent::TextLine(
-                            LeadingText::None,
-                            Text::Text("text".to_string()),
-                            TailingText::None,
-                        ),
-                    }],
-                }
+                Block::new(vec![Child {
+                    marker: Some(LineMarker {
+                        id: "Labc123".to_string(),
+                    }),
+                    attributes: vec![],
+                    content: ChildContent::TextLine(
+                        LeadingText::None,
+                        Text::Text("text".to_string()),
+                        TailingText::None,
+                    ),
+                }],)
             ))
         );
     }
@@ -337,7 +323,7 @@ mod tests {
         .1;
 
         let markers = parsed
-            .children
+            .children()
             .iter()
             .map(|child| child.marker.as_ref().map(|marker| marker.id.as_str()))
             .collect::<Vec<_>>();
@@ -350,14 +336,12 @@ mod tests {
 
     #[test]
     fn test_block_marker_directive_survives_after_empty_arg_systemcall() {
-        let parsed = block(
-            "{\n//#marker id=L1\n#finish\n//#marker id=L2\n\"after\"\n}",
-        )
-        .unwrap()
-        .1;
+        let parsed = block("{\n//#marker id=L1\n#finish\n//#marker id=L2\n\"after\"\n}")
+            .unwrap()
+            .1;
 
         let markers = parsed
-            .children
+            .children()
             .iter()
             .map(|child| child.marker.as_ref().map(|marker| marker.id.as_str()))
             .collect::<Vec<_>>();
@@ -474,20 +458,18 @@ mod tests {
             block.parse(input),
             Ok((
                 "",
-                Block {
-                    children: vec![
-                        Child {
-                            marker: None,
-                            attributes: vec![],
-                            content: ChildContent::EmbeddedCode("let a = 1;".to_string()),
-                        },
-                        Child {
-                            marker: None,
-                            attributes: vec![],
-                            content: ChildContent::EmbeddedCode("let b = 2;".to_string()),
-                        }
-                    ],
-                }
+                Block::new(vec![
+                    Child {
+                        marker: None,
+                        attributes: vec![],
+                        content: ChildContent::EmbeddedCode("let a = 1;".to_string()),
+                    },
+                    Child {
+                        marker: None,
+                        attributes: vec![],
+                        content: ChildContent::EmbeddedCode("let b = 2;".to_string()),
+                    }
+                ],)
             ))
         );
     }
@@ -501,16 +483,14 @@ mod tests {
             block.parse(input),
             Ok((
                 "",
-                Block {
-                    children: vec![Child {
-                        marker: None,
-                        attributes: vec![Attribute {
-                            keyword: "condition".to_string(),
-                            condition: Some("a > b".to_string()),
-                        }],
-                        content: ChildContent::EmbeddedCode("let x = a > b ? a : b;".to_string()),
+                Block::new(vec![Child {
+                    marker: None,
+                    attributes: vec![Attribute {
+                        keyword: "condition".to_string(),
+                        condition: Some("a > b".to_string()),
                     }],
-                }
+                    content: ChildContent::EmbeddedCode("let x = a > b ? a : b;".to_string()),
+                }],)
             ))
         );
     }
@@ -523,42 +503,40 @@ mod tests {
             block.parse(input),
             Ok((
                 "",
-                Block {
-                    children: vec![
-                        Child {
-                            marker: None,
-                            attributes: vec![],
-                            content: ChildContent::TextLine(
-                                LeadingText::None,
-                                Text::TemplateLiteral(TemplateLiteral {
-                                    parts: vec![
-                                        TemplateLiteralPart::Text("hello \n".to_string()),
-                                        TemplateLiteralPart::Value(RValue::Variable(Variable {
-                                            chain: vec!["world".to_string()],
-                                        })),
-                                        TemplateLiteralPart::Text(" ".to_string()),
-                                        TemplateLiteralPart::Value(RValue::Literal(
-                                            Literal::Integer(123)
-                                        )),
-                                        TemplateLiteralPart::Text(" world".to_string()),
-                                    ],
-                                }),
-                                TailingText::None,
-                            ),
-                        },
-                        Child {
-                            marker: None,
-                            attributes: vec![],
-                            content: ChildContent::CommandLine(CommandLine {
-                                command: "command".to_string(),
-                                arguments: vec![Argument {
-                                    name: "foo".to_string(),
-                                    value: RValue::Literal(Literal::Boolean(false)),
-                                }],
+                Block::new(vec![
+                    Child {
+                        marker: None,
+                        attributes: vec![],
+                        content: ChildContent::TextLine(
+                            LeadingText::None,
+                            Text::TemplateLiteral(TemplateLiteral {
+                                parts: vec![
+                                    TemplateLiteralPart::Text("hello \n".to_string()),
+                                    TemplateLiteralPart::Value(RValue::Variable(Variable {
+                                        chain: vec!["world".to_string()],
+                                    })),
+                                    TemplateLiteralPart::Text(" ".to_string()),
+                                    TemplateLiteralPart::Value(RValue::Literal(Literal::Integer(
+                                        123
+                                    ))),
+                                    TemplateLiteralPart::Text(" world".to_string()),
+                                ],
                             }),
-                        }
-                    ],
-                }
+                            TailingText::None,
+                        ),
+                    },
+                    Child {
+                        marker: None,
+                        attributes: vec![],
+                        content: ChildContent::CommandLine(CommandLine {
+                            command: "command".to_string(),
+                            arguments: vec![Argument {
+                                name: "foo".to_string(),
+                                value: RValue::Literal(Literal::Boolean(false)),
+                            }],
+                        }),
+                    }
+                ],)
             ))
         );
     }
@@ -571,20 +549,18 @@ mod tests {
             block.parse(input),
             Ok((
                 "",
-                Block {
-                    children: vec![Child {
-                        marker: None,
-                        attributes: vec![Attribute {
-                            keyword: "attribute_name".to_string(),
-                            condition: Some("a = 123".to_string()),
-                        }],
-                        content: ChildContent::TextLine(
-                            LeadingText::None,
-                            Text::Text("text".to_string()),
-                            TailingText::None,
-                        ),
+                Block::new(vec![Child {
+                    marker: None,
+                    attributes: vec![Attribute {
+                        keyword: "attribute_name".to_string(),
+                        condition: Some("a = 123".to_string()),
                     }],
-                }
+                    content: ChildContent::TextLine(
+                        LeadingText::None,
+                        Text::Text("text".to_string()),
+                        TailingText::None,
+                    ),
+                }],)
             ))
         );
     }
@@ -598,26 +574,24 @@ mod tests {
             block.parse(input),
             Ok((
                 "",
-                Block {
-                    children: vec![Child {
-                        marker: None,
-                        attributes: vec![
-                            Attribute {
-                                keyword: "attribute_name".to_string(),
-                                condition: Some("a = 123".to_string()),
-                            },
-                            Attribute {
-                                keyword: "attribute_name".to_string(),
-                                condition: Some("a && (b + 1) > '])'.length".to_string()),
-                            }
-                        ],
-                        content: ChildContent::TextLine(
-                            LeadingText::None,
-                            Text::Text("text".to_string()),
-                            TailingText::None,
-                        ),
-                    }],
-                }
+                Block::new(vec![Child {
+                    marker: None,
+                    attributes: vec![
+                        Attribute {
+                            keyword: "attribute_name".to_string(),
+                            condition: Some("a = 123".to_string()),
+                        },
+                        Attribute {
+                            keyword: "attribute_name".to_string(),
+                            condition: Some("a && (b + 1) > '])'.length".to_string()),
+                        }
+                    ],
+                    content: ChildContent::TextLine(
+                        LeadingText::None,
+                        Text::Text("text".to_string()),
+                        TailingText::None,
+                    ),
+                }],)
             ))
         );
     }
@@ -629,26 +603,22 @@ mod tests {
             block.parse(input),
             Ok((
                 "",
-                Block {
-                    children: vec![Child {
-                        marker: None,
-                        attributes: vec![Attribute {
-                            keyword: "cond".to_string(),
-                            condition: Some("x > 0".to_string()),
-                        }],
-                        content: ChildContent::Block(Block {
-                            children: vec![Child {
-                                marker: None,
-                                attributes: vec![],
-                                content: ChildContent::TextLine(
-                                    LeadingText::None,
-                                    Text::Text("text".to_string()),
-                                    TailingText::None,
-                                ),
-                            }],
-                        }),
+                Block::new(vec![Child {
+                    marker: None,
+                    attributes: vec![Attribute {
+                        keyword: "cond".to_string(),
+                        condition: Some("x > 0".to_string()),
                     }],
-                }
+                    content: ChildContent::Block(Block::new(vec![Child {
+                        marker: None,
+                        attributes: vec![],
+                        content: ChildContent::TextLine(
+                            LeadingText::None,
+                            Text::Text("text".to_string()),
+                            TailingText::None,
+                        ),
+                    }])),
+                }],)
             ))
         );
     }
@@ -660,20 +630,18 @@ mod tests {
             block.parse(input),
             Ok((
                 "",
-                Block {
-                    children: vec![Child {
-                        marker: None,
-                        attributes: vec![Attribute {
-                            keyword: "if".to_string(),
-                            condition: Some("save.x = 1".to_string()),
-                        }],
-                        content: ChildContent::TextLine(
-                            LeadingText::None,
-                            Text::Text("some text".to_string()),
-                            TailingText::None,
-                        ),
+                Block::new(vec![Child {
+                    marker: None,
+                    attributes: vec![Attribute {
+                        keyword: "if".to_string(),
+                        condition: Some("save.x = 1".to_string()),
                     }],
-                }
+                    content: ChildContent::TextLine(
+                        LeadingText::None,
+                        Text::Text("some text".to_string()),
+                        TailingText::None,
+                    ),
+                }],)
             ))
         );
     }
@@ -685,28 +653,24 @@ mod tests {
             block.parse(input),
             Ok((
                 "",
-                Block {
-                    children: vec![Child {
+                Block::new(vec![Child {
+                    marker: None,
+                    attributes: vec![Attribute {
+                        keyword: "while".to_string(),
+                        condition: Some("counter < 3".to_string()),
+                    }],
+                    content: ChildContent::Block(Block::new(vec![Child {
                         marker: None,
-                        attributes: vec![Attribute {
-                            keyword: "while".to_string(),
-                            condition: Some("counter < 3".to_string()),
-                        }],
-                        content: ChildContent::Block(Block {
-                            children: vec![Child {
-                                marker: None,
-                                attributes: vec![],
-                                content: ChildContent::CommandLine(CommandLine {
-                                    command: "cmd".to_string(),
-                                    arguments: vec![Argument {
-                                        name: "arg".to_string(),
-                                        value: RValue::Literal(Literal::Integer(1)),
-                                    }],
-                                }),
+                        attributes: vec![],
+                        content: ChildContent::CommandLine(CommandLine {
+                            command: "cmd".to_string(),
+                            arguments: vec![Argument {
+                                name: "arg".to_string(),
+                                value: RValue::Literal(Literal::Integer(1)),
                             }],
                         }),
-                    }],
-                }
+                    }],)),
+                }],)
             ))
         );
     }
@@ -718,38 +682,34 @@ mod tests {
             block.parse(input),
             Ok((
                 "",
-                Block {
-                    children: vec![Child {
-                        marker: None,
-                        attributes: vec![Attribute {
-                            keyword: "loop".to_string(),
-                            condition: None,
-                        }],
-                        content: ChildContent::Block(Block {
-                            children: vec![
-                                Child {
-                                    marker: None,
-                                    attributes: vec![],
-                                    content: ChildContent::CommandLine(CommandLine {
-                                        command: "cmd".to_string(),
-                                        arguments: vec![Argument {
-                                            name: "arg".to_string(),
-                                            value: RValue::Literal(Literal::Integer(1)),
-                                        }],
-                                    }),
-                                },
-                                Child {
-                                    marker: None,
-                                    attributes: vec![],
-                                    content: ChildContent::SystemCallLine(SystemCallLine {
-                                        command: "break".to_string(),
-                                        arguments: vec![],
-                                    }),
-                                },
-                            ],
-                        }),
+                Block::new(vec![Child {
+                    marker: None,
+                    attributes: vec![Attribute {
+                        keyword: "loop".to_string(),
+                        condition: None,
                     }],
-                }
+                    content: ChildContent::Block(Block::new(vec![
+                        Child {
+                            marker: None,
+                            attributes: vec![],
+                            content: ChildContent::CommandLine(CommandLine {
+                                command: "cmd".to_string(),
+                                arguments: vec![Argument {
+                                    name: "arg".to_string(),
+                                    value: RValue::Literal(Literal::Integer(1)),
+                                }],
+                            }),
+                        },
+                        Child {
+                            marker: None,
+                            attributes: vec![],
+                            content: ChildContent::SystemCallLine(SystemCallLine {
+                                command: "break".to_string(),
+                                arguments: vec![],
+                            }),
+                        },
+                    ],)),
+                }],)
             ))
         );
     }
@@ -773,8 +733,8 @@ mod tests {
             "Should parse complex.sixu attribute example"
         );
         let (_, parsed_block) = result.unwrap();
-        assert_eq!(parsed_block.children.len(), 1);
-        let child = &parsed_block.children[0];
+        assert_eq!(parsed_block.children().len(), 1);
+        let child = &parsed_block.children()[0];
         assert_eq!(child.attributes.len(), 3);
         assert_eq!(child.attributes[0].keyword, "if");
         assert_eq!(child.attributes[1].keyword, "if");

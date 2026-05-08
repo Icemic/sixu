@@ -96,16 +96,14 @@ mod tests {
                 Paragraph {
                     name: "a".to_string(),
                     parameters: vec![],
-                    block: Block {
-                        children: vec![Child {
-                            marker: None,
-                            attributes: vec![],
-                            content: ChildContent::CommandLine(CommandLine {
-                                command: "command".to_string(),
-                                arguments: vec![],
-                            }),
-                        }]
-                    },
+                    block: Block::new(vec![Child {
+                        marker: None,
+                        attributes: vec![],
+                        content: ChildContent::CommandLine(CommandLine {
+                            command: "command".to_string(),
+                            arguments: vec![],
+                        }),
+                    }]),
                 }
             ))
         );

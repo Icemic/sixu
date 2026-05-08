@@ -146,7 +146,7 @@ impl<E: RuntimeExecutor> Runtime<E> {
     {
         let paragraph = self.get_paragraph(story_name, paragraph_name)?;
 
-        for child in &paragraph.block.children {
+        for child in paragraph.block.children() {
             let is_continue = callback(&child.content)?;
             if !is_continue {
                 break;
