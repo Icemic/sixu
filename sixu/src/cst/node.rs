@@ -520,7 +520,7 @@ impl CstBlock {
             return Err(anyhow::anyhow!("dangling marker directive at end of block").into());
         }
 
-        Ok(format::Block { children })
+        Ok(format::Block::new(children))
     }
 }
 
