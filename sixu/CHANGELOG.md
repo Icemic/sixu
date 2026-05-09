@@ -5,6 +5,54 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## v0.13.0 (2026-05-09)
+
+### New Features
+
+ - <csr-id-dc381cbad393239155e052abf59fa13dab40668b/> encapsulate block children and cache fingerprints
+   Make block children private with a constructor and accessor, then add per-block fingerprint caching via RefCell to avoid repeated recomputation.
+   Expose fingerprint writer/encode internals at crate scope and update parser/runtime/tests to use the new block API.
+ - <csr-id-cb92b4b8d5ed2b6b6dc3d1d96d49f7b96363aa41/> add marker handling in process_child and executor
+ - <csr-id-384de5b2008f194252e6e2923ebeb547c99f8420/> implement marker directive for binding child nodes
+
+### Bug Fixes
+
+ - <csr-id-f8066fcd2214674f670abc01636b84be9ed39227/> update Block formatting to use new constructor
+ - <csr-id-16f9a55c7622e62994485ed2af86d384ba1b060c/> replace RefCell with OnceCell for fingerprint caching in Block
+ - <csr-id-4e87bb460862f5c478ea375771b08e6f955b9b55/> fix marker emission timing in conditional execution
+ - <csr-id-e9c2ac21119cd04c8cab2e02739f7f2fd0ba83c0/> update expected output for text_line tests to include leading newlines
+ - <csr-id-1ac4bd0ed761ebfc887e28d79daf0ecbc2c8316a/> simplify process_child by removing emit_marker parameter
+ - <csr-id-6c5fd7e188515596db6b9c7054fdba1d69aba53a/> preserve markers across empty-arg boundaries
+   Adjust parser whitespace handling so marker directives survive inline text and empty-argument command boundaries.
+   Add regression tests covering block parsing and runtime marker preservation across text, empty arg commands, and system calls.
+
+### Commit Statistics
+
+<csr-read-only-do-not-edit/>
+
+ - 9 commits contributed to the release over the course of 8 calendar days.
+ - 28 days passed between releases.
+ - 9 commits were understood as [conventional](https://www.conventionalcommits.org).
+ - 0 issues like '(#ID)' were seen in commit messages
+
+### Commit Details
+
+<csr-read-only-do-not-edit/>
+
+<details><summary>view details</summary>
+
+ * **Uncategorized**
+    - Update Block formatting to use new constructor ([`f8066fc`](https://github.com/Icemic/sixu/commit/f8066fcd2214674f670abc01636b84be9ed39227))
+    - Replace RefCell with OnceCell for fingerprint caching in Block ([`16f9a55`](https://github.com/Icemic/sixu/commit/16f9a55c7622e62994485ed2af86d384ba1b060c))
+    - Fix marker emission timing in conditional execution ([`4e87bb4`](https://github.com/Icemic/sixu/commit/4e87bb460862f5c478ea375771b08e6f955b9b55))
+    - Update expected output for text_line tests to include leading newlines ([`e9c2ac2`](https://github.com/Icemic/sixu/commit/e9c2ac21119cd04c8cab2e02739f7f2fd0ba83c0))
+    - Encapsulate block children and cache fingerprints ([`dc381cb`](https://github.com/Icemic/sixu/commit/dc381cbad393239155e052abf59fa13dab40668b))
+    - Simplify process_child by removing emit_marker parameter ([`1ac4bd0`](https://github.com/Icemic/sixu/commit/1ac4bd0ed761ebfc887e28d79daf0ecbc2c8316a))
+    - Preserve markers across empty-arg boundaries ([`6c5fd7e`](https://github.com/Icemic/sixu/commit/6c5fd7e188515596db6b9c7054fdba1d69aba53a))
+    - Add marker handling in process_child and executor ([`cb92b4b`](https://github.com/Icemic/sixu/commit/cb92b4b8d5ed2b6b6dc3d1d96d49f7b96363aa41))
+    - Implement marker directive for binding child nodes ([`384de5b`](https://github.com/Icemic/sixu/commit/384de5b2008f194252e6e2923ebeb547c99f8420))
+</details>
+
 ## v0.12.0 (2026-04-11)
 
 ### New Features
@@ -19,7 +67,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <csr-read-only-do-not-edit/>
 
- - 2 commits contributed to the release.
+ - 3 commits contributed to the release.
  - 2 commits were understood as [conventional](https://www.conventionalcommits.org).
  - 0 issues like '(#ID)' were seen in commit messages
 
@@ -30,6 +78,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 <details><summary>view details</summary>
 
  * **Uncategorized**
+    - Release sixu v0.12.0 ([`60a5be7`](https://github.com/Icemic/sixu/commit/60a5be7fee4b12848547982cb13cccb0ca3671ba))
     - Update ts-rs and ts-rs-macros versions to 12.0.1 in Cargo files ([`045cca9`](https://github.com/Icemic/sixu/commit/045cca905f4d97b91fd9b80a53d4743b883184b2))
     - Add serde camelCase renaming for various structs and enums in format.rs ([`ff38195`](https://github.com/Icemic/sixu/commit/ff38195a138b466496402a513c028f25b2bf4f26))
 </details>
