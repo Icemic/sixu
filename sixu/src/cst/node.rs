@@ -468,7 +468,12 @@ impl CstBlock {
                             return Err(anyhow::anyhow!("duplicate marker directive before child").into());
                         }
                         pending_marker = Some(marker);
+                    } else {
+                        children.push(ast_comment_child(format::CommentKind::Line, content));
                     }
+                }
+                CstNode::Trivia(CstTrivia::BlockComment { content, .. }) => {
+                    children.push(ast_comment_child(format::CommentKind::Block, content));
                 }
                 CstNode::Command(cmd) => {
                     children.push(format::Child {
@@ -504,7 +509,7 @@ impl CstBlock {
                         content: format::ChildContent::EmbeddedCode(ec.code.clone()),
                     });
                 }
-                CstNode::Trivia(_) => {
+                CstNode::Trivia(CstTrivia::Whitespace { .. }) => {
                     // Trivia 不转换到 AST
                 }
                 CstNode::Paragraph(_) => {
@@ -521,6 +526,17 @@ impl CstBlock {
         }
 
         Ok(format::Block::new(children))
+    }
+}
+
+fn ast_comment_child(kind: format::CommentKind, content: &str) -> format::Child {
+    format::Child {
+        marker: None,
+        attributes: vec![],
+        content: format::ChildContent::Comment(format::Comment {
+            kind,
+            content: content.to_string(),
+        }),
     }
 }
 

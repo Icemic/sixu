@@ -1,19 +1,19 @@
 use nom::branch::alt;
 use nom::bytes::complete::*;
 use nom::character::complete::{anychar, line_ending, multispace1};
-use nom::combinator::{cut, opt};
+use nom::combinator::{cut, opt, value};
 use nom::error::ParseError;
 use nom::multi::{many0, many_till};
 use nom::sequence::*;
 use nom::Parser;
 use nom_language::error::VerboseError;
 
-use crate::format::{Child, ChildContent, LineMarker};
+use crate::format::{Attribute, Child, ChildContent, LineMarker};
 use crate::result::ParseResult;
 
 use super::attribute::{attribute, balanced_delimiters};
 use super::command_line::command_line;
-use super::comment::{comment, marker_directive_comment, span0, span0_inline};
+use super::comment::{comment_node, marker_directive_comment, span0_inline};
 use super::systemcall_line::systemcall_line;
 use super::text::text_line;
 use super::Block;
@@ -21,64 +21,29 @@ use super::Block;
 pub fn block(input: &str) -> ParseResult<&str, Block> {
     let (input, _) = tag("{").parse(input)?;
     let (input, children) = cut(block_children).parse(input)?;
-    let (input, _) = preceded(span0, tag("}")).parse(input)?;
+    let (input, _) = preceded(block_spacing, tag("}")).parse(input)?;
     Ok((input, Block::new(children)))
 }
 
 fn block_children(mut input: &str) -> ParseResult<&str, Vec<Child>> {
     let mut children = Vec::new();
+    let mut marker: Option<LineMarker> = None;
+    let mut attributes: Vec<Attribute> = Vec::new();
 
     loop {
-        let (next_input, marker) = leading_child_trivia(input)?;
+        let (next_input, _) = block_spacing(input)?;
+        input = next_input;
 
-        if let Ok((_, _)) = tag::<&str, &str, VerboseError<&str>>("}").parse(next_input) {
-            if marker.is_some() {
+        if let Ok((_, _)) = tag::<&str, &str, VerboseError<&str>>("}").parse(input) {
+            if marker.is_some() || !attributes.is_empty() {
                 return Err(nom::Err::Error(VerboseError::from_error_kind(
-                    next_input,
+                    input,
                     nom::error::ErrorKind::Tag,
                 )));
             }
-            return Ok((next_input, children));
+            return Ok((input, children));
         }
 
-        let (after_child, mut child) = child(next_input)?;
-        child.marker = marker;
-        children.push(child);
-        input = after_child;
-    }
-}
-
-pub fn block_child(input: &str) -> ParseResult<&str, ChildContent> {
-    let (input, block) = block.parse(input)?;
-    Ok((input, ChildContent::Block(block)))
-}
-
-pub fn child(input: &str) -> ParseResult<&str, Child> {
-    let (input, _) = span0.parse(input)?;
-    let (input, attributes) = many0(attribute).parse(input)?;
-    let (input, _) = span0.parse(input)?; // Ensure whitespace between attributes and content is handled correctly
-    let (input, child) = alt((
-        embedded_code,
-        block_child,
-        command_line,
-        systemcall_line,
-        text_line,
-    ))
-    .parse(input)?;
-    Ok((
-        input,
-        Child {
-            marker: None,
-            attributes,
-            content: child,
-        },
-    ))
-}
-
-fn leading_child_trivia(mut input: &str) -> ParseResult<&str, Option<LineMarker>> {
-    let mut marker = None;
-
-    loop {
         if let Ok((next_input, next_marker)) = marker_directive_comment(input) {
             if marker.is_some() {
                 return Err(nom::Err::Error(VerboseError::from_error_kind(
@@ -91,18 +56,43 @@ fn leading_child_trivia(mut input: &str) -> ParseResult<&str, Option<LineMarker>
             continue;
         }
 
-        if let Ok((next_input, _)) = comment(input) {
+        if let Ok((next_input, comment)) = comment_node(input) {
+            children.push(Child {
+                marker: None,
+                attributes: vec![],
+                content: ChildContent::Comment(comment),
+            });
             input = next_input;
             continue;
         }
 
-        if let Ok((next_input, _)) = multispace1::<&str, VerboseError<&str>>(input) {
+        if let Ok((next_input, next_attribute)) = attribute(input) {
+            attributes.push(next_attribute);
             input = next_input;
             continue;
         }
 
-        return Ok((input, marker));
+        let (after_child, child) = semantic_child(input)?;
+        children.push(Child {
+            marker: marker.take(),
+            attributes: std::mem::take(&mut attributes),
+            content: child,
+        });
+        input = after_child;
     }
+}
+
+fn block_spacing(input: &str) -> ParseResult<&str, ()> {
+    value((), many0(multispace1)).parse(input)
+}
+
+pub fn block_child(input: &str) -> ParseResult<&str, ChildContent> {
+    let (input, block) = block.parse(input)?;
+    Ok((input, ChildContent::Block(block)))
+}
+
+fn semantic_child(input: &str) -> ParseResult<&str, ChildContent> {
+    alt((embedded_code, block_child, command_line, systemcall_line, text_line)).parse(input)
 }
 
 pub fn embedded_code(input: &str) -> ParseResult<&str, ChildContent> {
@@ -131,7 +121,8 @@ pub fn embedded_code_hash(input: &str) -> ParseResult<&str, ChildContent> {
 #[cfg(test)]
 mod tests {
     use crate::format::{
-        Argument, Attribute, ChildContent, CommandLine, LeadingText, Literal, RValue,
+        Argument, Attribute, ChildContent, Comment, CommentKind, CommandLine, LeadingText,
+        Literal, RValue,
         SystemCallLine, TailingText, TemplateLiteral, TemplateLiteralPart, Text, Variable,
     };
 
@@ -289,17 +280,63 @@ mod tests {
             block("{\n//#marker id=Labc123\n// comment\ntext\n}"),
             Ok((
                 "",
-                Block::new(vec![Child {
-                    marker: Some(LineMarker {
-                        id: "Labc123".to_string(),
-                    }),
-                    attributes: vec![],
-                    content: ChildContent::TextLine(
-                        LeadingText::None,
-                        Text::Text("text".to_string()),
-                        TailingText::None,
-                    ),
-                }],)
+                Block::new(vec![
+                    Child {
+                        marker: None,
+                        attributes: vec![],
+                        content: ChildContent::Comment(Comment {
+                            kind: CommentKind::Line,
+                            content: " comment".to_string(),
+                        }),
+                    },
+                    Child {
+                        marker: Some(LineMarker {
+                            id: "Labc123".to_string(),
+                        }),
+                        attributes: vec![],
+                        content: ChildContent::TextLine(
+                            LeadingText::None,
+                            Text::Text("text".to_string()),
+                            TailingText::None,
+                        ),
+                    }
+                ],)
+            ))
+        );
+    }
+
+    #[test]
+    fn test_block_preserves_comments_as_children() {
+        assert_eq!(
+            block("{\n// line\n/* block */\n@command\n}"),
+            Ok((
+                "",
+                Block::new(vec![
+                    Child {
+                        marker: None,
+                        attributes: vec![],
+                        content: ChildContent::Comment(Comment {
+                            kind: CommentKind::Line,
+                            content: " line".to_string(),
+                        }),
+                    },
+                    Child {
+                        marker: None,
+                        attributes: vec![],
+                        content: ChildContent::Comment(Comment {
+                            kind: CommentKind::Block,
+                            content: " block ".to_string(),
+                        }),
+                    },
+                    Child {
+                        marker: None,
+                        attributes: vec![],
+                        content: ChildContent::CommandLine(CommandLine {
+                            command: "command".to_string(),
+                            arguments: vec![],
+                        }),
+                    }
+                ],)
             ))
         );
     }

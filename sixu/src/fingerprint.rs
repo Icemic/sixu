@@ -5,8 +5,8 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use twox_hash::XxHash3_128;
 
 use crate::format::{
-    Argument, Attribute, Block, Child, ChildContent, CommandLine, LeadingText, Literal, RValue,
-    SystemCallLine, TailingText, TemplateLiteral, TemplateLiteralPart, Text, Variable,
+    Argument, Attribute, Block, Child, ChildContent, CommandLine, LeadingText, Literal,
+    RValue, SystemCallLine, TailingText, TemplateLiteral, TemplateLiteralPart, Text, Variable,
 };
 
 const VERSION_PREFIX: &str = "sixu:block-fingerprint:v1";
@@ -206,9 +206,14 @@ pub(crate) trait FingerprintEncode {
 impl FingerprintEncode for Block {
     fn encode(&self, writer: &mut FingerprintWriter) {
         writer.write_tag(Tag::Block);
-        writer.write_len(self.children().len());
+        let semantic_children = self
+            .children()
+            .iter()
+            .filter(|child| !child.content.is_comment())
+            .collect::<Vec<_>>();
+        writer.write_len(semantic_children.len());
 
-        for child in self.children() {
+        for child in semantic_children {
             child.encode(writer);
         }
     }
@@ -249,6 +254,7 @@ impl FingerprintEncode for ChildContent {
                 writer.write_tag(Tag::ChildContentBlock);
                 block.encode(writer);
             }
+            Self::Comment(_) => {}
             Self::TextLine(leading, text, tailing) => {
                 writer.write_tag(Tag::ChildContentTextLine);
                 leading.encode(writer);
@@ -486,7 +492,7 @@ mod tests {
     use super::*;
     use std::collections::HashMap;
 
-    use crate::format::{CommandLine, RValue};
+    use crate::format::{CommandLine, Comment, CommentKind, RValue};
 
     fn text_child(value: &str) -> Child {
         Child {
@@ -513,6 +519,17 @@ mod tests {
                         value,
                     })
                     .collect(),
+            }),
+        }
+    }
+
+    fn comment_child(kind: CommentKind, content: &str) -> Child {
+        Child {
+            marker: None,
+            attributes: Vec::new(),
+            content: ChildContent::Comment(Comment {
+                kind,
+                content: content.to_string(),
             }),
         }
     }
@@ -660,6 +677,23 @@ mod tests {
 
         assert_eq!(zero.fingerprint(), negative_zero.fingerprint());
         assert_eq!(nan_a.fingerprint(), nan_b.fingerprint());
+    }
+
+    #[test]
+    fn fingerprint_ignores_comments() {
+        let without_comments = Block::new(vec![text_child("hello")]);
+        let with_comments = Block::new(vec![
+            comment_child(CommentKind::Line, " line"),
+            text_child("hello"),
+            comment_child(CommentKind::Block, " block "),
+        ]);
+        let with_other_comments = Block::new(vec![
+            comment_child(CommentKind::Line, " other"),
+            text_child("hello"),
+        ]);
+
+        assert_eq!(without_comments.fingerprint(), with_comments.fingerprint());
+        assert_eq!(with_comments.fingerprint(), with_other_comments.fingerprint());
     }
 
     #[cfg(feature = "serde")]

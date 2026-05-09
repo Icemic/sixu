@@ -7,7 +7,7 @@ use nom::multi::*;
 use nom::sequence::*;
 use nom::Parser;
 
-use crate::format::LineMarker;
+use crate::format::{Comment, CommentKind, LineMarker};
 use crate::result::ParseResult;
 
 /// parse comment like `// C++/EOL-style comments`
@@ -15,9 +15,21 @@ pub fn comment(input: &str) -> ParseResult<&str, &str> {
     alt((comment_single, comment_multi)).parse(input)
 }
 
+pub fn comment_node(input: &str) -> ParseResult<&str, Comment> {
+    alt((comment_single_node, comment_multi_node)).parse(input)
+}
+
 /// parse comment like `// C++/EOL-style comments`
 pub fn comment_single(input: &str) -> ParseResult<&str, &str> {
     preceded(tag("//"), cut(is_not("\r\n"))).parse(input)
+}
+
+pub fn comment_single_node(input: &str) -> ParseResult<&str, Comment> {
+    map(comment_single, |content| Comment {
+        kind: CommentKind::Line,
+        content: content.to_string(),
+    })
+    .parse(input)
 }
 
 pub fn marker_directive_comment(input: &str) -> ParseResult<&str, LineMarker> {
@@ -44,6 +56,14 @@ pub fn marker_directive_comment(input: &str) -> ParseResult<&str, LineMarker> {
 */
 pub fn comment_multi(input: &str) -> ParseResult<&str, &str> {
     delimited(tag("/*"), take_until("*/"), tag("*/")).parse(input)
+}
+
+pub fn comment_multi_node(input: &str) -> ParseResult<&str, Comment> {
+    map(comment_multi, |content| Comment {
+        kind: CommentKind::Block,
+        content: content.to_string(),
+    })
+    .parse(input)
 }
 
 /// match contiguous comments or whitespaces, which can be multiple lines
@@ -101,6 +121,30 @@ mod tests {
             Ok(("", " comment \n * next "))
         );
         assert_eq!(comment_multi("/* \n */"), Ok(("", " \n ")));
+    }
+
+    #[test]
+    fn test_comment_node() {
+        assert_eq!(
+            comment_node("// comment"),
+            Ok((
+                "",
+                Comment {
+                    kind: CommentKind::Line,
+                    content: " comment".to_string(),
+                },
+            ))
+        );
+        assert_eq!(
+            comment_node("/* comment */"),
+            Ok((
+                "",
+                Comment {
+                    kind: CommentKind::Block,
+                    content: " comment ".to_string(),
+                },
+            ))
+        );
     }
 
     #[test]

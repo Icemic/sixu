@@ -346,6 +346,22 @@ impl LineMarker {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
+pub enum CommentKind {
+    Line,
+    Block,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
+pub struct Comment {
+    pub kind: CommentKind,
+    pub content: String,
+}
+
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
@@ -363,10 +379,17 @@ pub struct Child {
 )]
 pub enum ChildContent {
     Block(Block),
+    Comment(Comment),
     TextLine(LeadingText, Text, TailingText),
     CommandLine(CommandLine),
     SystemCallLine(SystemCallLine),
     EmbeddedCode(String),
+}
+
+impl ChildContent {
+    pub fn is_comment(&self) -> bool {
+        matches!(self, Self::Comment(_))
+    }
 }
 
 #[derive(Debug, Clone, PartialEq)]

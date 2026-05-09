@@ -147,6 +147,9 @@ impl<E: RuntimeExecutor> Runtime<E> {
         let paragraph = self.get_paragraph(story_name, paragraph_name)?;
 
         for child in paragraph.block.children() {
+            if child.content.is_comment() {
+                continue;
+            }
             let is_continue = callback(&child.content)?;
             if !is_continue {
                 break;
@@ -348,6 +351,10 @@ impl<E: RuntimeExecutor> Runtime<E> {
     /// Process a single child (attributes + content).
     /// Called both for fresh children and when resuming after condition evaluation.
     fn process_child(&mut self, child: Child) -> Result<Option<StepResult>> {
+        if child.content.is_comment() {
+            return Ok(None);
+        }
+
         let mut is_loop = false;
         let marker = child.marker.clone();
         // Tracks whether the marker has already been emitted (e.g. before yielding NeedsCondition),
@@ -505,6 +512,7 @@ impl<E: RuntimeExecutor> Runtime<E> {
                     return Ok(Some(StepResult::NeedsScript(script)));
                 }
             }
+            ChildContent::Comment(_) => true,
         };
 
         if !marker_emitted {
