@@ -42,9 +42,9 @@
 //   `这是一行${embed_str}文本` // 这是一行测试文本
 // }
 
-#call(paragraphA, name = "def")
+#call(paragraph="paragraphA", name = "def")
 // 支持另一种写法
-#call paragraphA name = "def"
+#call paragraph="paragraphA" name = "def"
 sfssdfdsafdsdsfds
 
 // 这是一行普通文本，不会进行转义
@@ -60,7 +60,7 @@ ${name} 去调查一下
 
 // 一个代码块
 {
-  #call paragraphA name = "def"
+  #call paragraph="paragraphA" name = "def"
 }
 
 // 用引号包裹的文本会进行转义
@@ -72,7 +72,7 @@ ${name} 去调查一下
 // 其他段落
 ::paragraphA(name) {
 // 段落A的内容
-#goto(paragraphB, name = name)  // 如果 name 没有传入，paragraphB 会使用默认值
+#goto(paragraph="paragraphB", name = name)  // 如果 name 没有传入，paragraphB 会使用默认值
 
 // 段落A的剩余内容
 // 永远不会执行
