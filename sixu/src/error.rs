@@ -17,6 +17,14 @@ pub enum RuntimeError {
     StoryNotFound(String),
     #[error("Paragraph {0} not found")]
     ParagraphNotFound(String),
+    #[error("Paragraph scope is not available in the current runtime state")]
+    ParagraphScopeUnavailable,
+    #[error("Missing required argument '{argument}' when entering paragraph {story}::{paragraph}")]
+    MissingParagraphArgument {
+        story: String,
+        paragraph: String,
+        argument: String,
+    },
     #[error("Wrong argument(s) provided to system call line: {0}")]
     WrongArgumentSystemCallLine(String),
     #[error("Wrong argument(s) provided to command line: {0}")]

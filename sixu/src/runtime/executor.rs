@@ -47,25 +47,24 @@ pub trait RuntimeExecutor: Send + Sync {
     ) -> Result<&'a Literal> {
         if value.chain.len() == 1 {
             let name = &value.chain[0];
-            let v = ctx
-                .archive_variables()
-                .as_object()?
-                .get(name)
-                .or_else(|| {
-                    ctx.global_variables()
-                        .as_object()
-                        .map(|o| o.get(name))
-                        .unwrap_or_else(|_| Some(&Literal::Null))
-                })
-                .unwrap_or(&Literal::Null);
-            Ok(v)
+            if let Some(value) = ctx.get_local(name) {
+                return Ok(value);
+            }
+
+            if let Some(value) = ctx.archive_variables().as_object()?.get(name) {
+                return Ok(value);
+            }
+
+            if let Some(value) = ctx.global_variables().as_object()?.get(name) {
+                return Ok(value);
+            }
         } else {
             log::warn!(
                 "Variable chain with more than one element is not supported: {:?}",
                 value.chain
             );
-            Ok(&Literal::Null)
         }
+        Ok(&Literal::Null)
     }
 
     /// Helper method to calculate template literal from context

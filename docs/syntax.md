@@ -25,13 +25,39 @@
 
 ### 段落（Paragraph）
 
-段落是剧本的基本组织单位，使用 `::` 开头声明。段落名称只能使用英文、数字和下划线，且必须以字母或下划线开头：
-
 ```sixu
 ::paragraph_name(param1, param2="default") {
     段落内容
 }
 ```
+
+#### 段落参数与局部变量
+
+段落参数会在进入该段落时绑定为一份 **paragraph locals**。这份 locals 的生命周期与本次段落调用绑定：
+
+- `start()` 进入 entry 段落时会创建一份 locals
+- `#call` / `#goto` / `#replace` 进入目标段落时会创建一份新的 locals
+- 同一段落内部的嵌套代码块共享同一份 locals
+- 段落结束后，这份 locals 会随该次段落调用一起销毁
+
+例如：
+
+```sixu
+::greet(name, mood="happy") {
+    `你好，${name}！`
+    @show_text content=`当前心情：${mood}`
+}
+```
+
+在默认运行时中，裸变量读取顺序为：
+
+```text
+locals > archive variables > global variables
+```
+
+也就是说，在同一个段落内，参数 `name` / `mood` 会优先作为当前 paragraph locals 被读取。
+
+> 注意：`start()` 本身不提供 entry 传参接口。如果 entry 段落声明了必填参数，则必须为其提供默认值，否则运行时会报错。
 
 ### 文本
 
@@ -122,6 +148,13 @@
 #goto(paragraph="next_scene")
 ```
 
+对于内置的 `#goto`、`#call`、`#replace`：
+
+- `paragraph` 和 `story` 是保留参数
+- 其他命名参数会作为目标段落的参数参与绑定
+- 缺少必填参数时，运行时会报错
+- 未在目标段落声明的额外参数不会中断执行，而是记录 `warn` 后忽略
+
 #### 内置系统调用
 
 ##### `#goto`
@@ -134,6 +167,9 @@
 
 // 跳转到其他故事文件中的段落
 #goto(paragraph="chapter2_start", story="chapter2")
+
+// 跳转时给目标段落传参
+#goto paragraph="ending" route="bad_end"
 ```
 
 | 参数 | 类型 | 必须 | 说明 |
@@ -149,6 +185,8 @@
 #call paragraph="show_intro"
 
 #call(paragraph="common_dialogue", story="shared")
+
+#call paragraph="show_intro" speaker="千花"
 ```
 
 | 参数 | 类型 | 必须 | 说明 |
@@ -164,12 +202,44 @@
 #replace paragraph="alternative_scene"
 
 #replace(paragraph="scene_b", story="other_story")
+
+#replace paragraph="scene_b" route=current_route
 ```
 
 | 参数 | 类型 | 必须 | 说明 |
 |------|------|------|------|
 | `paragraph` | string | 是 | 目标段落名称 |
 | `story` | string | 否 | 目标故事名称，省略则为当前故事 |
+
+##### 段落参数传递（适用于 `#goto` / `#call` / `#replace`）
+
+除 `paragraph` / `story` 这两个保留参数外，其余命名参数都会按目标段落的参数声明进行绑定：
+
+```sixu
+::intro(name, mood="happy") {
+    [`${name}`] `当前心情：${mood}`
+}
+
+::entry {
+    #call paragraph="intro" name="千花"
+    #goto paragraph="intro" name="旁白" mood="calm"
+}
+```
+
+绑定规则如下：
+
+1. 调用时显式传入的参数优先使用调用值
+2. 未传入但声明了默认值的参数会自动使用默认值
+3. 未传入且没有默认值的参数会触发运行时错误
+4. 未在目标段落声明的额外参数会记录 `warn` 并忽略
+
+这些绑定后的值会成为目标段落当前 invocation 的 paragraph locals，可在：
+
+- 模板字符串：`${name}`
+- 命令参数：`value=name`
+- 系统调用参数：`name=name`
+
+等位置直接读取。
 
 ##### `#leave`
 
@@ -398,3 +468,5 @@
 ```sixu
 @command text="Hello" number=123 flag=true value=system.current_value
 ```
+
+> 注意：`a.b` 这类链式变量引用是语法层允许的写法，但默认 `RuntimeExecutor::get_variable()` 只保证单段变量名（如 `name`）的解析。多段链式变量是否可用，取决于具体引擎 / 执行器实现是否提供了对应解析逻辑。

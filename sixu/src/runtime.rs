@@ -3,6 +3,8 @@ mod datasource;
 mod executor;
 mod state;
 
+use std::collections::HashMap;
+
 pub use self::callback::*;
 pub use self::datasource::{LoopControl, RuntimeContext};
 pub use self::executor::RuntimeExecutor;
@@ -39,6 +41,7 @@ enum StepPhase {
     AwaitingStoryFile {
         story_name: String,
         paragraph_name: String,
+        arguments: Vec<ResolvedArgument>,
     },
 }
 
@@ -177,13 +180,7 @@ impl<E: RuntimeExecutor> Runtime<E> {
         let is_empty = self.context.stack().is_empty();
         if is_empty {
             let entry_name = entry_name.unwrap_or("entry");
-            let paragraph = self.get_paragraph(story_name, entry_name)?;
-            let block = paragraph.block.clone();
-            self.context.stack_mut().push(ExecutionState::new(
-                story_name.to_string(),
-                entry_name.to_string(),
-                block,
-            ));
+            self.push_loaded_paragraph(story_name.to_string(), entry_name.to_string(), &[])?;
         } else {
             return Err(RuntimeError::StoryStarted);
         }
@@ -231,11 +228,7 @@ impl<E: RuntimeExecutor> Runtime<E> {
 
                     paragraph_iter.next().cloned()
                 } {
-                    self.context.stack_mut().push(ExecutionState::new(
-                        state.story.clone(),
-                        next_paragraph.name,
-                        next_paragraph.block,
-                    ));
+                    self.push_loaded_paragraph(state.story.clone(), next_paragraph.name, &[])?;
                 } else {
                     self.executor.finished(&mut self.context);
                 }
@@ -263,6 +256,88 @@ impl<E: RuntimeExecutor> Runtime<E> {
             });
         }
         Ok(resolved_args)
+    }
+
+    fn push_loaded_paragraph(
+        &mut self,
+        story_name: String,
+        paragraph_name: String,
+        arguments: &[ResolvedArgument],
+    ) -> Result<()> {
+        // exclude "story" and "paragraph" arguments, which are reserved
+        let provided_args: Vec<ResolvedArgument> = arguments
+            .iter()
+            .filter(|arg| arg.name != "story" && arg.name != "paragraph")
+            .cloned()
+            .collect();
+        let paragraph = self.get_paragraph(&story_name, &paragraph_name)?;
+        let block = paragraph.block.clone();
+
+        // build locals
+
+        let mut remaining = provided_args
+            .into_iter()
+            .map(|arg| (arg.name, arg.value))
+            .collect::<HashMap<String, Literal>>();
+        let mut locals = HashMap::new();
+
+        for parameter in &paragraph.parameters {
+            if let Some(value) = remaining.remove(&parameter.name) {
+                locals.insert(parameter.name.clone(), value);
+                continue;
+            }
+
+            if let Some(default_value) = &parameter.default_value {
+                locals.insert(parameter.name.clone(), default_value.clone());
+                continue;
+            }
+
+            return Err(RuntimeError::MissingParagraphArgument {
+                story: story_name.to_string(),
+                paragraph: paragraph.name.clone(),
+                argument: parameter.name.clone(),
+            });
+        }
+
+        // there may be extra arguments that are not defined in the paragraph parameters,
+        // log a warning and ignore them
+        if !remaining.is_empty() {
+            let mut ignored = remaining.into_keys().collect::<Vec<_>>();
+            ignored.sort();
+            log::warn!(
+                "Ignoring unexpected paragraph arguments when entering {}::{}: {}",
+                story_name,
+                paragraph.name,
+                ignored.join(", ")
+            );
+        }
+
+        self.context.stack_mut().push(ExecutionState::new_paragraph(
+            story_name,
+            paragraph_name,
+            block,
+            locals,
+        ));
+        Ok(())
+    }
+
+    fn push_or_await_paragraph(
+        &mut self,
+        story_name: String,
+        paragraph_name: String,
+        arguments: &[ResolvedArgument],
+    ) -> Result<bool> {
+        if self.has_story(&story_name) {
+            self.push_loaded_paragraph(story_name, paragraph_name, arguments)?;
+            Ok(true)
+        } else {
+            self.phase = StepPhase::AwaitingStoryFile {
+                story_name,
+                paragraph_name,
+                arguments: arguments.to_vec(),
+            };
+            Ok(false)
+        }
     }
 
     /// Execute steps synchronously until paused or an external async operation is needed.
@@ -304,14 +379,9 @@ impl<E: RuntimeExecutor> Runtime<E> {
             StepPhase::AwaitingStoryFile {
                 story_name,
                 paragraph_name,
+                arguments,
             } => {
-                // Story should now be loaded, look up the paragraph and push state
-                let paragraph = self.get_paragraph(&story_name, &paragraph_name)?.clone();
-                self.context.stack_mut().push(ExecutionState::new(
-                    story_name,
-                    paragraph_name,
-                    paragraph.block,
-                ));
+                self.push_loaded_paragraph(story_name, paragraph_name, &arguments)?;
                 return Ok(None); // continue execution
             }
         }
@@ -605,18 +675,11 @@ impl<E: RuntimeExecutor> Runtime<E> {
 
                     self.context.stack_mut().clear();
 
-                    if self.has_story(&story_name) {
-                        let paragraph = self.get_paragraph(&story_name, &paragraph_name)?.clone();
-                        self.context.stack_mut().push(ExecutionState::new(
-                            story_name,
-                            paragraph_name,
-                            paragraph.block,
-                        ));
-                    } else {
-                        self.phase = StepPhase::AwaitingStoryFile {
-                            story_name,
-                            paragraph_name,
-                        };
+                    if !self.push_or_await_paragraph(
+                        story_name,
+                        paragraph_name,
+                        &systemcall_line.arguments,
+                    )? {
                         return Ok(None);
                     }
                 } else {
@@ -673,18 +736,11 @@ impl<E: RuntimeExecutor> Runtime<E> {
                         }
                     }
 
-                    if self.has_story(&story_name) {
-                        let paragraph = self.get_paragraph(&story_name, &paragraph_name)?.clone();
-                        self.context.stack_mut().push(ExecutionState::new(
-                            story_name,
-                            paragraph_name,
-                            paragraph.block,
-                        ));
-                    } else {
-                        self.phase = StepPhase::AwaitingStoryFile {
-                            story_name,
-                            paragraph_name,
-                        };
+                    if !self.push_or_await_paragraph(
+                        story_name,
+                        paragraph_name,
+                        &systemcall_line.arguments,
+                    )? {
                         return Ok(None);
                     }
                 } else {
@@ -718,18 +774,11 @@ impl<E: RuntimeExecutor> Runtime<E> {
                         ));
                     };
 
-                    if self.has_story(&story_name) {
-                        let paragraph = self.get_paragraph(&story_name, &paragraph_name)?.clone();
-                        self.context.stack_mut().push(ExecutionState::new(
-                            story_name,
-                            paragraph_name,
-                            paragraph.block,
-                        ));
-                    } else {
-                        self.phase = StepPhase::AwaitingStoryFile {
-                            story_name,
-                            paragraph_name,
-                        };
+                    if !self.push_or_await_paragraph(
+                        story_name,
+                        paragraph_name,
+                        &systemcall_line.arguments,
+                    )? {
                         return Ok(None);
                     }
                 } else {

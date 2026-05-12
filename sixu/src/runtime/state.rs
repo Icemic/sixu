@@ -1,7 +1,9 @@
+use std::collections::HashMap;
+
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 
-use crate::format::{Block, Child};
+use crate::format::{Block, Child, Literal};
 
 /// Represents a state in the stack of the runtime.
 #[derive(Debug, Default, Clone)]
@@ -21,6 +23,9 @@ pub struct ExecutionState {
     /// Whether this state is the body of a loop (while/loop attribute).
     /// Used by `#break` and `#continue` to find the loop boundary.
     pub is_loop_body: bool,
+    /// Paragraph-scoped local variables.
+    /// Only paragraph root frames carry locals; nested block frames keep this as `None`.
+    pub locals: Option<HashMap<String, Literal>>,
 }
 
 impl ExecutionState {
@@ -31,6 +36,23 @@ impl ExecutionState {
             block,
             index: 0,
             is_loop_body: false,
+            locals: None,
+        }
+    }
+
+    pub fn new_paragraph(
+        story: String,
+        paragraph: String,
+        block: Block,
+        locals: HashMap<String, Literal>,
+    ) -> Self {
+        Self {
+            story,
+            paragraph,
+            block,
+            index: 0,
+            is_loop_body: false,
+            locals: Some(locals),
         }
     }
 
@@ -41,6 +63,7 @@ impl ExecutionState {
             block,
             index: 0,
             is_loop_body: true,
+            locals: None,
         }
     }
 

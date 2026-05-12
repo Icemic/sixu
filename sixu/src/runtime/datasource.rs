@@ -1,3 +1,6 @@
+use std::collections::HashMap;
+
+use crate::error::{Result, RuntimeError};
 use crate::format::{Literal, Story};
 
 use super::ExecutionState;
@@ -73,6 +76,38 @@ impl RuntimeContext {
 
     pub fn global_variables_mut(&mut self) -> &mut Literal {
         &mut self.global_variables
+    }
+
+    pub fn current_paragraph_locals(&self) -> Option<&HashMap<String, Literal>> {
+        self.stack.iter().rev().find_map(|state| state.locals.as_ref())
+    }
+
+    pub fn current_paragraph_locals_mut(&mut self) -> Option<&mut HashMap<String, Literal>> {
+        self.stack
+            .iter_mut()
+            .rev()
+            .find_map(|state| state.locals.as_mut())
+    }
+
+    pub fn get_local(&self, name: &str) -> Option<&Literal> {
+        self.current_paragraph_locals()
+            .and_then(|locals| locals.get(name))
+    }
+
+    pub fn set_local(&mut self, name: String, value: Literal) -> Result<()> {
+        let locals = self
+            .current_paragraph_locals_mut()
+            .ok_or(RuntimeError::ParagraphScopeUnavailable)?;
+        locals.insert(name, value);
+        Ok(())
+    }
+
+    pub fn set_locals(&mut self, variables: HashMap<String, Literal>) -> Result<()> {
+        let locals = self
+            .current_paragraph_locals_mut()
+            .ok_or(RuntimeError::ParagraphScopeUnavailable)?;
+        locals.extend(variables);
+        Ok(())
     }
 
     /// Set a loop control signal
