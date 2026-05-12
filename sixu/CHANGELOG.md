@@ -5,6 +5,43 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## v0.14.0 (2026-05-12)
+
+### New Features
+
+ - <csr-id-ae7e07afacd41564423c87028dc52bdb527df74f/> enhance runtime with paragraph-local variable support and error handling
+ - <csr-id-6798e4c578fcee8a50e0c54331096cc94f89da88/> add comment handling in CST and runtime processing
+   - Introduced Comment and CommentKind enums to represent line and block comments.
+   - Updated CstBlock to handle comments as children nodes.
+   - Modified fingerprint encoding to ignore comment children.
+   - Enhanced block parsing to preserve comments and skip them during execution.
+   - Added tests to verify comment handling in various scenarios.
+
+### Bug Fixes
+
+ - <csr-id-07c5f8533967545baa0699a7066eae92e6333713/> update parameter syntax for call commands in examples
+
+### Commit Statistics
+
+<csr-read-only-do-not-edit/>
+
+ - 3 commits contributed to the release over the course of 2 calendar days.
+ - 3 days passed between releases.
+ - 3 commits were understood as [conventional](https://www.conventionalcommits.org).
+ - 0 issues like '(#ID)' were seen in commit messages
+
+### Commit Details
+
+<csr-read-only-do-not-edit/>
+
+<details><summary>view details</summary>
+
+ * **Uncategorized**
+    - Enhance runtime with paragraph-local variable support and error handling ([`ae7e07a`](https://github.com/Icemic/sixu/commit/ae7e07afacd41564423c87028dc52bdb527df74f))
+    - Update parameter syntax for call commands in examples ([`07c5f85`](https://github.com/Icemic/sixu/commit/07c5f8533967545baa0699a7066eae92e6333713))
+    - Add comment handling in CST and runtime processing ([`6798e4c`](https://github.com/Icemic/sixu/commit/6798e4c578fcee8a50e0c54331096cc94f89da88))
+</details>
+
 ## v0.13.0 (2026-05-09)
 
 ### New Features
@@ -30,7 +67,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <csr-read-only-do-not-edit/>
 
- - 9 commits contributed to the release over the course of 8 calendar days.
+ - 10 commits contributed to the release over the course of 8 calendar days.
  - 28 days passed between releases.
  - 9 commits were understood as [conventional](https://www.conventionalcommits.org).
  - 0 issues like '(#ID)' were seen in commit messages
@@ -42,6 +79,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 <details><summary>view details</summary>
 
  * **Uncategorized**
+    - Release sixu v0.13.0 ([`96210d1`](https://github.com/Icemic/sixu/commit/96210d1cdf94282cf3ee7da4d7e4588d50829f40))
     - Update Block formatting to use new constructor ([`f8066fc`](https://github.com/Icemic/sixu/commit/f8066fcd2214674f670abc01636b84be9ed39227))
     - Replace RefCell with OnceCell for fingerprint caching in Block ([`16f9a55`](https://github.com/Icemic/sixu/commit/16f9a55c7622e62994485ed2af86d384ba1b060c))
     - Fix marker emission timing in conditional execution ([`4e87bb4`](https://github.com/Icemic/sixu/commit/4e87bb460862f5c478ea375771b08e6f955b9b55))
