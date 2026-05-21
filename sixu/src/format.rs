@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::error::{Result, RuntimeError};
 use crate::fingerprint::{FingerprintEncode, FingerprintWriter};
-use crate::BlockFingerprint;
+use crate::Fingerprint;
 
 /// The format represents the structure of a `story`, which is commonly came from a single file.
 #[derive(Debug, Default, Clone, PartialEq)]
@@ -290,7 +290,7 @@ pub enum RValue {
 pub struct Block {
     children: Vec<Child>,
     #[cfg_attr(feature = "serde", serde(skip, default))]
-    _fingerprint: OnceCell<BlockFingerprint>,
+    _fingerprint: OnceCell<Fingerprint>,
 }
 
 impl PartialEq for Block {
@@ -319,10 +319,10 @@ impl Block {
         &self.children
     }
 
-    pub fn fingerprint(&self) -> BlockFingerprint {
+    pub fn fingerprint(&self) -> Fingerprint {
         *self._fingerprint.get_or_init(|| {
             let mut writer = FingerprintWriter::new();
-            writer.write_bytes(BlockFingerprint::VERSION.as_bytes());
+            writer.write_bytes(Fingerprint::VERSION.as_bytes());
             self.encode(&mut writer);
             writer.finish()
         })

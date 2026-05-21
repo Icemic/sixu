@@ -5,7 +5,7 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use twox_hash::XxHash3_128;
 
 use crate::format::{
-    Argument, Attribute, Block, Child, ChildContent, CommandLine, LeadingText, Literal,
+    Argument, Attribute, Block, Child, ChildContent, CommandLine, LeadingText, Literal, Paragraph,
     RValue, SystemCallLine, TailingText, TemplateLiteral, TemplateLiteralPart, Text, Variable,
 };
 
@@ -57,9 +57,9 @@ pub(crate) enum Tag {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct BlockFingerprint([u8; 16]);
+pub struct Fingerprint([u8; 16]);
 
-impl BlockFingerprint {
+impl Fingerprint {
     pub const VERSION: &'static str = VERSION_PREFIX;
 
     pub fn as_bytes(&self) -> &[u8; 16] {
@@ -99,8 +99,35 @@ impl BlockFingerprint {
     }
 }
 
+pub fn fingerprint_child_semantics(child: &Child) -> Fingerprint {
+    let mut writer = FingerprintWriter::new();
+    writer.write_bytes(Fingerprint::VERSION.as_bytes());
+    child.encode(&mut writer);
+    writer.finish()
+}
+
+pub fn fingerprint_paragraph_signature(paragraph: &Paragraph) -> Fingerprint {
+    let mut writer = FingerprintWriter::new();
+    writer.write_bytes(Fingerprint::VERSION.as_bytes());
+    writer.write_str("paragraph-signature");
+    writer.write_len(paragraph.parameters.len());
+
+    for parameter in &paragraph.parameters {
+        writer.write_str(&parameter.name);
+        match &parameter.default_value {
+            Some(default_value) => {
+                writer.write_tag(Tag::OptionSome);
+                default_value.encode(&mut writer);
+            }
+            None => writer.write_tag(Tag::OptionNone),
+        }
+    }
+
+    writer.finish()
+}
+
 #[cfg(feature = "serde")]
-impl Serialize for BlockFingerprint {
+impl Serialize for Fingerprint {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: Serializer,
@@ -110,7 +137,7 @@ impl Serialize for BlockFingerprint {
 }
 
 #[cfg(feature = "serde")]
-impl<'de> Deserialize<'de> for BlockFingerprint {
+impl<'de> Deserialize<'de> for Fingerprint {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: Deserializer<'de>,
@@ -118,7 +145,7 @@ impl<'de> Deserialize<'de> for BlockFingerprint {
         struct BlockFingerprintVisitor;
 
         impl<'de> Visitor<'de> for BlockFingerprintVisitor {
-            type Value = BlockFingerprint;
+            type Value = Fingerprint;
 
             fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
                 formatter.write_str("a 32-character lowercase hexadecimal fingerprint")
@@ -128,7 +155,7 @@ impl<'de> Deserialize<'de> for BlockFingerprint {
             where
                 E: de::Error,
             {
-                BlockFingerprint::from_hex(value).map_err(E::custom)
+                Fingerprint::from_hex(value).map_err(E::custom)
             }
         }
 
@@ -147,8 +174,8 @@ impl FingerprintWriter {
         }
     }
 
-    pub(crate) fn finish(self) -> BlockFingerprint {
-        BlockFingerprint(self.hasher.finish_128().to_be_bytes())
+    pub(crate) fn finish(self) -> Fingerprint {
+        Fingerprint(self.hasher.finish_128().to_be_bytes())
     }
 
     pub(crate) fn write_bytes(&mut self, bytes: &[u8]) {
@@ -693,7 +720,10 @@ mod tests {
         ]);
 
         assert_eq!(without_comments.fingerprint(), with_comments.fingerprint());
-        assert_eq!(with_comments.fingerprint(), with_other_comments.fingerprint());
+        assert_eq!(
+            with_comments.fingerprint(),
+            with_other_comments.fingerprint()
+        );
     }
 
     #[cfg(feature = "serde")]
@@ -702,7 +732,7 @@ mod tests {
         let fingerprint = Block::new(vec![text_child("hello")]).fingerprint();
 
         let serialized = serde_json::to_string(&fingerprint).unwrap();
-        let deserialized: BlockFingerprint = serde_json::from_str(&serialized).unwrap();
+        let deserialized: Fingerprint = serde_json::from_str(&serialized).unwrap();
 
         assert_eq!(serialized, format!("\"{}\"", fingerprint.to_hex()));
         assert_eq!(deserialized, fingerprint);
