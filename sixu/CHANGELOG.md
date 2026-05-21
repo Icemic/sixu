@@ -5,6 +5,31 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## v0.14.1 (2026-05-22)
+
+### Refactor
+
+ - <csr-id-9e64efce0d02de7d81b32bd6962447f656014959/> rename BlockFingerprint to Fingerprint and update related methods
+
+### Commit Statistics
+
+<csr-read-only-do-not-edit/>
+
+ - 1 commit contributed to the release.
+ - 9 days passed between releases.
+ - 1 commit was understood as [conventional](https://www.conventionalcommits.org).
+ - 0 issues like '(#ID)' were seen in commit messages
+
+### Commit Details
+
+<csr-read-only-do-not-edit/>
+
+<details><summary>view details</summary>
+
+ * **Uncategorized**
+    - Rename BlockFingerprint to Fingerprint and update related methods ([`9e64efc`](https://github.com/Icemic/sixu/commit/9e64efce0d02de7d81b32bd6962447f656014959))
+</details>
+
 ## v0.14.0 (2026-05-12)
 
 ### New Features
@@ -12,10 +37,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
  - <csr-id-ae7e07afacd41564423c87028dc52bdb527df74f/> enhance runtime with paragraph-local variable support and error handling
  - <csr-id-6798e4c578fcee8a50e0c54331096cc94f89da88/> add comment handling in CST and runtime processing
    - Introduced Comment and CommentKind enums to represent line and block comments.
-   - Updated CstBlock to handle comments as children nodes.
-   - Modified fingerprint encoding to ignore comment children.
-   - Enhanced block parsing to preserve comments and skip them during execution.
-   - Added tests to verify comment handling in various scenarios.
+- Updated CstBlock to handle comments as children nodes.
+- Modified fingerprint encoding to ignore comment children.
+- Enhanced block parsing to preserve comments and skip them during execution.
+- Added tests to verify comment handling in various scenarios.
 
 ### Bug Fixes
 
@@ -25,7 +50,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <csr-read-only-do-not-edit/>
 
- - 3 commits contributed to the release over the course of 2 calendar days.
+ - 4 commits contributed to the release over the course of 2 calendar days.
  - 3 days passed between releases.
  - 3 commits were understood as [conventional](https://www.conventionalcommits.org).
  - 0 issues like '(#ID)' were seen in commit messages
@@ -37,6 +62,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 <details><summary>view details</summary>
 
  * **Uncategorized**
+    - Release sixu v0.14.0 ([`e4c16bd`](https://github.com/Icemic/sixu/commit/e4c16bd5f092f0b5de9752f9ef5a9e6e3d48a7b4))
     - Enhance runtime with paragraph-local variable support and error handling ([`ae7e07a`](https://github.com/Icemic/sixu/commit/ae7e07afacd41564423c87028dc52bdb527df74f))
     - Update parameter syntax for call commands in examples ([`07c5f85`](https://github.com/Icemic/sixu/commit/07c5f8533967545baa0699a7066eae92e6333713))
     - Add comment handling in CST and runtime processing ([`6798e4c`](https://github.com/Icemic/sixu/commit/6798e4c578fcee8a50e0c54331096cc94f89da88))
