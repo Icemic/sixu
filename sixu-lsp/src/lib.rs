@@ -5,8 +5,8 @@ use sixu::cst::formatter::CstFormatter;
 use sixu::cst::node::CstValueKind;
 use sixu::cst::parser::parse_tolerant;
 use sixu::parser;
+use std::path::PathBuf;
 use std::sync::Arc;
-use tokio::sync::RwLock;
 use tower_lsp_server::jsonrpc::Result;
 use tower_lsp_server::ls_types::*;
 use tower_lsp_server::{Client, LanguageServer, LspService};
@@ -19,7 +19,7 @@ pub use cst_helper::*;
 #[derive(Debug)]
 pub struct Backend {
     client: Client,
-    schema: Arc<RwLock<Option<CommandSchema>>>,
+    schema_cache: DashMap<PathBuf, Option<Arc<CommandSchema>>>,
     documents: DashMap<Uri, Rope>,
 }
 
@@ -27,8 +27,71 @@ impl Backend {
     pub fn new(client: Client) -> Self {
         Backend {
             client,
-            schema: Arc::new(RwLock::new(None)),
+            schema_cache: DashMap::new(),
             documents: DashMap::new(),
+        }
+    }
+
+    async fn get_schema_for_uri<'a>(&'a self, uri: &Uri) -> Option<Arc<CommandSchema>> {
+        let mut schema_path = None;
+
+        let file_path = uri.to_file_path()?;
+        let mut current = file_path.parent();
+        while let Some(directory) = current {
+            let path = directory.join("commands.schema.json");
+            if path.exists() {
+                schema_path = Some(path);
+                break;
+            }
+            current = directory.parent();
+        }
+
+        let schema_path = schema_path?;
+
+        if let Some(entry) = self.schema_cache.get(&schema_path) {
+            return entry.clone();
+        } else {
+            match tokio::fs::read_to_string(&schema_path).await {
+                Ok(content) => match serde_json::from_str::<CommandSchema>(&content) {
+                    Ok(schema) => {
+                        let schema = Arc::new(schema);
+                        self.schema_cache
+                            .insert(schema_path.clone(), Some(schema.clone()));
+                        self.client
+                            .log_message(
+                                MessageType::INFO,
+                                format!("Schema loaded: {}", schema_path.display()),
+                            )
+                            .await;
+
+                        return Some(schema);
+                    }
+                    Err(error) => {
+                        self.schema_cache.insert(schema_path.clone(), None);
+                        self.client
+                            .log_message(
+                                MessageType::ERROR,
+                                format!(
+                                    "Failed to parse schema {}: {}",
+                                    schema_path.display(),
+                                    error
+                                ),
+                            )
+                            .await;
+                        return None;
+                    }
+                },
+                Err(error) => {
+                    self.schema_cache.insert(schema_path.clone(), None);
+                    self.client
+                        .log_message(
+                            MessageType::ERROR,
+                            format!("Failed to read schema {}: {}", schema_path.display(), error),
+                        )
+                        .await;
+                    return None;
+                }
+            }
         }
     }
 
@@ -99,8 +162,7 @@ impl Backend {
         collect_errors(&cst.nodes, &mut diagnostics);
 
         // 3. Schema Check
-        let schema_guard = self.schema.read().await;
-        if let Some(schema) = &*schema_guard {
+        if let Some(schema) = self.get_schema_for_uri(&uri).await {
             let cst = parse_tolerant("validate", &text);
             let commands = extract_commands(&cst);
             for cmd in &commands {
@@ -206,48 +268,7 @@ impl Backend {
 }
 
 impl LanguageServer for Backend {
-    async fn initialize(&self, params: InitializeParams) -> Result<InitializeResult> {
-        if let Some(workspace_folders) = params.workspace_folders {
-            if workspace_folders.len() > 1 {
-                self.client
-                    .log_message(
-                        MessageType::WARNING,
-                        "Multiple workspace folders detected; only the first will be used for schema loading.",
-                    )
-                    .await;
-            }
-
-            let root_uri = &workspace_folders[0].uri;
-            if let Some(path) = root_uri.to_file_path() {
-                let mut schema_path = path.join("commands.schema.json");
-                if !schema_path.exists() {
-                    let sample_path = path.join("sample-project").join("commands.schema.json");
-                    if sample_path.exists() {
-                        schema_path = sample_path;
-                    }
-                }
-
-                if schema_path.exists() {
-                    if let Ok(content) = tokio::fs::read_to_string(schema_path).await {
-                        if let Ok(schema) = serde_json::from_str::<CommandSchema>(&content) {
-                            *self.schema.write().await = Some(schema);
-                            self.client
-                                .log_message(MessageType::INFO, "Schema loaded")
-                                .await;
-                        } else {
-                            self.client
-                                .log_message(MessageType::ERROR, "Failed to parse schema")
-                                .await;
-                        }
-                    }
-                } else {
-                    self.client
-                        .log_message(MessageType::WARNING, "commands.schema.json not found")
-                        .await;
-                }
-            }
-        }
-
+    async fn initialize(&self, _: InitializeParams) -> Result<InitializeResult> {
         Ok(InitializeResult {
             capabilities: ServerCapabilities {
                 text_document_sync: Some(TextDocumentSyncCapability::Kind(
@@ -301,6 +322,39 @@ impl LanguageServer for Backend {
                 Rope::from_str(&change.text),
             );
             self.validate(params.text_document.uri, change.text).await;
+        }
+    }
+
+    async fn did_change_watched_files(&self, params: DidChangeWatchedFilesParams) {
+        let changed_schema_paths: Vec<PathBuf> = params
+            .changes
+            .iter()
+            .filter_map(|change| {
+                change.uri.to_file_path().and_then(|path| {
+                    path.file_name()
+                        .and_then(|name| name.to_str())
+                        .filter(|name| name.eq_ignore_ascii_case("commands.schema.json"))
+                        .map(|_| path.to_path_buf())
+                })
+            })
+            .collect();
+
+        if changed_schema_paths.is_empty() {
+            return;
+        }
+
+        for schema_path in &changed_schema_paths {
+            self.schema_cache.remove(schema_path);
+        }
+
+        let documents: Vec<(Uri, String)> = self
+            .documents
+            .iter()
+            .map(|entry| (entry.key().clone(), entry.value().to_string()))
+            .collect();
+
+        for (uri, text) in documents {
+            self.validate(uri, text).await;
         }
     }
 
@@ -392,9 +446,8 @@ impl LanguageServer for Backend {
                 }
             } else {
                 // 命令参数补全
-                let schema_guard = self.schema.read().await;
-                let schema = match &*schema_guard {
-                    Some(s) => s,
+                let schema = match self.get_schema_for_uri(&uri).await {
+                    Some(schema) => schema,
                     None => return Ok(None),
                 };
 
@@ -462,9 +515,8 @@ impl LanguageServer for Backend {
             let after_at = &line_prefix[at_idx + 1..];
             if !after_at.contains(|c: char| c.is_whitespace() || c == '(') {
                 // Command Completion
-                let schema_guard = self.schema.read().await;
-                let schema = match &*schema_guard {
-                    Some(s) => s,
+                let schema = match self.get_schema_for_uri(&uri).await {
+                    Some(schema) => schema,
                     None => return Ok(None),
                 };
 
@@ -532,9 +584,8 @@ impl LanguageServer for Backend {
         for cmd in &commands {
             let cmd_range = span_to_range(&cmd.span);
             if contains(&cmd_range, &position) {
-                let schema_guard = self.schema.read().await;
-                let schema = match &*schema_guard {
-                    Some(s) => s,
+                let schema = match self.get_schema_for_uri(&uri).await {
+                    Some(schema) => schema,
                     None => return Ok(None),
                 };
 

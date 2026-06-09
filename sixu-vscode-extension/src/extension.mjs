@@ -45,7 +45,7 @@ export function activate(context) {
   const clientOptions = {
     documentSelector: [{ scheme: 'file', language: 'sixu' }],
     synchronize: {
-      fileEvents: workspace.createFileSystemWatcher('**/.clientrc'),
+      fileEvents: workspace.createFileSystemWatcher('**/commands.schema.json'),
     },
   };
 

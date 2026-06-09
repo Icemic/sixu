@@ -30,7 +30,7 @@
 
 ### 3.1. 命令补全 (Completion)
 
-- **数据源**: 项目根目录下的 `commands.schema.json`。
+- **数据源**: 当前正在编辑的 `.sixu` 文件向上查找最近的 `commands.schema.json`（通常位于项目根目录）。
 - **触发字符**: `@` (触发命令提示), ` ` (空格，触发参数提示)，`#` (触发系统调用提示)
 - **逻辑**:
   1.  **加载 Schema**: Server 启动时读取并缓存 Schema。监听文件变动事件以更新缓存。
@@ -83,8 +83,8 @@
   - 当鼠标悬停在 **参数名** (`arg=`) 上时，显示 Schema 中定义的参数描述。
 - **实现**:
   - 复用 `scanner.rs` 的解析结果，判断光标位置是否落在命令名或参数名的 Range 内。
-  - 查找 `commands.schema.json` 获取对应的文档信息。
-  - 支持多路径查找 Schema（优先当前目录，其次查找 `sample-project` 等预设路径）。
+  - 查找当前文件所属项目中的 `commands.schema.json` 获取对应的文档信息。
+  - 多工作区场景下，每个文件使用离自己最近的 schema。
 
 ### 3.6. 跳转定义 (Go to Definition)
 
