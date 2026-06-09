@@ -10,7 +10,7 @@
 
 use futures::StreamExt;
 use serde_json::json;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::Mutex;
@@ -27,6 +27,7 @@ pub struct TestContext {
     pub service: LspService<Backend>,
     /// 后台任务收集到的所有 publishDiagnostics 通知
     diagnostics_store: Arc<Mutex<Vec<PublishDiagnosticsParams>>>,
+    workspace_path: PathBuf,
     id_counter: i64,
     /// 记录已消费到的诊断索引
     diagnostics_cursor: usize,
@@ -35,7 +36,7 @@ pub struct TestContext {
 impl TestContext {
     /// 创建新的测试上下文（已完成 initialize + initialized 握手）
     pub async fn new() -> Self {
-        Self::with_workspace(workspace_root()).await
+        Self::with_workspace(workspace_root().join("sample-project")).await
     }
 
     /// 使用指定工作区路径创建测试上下文
@@ -52,6 +53,7 @@ impl TestContext {
         let mut ctx = TestContext {
             service,
             diagnostics_store,
+            workspace_path: workspace_path.clone(),
             id_counter: 0,
             diagnostics_cursor: 0,
         };
@@ -94,7 +96,16 @@ impl TestContext {
 
     /// 打开一个文档并返回其 URI
     pub async fn open_document(&mut self, uri_str: &str, text: &str) -> Uri {
-        let uri: Uri = uri_str.parse().expect("Invalid URI");
+        let uri = if let Some(relative_path) = uri_str.strip_prefix("file:///test/") {
+            let path = relative_path
+                .split('/')
+                .fold(self.workspace_path.clone(), |path, segment| {
+                    path.join(segment)
+                });
+            Uri::from_file_path(path).expect("Invalid workspace test path")
+        } else {
+            uri_str.parse().expect("Invalid URI")
+        };
 
         let did_open = Request::build("textDocument/didOpen")
             .params(json!({
