@@ -7,6 +7,7 @@ use sixu::cst::parser::parse_tolerant;
 use sixu::parser;
 use std::path::PathBuf;
 use std::sync::Arc;
+use tokio::time::{Duration, Instant};
 use tower_lsp_server::jsonrpc::Result;
 use tower_lsp_server::ls_types::*;
 use tower_lsp_server::{Client, LanguageServer, LspService};
@@ -16,19 +17,25 @@ pub use schema::*;
 pub mod cst_helper;
 pub use cst_helper::*;
 
-#[derive(Debug)]
+const VALIDATION_THROTTLE: Duration = Duration::from_secs(1);
+
+#[derive(Debug, Clone)]
 pub struct Backend {
     client: Client,
-    schema_cache: DashMap<PathBuf, Option<Arc<CommandSchema>>>,
-    documents: DashMap<Uri, Rope>,
+    schema_cache: Arc<DashMap<PathBuf, Option<Arc<CommandSchema>>>>,
+    documents: Arc<DashMap<Uri, Rope>>,
+    last_validation_at: Arc<DashMap<Uri, Instant>>,
+    pending_validation: Arc<DashMap<Uri, ()>>,
 }
 
 impl Backend {
     pub fn new(client: Client) -> Self {
         Backend {
             client,
-            schema_cache: DashMap::new(),
-            documents: DashMap::new(),
+            schema_cache: Arc::new(DashMap::new()),
+            documents: Arc::new(DashMap::new()),
+            last_validation_at: Arc::new(DashMap::new()),
+            pending_validation: Arc::new(DashMap::new()),
         }
     }
 
@@ -96,6 +103,8 @@ impl Backend {
     }
 
     async fn validate(&self, uri: Uri, text: String) {
+        self.last_validation_at.insert(uri.clone(), Instant::now());
+
         let rope = Rope::from_str(&text);
         let mut diagnostics = Vec::new();
 
@@ -317,11 +326,37 @@ impl LanguageServer for Backend {
 
     async fn did_change(&self, params: DidChangeTextDocumentParams) {
         if let Some(change) = params.content_changes.into_iter().next() {
-            self.documents.insert(
-                params.text_document.uri.clone(),
-                Rope::from_str(&change.text),
-            );
-            self.validate(params.text_document.uri, change.text).await;
+            let uri = params.text_document.uri;
+            self.documents
+                .insert(uri.clone(), Rope::from_str(&change.text));
+
+            if self.pending_validation.contains_key(&uri) {
+                return;
+            }
+
+            let now = Instant::now();
+            if let Some(last_validation_at) = self.last_validation_at.get(&uri) {
+                let elapsed = now.saturating_duration_since(*last_validation_at);
+                if elapsed < VALIDATION_THROTTLE {
+                    let delay = VALIDATION_THROTTLE - elapsed;
+                    self.pending_validation.insert(uri.clone(), ());
+
+                    let backend = self.clone();
+                    tokio::spawn(async move {
+                        tokio::time::sleep(delay).await;
+
+                        if let Some(text) = backend.documents.get(&uri).map(|rope| rope.to_string())
+                        {
+                            backend.validate(uri.clone(), text).await;
+                        }
+
+                        backend.pending_validation.remove(&uri);
+                    });
+                    return;
+                }
+            }
+
+            self.validate(uri, change.text).await;
         }
     }
 

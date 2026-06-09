@@ -5,6 +5,10 @@
 
 mod helpers;
 use helpers::*;
+use serde_json::json;
+use std::time::Duration;
+use tower::{Service, ServiceExt};
+use tower_lsp_server::jsonrpc::Request;
 use tower_lsp_server::ls_types::DiagnosticSeverity;
 
 fn read_fixture(name: &str) -> String {
@@ -142,6 +146,60 @@ async fn test_syntax_error() {
             .iter()
             .map(|d| (&d.message, &d.severity))
             .collect::<Vec<_>>()
+    );
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn test_did_change_is_throttled_per_uri() {
+    let mut ctx = TestContext::new().await;
+    let uri = ctx
+        .open_document("file:///test/throttle.sixu", "::test {\n    \"ok\"\n}\n")
+        .await;
+    let diagnostics = ctx.read_diagnostics().await;
+    assert!(diagnostics.is_empty(), "初始文档不应有诊断");
+
+    let invalid_change = Request::build("textDocument/didChange")
+        .params(json!({
+            "textDocument": {
+                "uri": uri.as_str(),
+                "version": 2
+            },
+            "contentChanges": [{
+                "text": "::test {\n    @\n}\n"
+            }]
+        }))
+        .finish();
+    let _ = ctx
+        .service
+        .ready()
+        .await
+        .unwrap()
+        .call(invalid_change)
+        .await;
+
+    let valid_change = Request::build("textDocument/didChange")
+        .params(json!({
+            "textDocument": {
+                "uri": uri.as_str(),
+                "version": 3
+            },
+            "contentChanges": [{
+                "text": "::test {\n    \"fixed\"\n}\n"
+            }]
+        }))
+        .finish();
+    let _ = ctx.service.ready().await.unwrap().call(valid_change).await;
+
+    let early = tokio::time::timeout(Duration::from_millis(200), ctx.read_diagnostics()).await;
+    assert!(early.is_err(), "1 秒内不应重新发布 didChange 诊断");
+
+    let diagnostics = tokio::time::timeout(Duration::from_secs(2), ctx.read_diagnostics())
+        .await
+        .expect("应在节流窗口后收到诊断");
+    assert!(
+        diagnostics.is_empty(),
+        "节流后应按最后一次变更内容校验，实际: {:?}",
+        diagnostics.iter().map(|d| &d.message).collect::<Vec<_>>()
     );
 }
 
