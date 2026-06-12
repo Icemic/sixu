@@ -20,14 +20,14 @@ use tower_lsp_server::ls_types::ServerCapabilities;
 async fn test_param_exclusion_no_paren() {
     // completion_test.sixu 测试 1：无括号语法 - 已有参数被排除
     let mut ctx = TestContext::new().await;
-    let text = "::test {\n    @changebg src=\"test.jpg\" \n}\n";
-    //                                              ^ col 36
+    let text = "::test {\n    @bg src=\"test.jpg\" \n}\n";
     let uri = ctx
         .open_document("file:///test/param_excl.sixu", text)
         .await;
     let _ = ctx.read_diagnostics().await;
 
-    let items = ctx.completion(&uri, 1, 36).await;
+    let line = text.lines().nth(1).unwrap();
+    let items = ctx.completion(&uri, 1, line.len() as u32).await;
     let items = items.expect("应返回补全项");
 
     let labels: Vec<&str> = items.iter().map(|i| i.label.as_str()).collect();
@@ -52,14 +52,14 @@ async fn test_param_exclusion_no_paren() {
 async fn test_param_exclusion_paren() {
     // completion_test.sixu 测试 2：括号语法 - 已有参数被排除
     let mut ctx = TestContext::new().await;
-    let text = "::test {\n    @changebg(src=\"test.jpg\", \n}\n";
-    //                                                ^ col 38
+    let text = "::test {\n    @bg(src=\"test.jpg\", \n}\n";
     let uri = ctx
         .open_document("file:///test/param_excl_paren.sixu", text)
         .await;
     let _ = ctx.read_diagnostics().await;
 
-    let items = ctx.completion(&uri, 1, 38).await;
+    let line = text.lines().nth(1).unwrap();
+    let items = ctx.completion(&uri, 1, line.len() as u32).await;
     let items = items.expect("应返回补全项");
 
     let labels: Vec<&str> = items.iter().map(|i| i.label.as_str()).collect();
@@ -71,14 +71,14 @@ async fn test_param_exclusion_paren() {
 async fn test_param_exclusion_boolean() {
     // completion_test.sixu 测试 3：布尔参数也被排除
     let mut ctx = TestContext::new().await;
-    let text = "::test {\n    @changebg src=\"test.jpg\" skippable \n}\n";
-    //                                                         ^ col 47
+    let text = "::test {\n    @bg src=\"test.jpg\" skippable \n}\n";
     let uri = ctx
         .open_document("file:///test/param_excl_bool.sixu", text)
         .await;
     let _ = ctx.read_diagnostics().await;
 
-    let items = ctx.completion(&uri, 1, 47).await;
+    let line = text.lines().nth(1).unwrap();
+    let items = ctx.completion(&uri, 1, line.len() as u32).await;
     let items = items.expect("应返回补全项");
 
     let labels: Vec<&str> = items.iter().map(|i| i.label.as_str()).collect();
@@ -95,15 +95,15 @@ async fn test_param_exclusion_boolean() {
 async fn test_no_completion_in_string() {
     // completion_test.sixu 测试 4：字符串内不触发补全
     let mut ctx = TestContext::new().await;
-    let text = "::test {\n    @changebg src=\"test .jpg\"\n}\n";
-    //    line 1: `    @changebg src="test .jpg"`
-    //                                    ^ col 24 (inside string, after "test ")
+    let text = "::test {\n    @bg src=\"test .jpg\"\n}\n";
     let uri = ctx
         .open_document("file:///test/string_no_compl.sixu", text)
         .await;
     let _ = ctx.read_diagnostics().await;
 
-    let items = ctx.completion(&uri, 1, 24).await;
+    let line = text.lines().nth(1).unwrap();
+    let col = line.find(" .").unwrap() + 1;
+    let items = ctx.completion(&uri, 1, col as u32).await;
     // 字符串内不应返回补全，或返回 None / 空列表
     assert!(
         items.is_none() || items.as_ref().unwrap().is_empty(),
@@ -175,14 +175,14 @@ async fn test_systemcall_paren_param_exclusion() {
 async fn test_no_completion_after_closing_paren() {
     // completion_test.sixu 测试 8：右括号后不触发补全
     let mut ctx = TestContext::new().await;
-    let text = "::test {\n    @changebg(src=\"test.jpg\") \n}\n";
-    //                                               ^ col 37
+    let text = "::test {\n    @bg(src=\"test.jpg\") \n}\n";
     let uri = ctx
         .open_document("file:///test/after_paren.sixu", text)
         .await;
     let _ = ctx.read_diagnostics().await;
 
-    let items = ctx.completion(&uri, 1, 37).await;
+    let line = text.lines().nth(1).unwrap();
+    let items = ctx.completion(&uri, 1, line.len() as u32).await;
     assert!(
         items.is_none() || items.as_ref().unwrap().is_empty(),
         "右括号后不应触发参数补全，实际: {:?}",
@@ -194,18 +194,18 @@ async fn test_no_completion_after_closing_paren() {
 async fn test_command_name_completion() {
     // completion_test.sixu 测试 9：@ 后输入命令名触发补全
     let mut ctx = TestContext::new().await;
-    let text = "::test {\n    @chang\n}\n";
-    //                            ^ col 10
+    let text = "::test {\n    @b\n}\n";
     let uri = ctx.open_document("file:///test/cmd_name.sixu", text).await;
     let _ = ctx.read_diagnostics().await;
 
-    let items = ctx.completion(&uri, 1, 10).await;
+    let line = text.lines().nth(1).unwrap();
+    let items = ctx.completion(&uri, 1, line.len() as u32).await;
     let items = items.expect("@ 后应触发命令名补全");
 
     let labels: Vec<&str> = items.iter().map(|i| i.label.as_str()).collect();
     assert!(
-        labels.contains(&"changebg"),
-        "应包含 changebg 命令，实际: {:?}",
+        labels.contains(&"bg"),
+        "应包含 bg 命令，实际: {:?}",
         labels
     );
 }
@@ -474,14 +474,14 @@ async fn test_systemcall_name_completion() {
 async fn test_mixed_params_exclusion() {
     // completion_test.sixu 测试 11：多个已有参数全部排除
     let mut ctx = TestContext::new().await;
-    let text = "::test {\n    @addchar name=\"hero\" x=100 y=200 visible \n}\n";
-    //                                                                ^ col 51
+    let text = "::test {\n    @charEnter name=\"hero\" x=100 y=200 visible \n}\n";
     let uri = ctx
         .open_document("file:///test/mixed_excl.sixu", text)
         .await;
     let _ = ctx.read_diagnostics().await;
 
-    let items = ctx.completion(&uri, 1, 51).await;
+    let line = text.lines().nth(1).unwrap();
+    let items = ctx.completion(&uri, 1, line.len() as u32).await;
     let items = items.expect("应返回补全项");
 
     let labels: Vec<&str> = items.iter().map(|i| i.label.as_str()).collect();
@@ -501,12 +501,12 @@ async fn test_mixed_params_exclusion() {
 async fn test_no_completion_on_equals() {
     // 在等号后面不应触发补全（正在输入值）
     let mut ctx = TestContext::new().await;
-    let text = "::test {\n    @changebg src=\n}\n";
-    //                                    ^ col 19
+    let text = "::test {\n    @bg src=\n}\n";
     let uri = ctx.open_document("file:///test/after_eq.sixu", text).await;
     let _ = ctx.read_diagnostics().await;
 
-    let items = ctx.completion(&uri, 1, 19).await;
+    let line = text.lines().nth(1).unwrap();
+    let items = ctx.completion(&uri, 1, line.len() as u32).await;
     assert!(
         items.is_none(),
         "等号后不应触发补全，实际: {:?}",

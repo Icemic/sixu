@@ -1,4 +1,4 @@
-// 拼写错误的命令名（changebgg 而非 changebg）
+// 拼写错误的命令名（bgg 而非 bg）
 ::main {
-    @changebgg src="test.jpg"
+    @bgg src="test.jpg"
 }

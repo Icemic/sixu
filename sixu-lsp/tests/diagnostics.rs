@@ -231,7 +231,7 @@ async fn test_inline_no_diagnostics() {
     let mut ctx = TestContext::new().await;
     ctx.open_document(
         "file:///test/inline.sixu",
-        "::test {\n    @changebg(src=\"bg.jpg\")\n}\n",
+        "::test {\n    @bg(src=\"bg.jpg\")\n}\n",
     )
     .await;
 
@@ -244,7 +244,7 @@ async fn test_inline_multiple_errors() {
     let mut ctx = TestContext::new().await;
     ctx.open_document(
         "file:///test/multi_errors.sixu",
-        "::test {\n    @changebg(fadeTime=600)\n    @unknownCmd(arg=1)\n}\n",
+        "::test {\n    @bg(fadeTime=600)\n    @unknownCmd(arg=1)\n}\n",
     )
     .await;
 
@@ -271,7 +271,7 @@ async fn test_empty_string_no_diagnostics() {
     let mut ctx = TestContext::new().await;
     ctx.open_document(
         "file:///test/empty_string.sixu",
-        "::test {\n    \"\"\n    @changebg src=\"\"\n}\n",
+        "::test {\n    \"\"\n    @bg src=\"\"\n}\n",
     )
     .await;
 
@@ -364,7 +364,7 @@ async fn test_misspelled_command() {
         "拼写错误的命令应产生 'Unknown command' 警告，实际: {:?}",
         diagnostics.iter().map(|d| &d.message).collect::<Vec<_>>()
     );
-    assert!(unknown.unwrap().message.contains("changebgg"));
+    assert!(unknown.unwrap().message.contains("bgg"));
 }
 
 #[tokio::test(flavor = "multi_thread")]
