@@ -833,12 +833,20 @@ impl LanguageServer for Backend {
                     };
                     let cmd_def = matching_defs[0];
 
-                    let items: Vec<CompletionItem> = cmd_def
+                    let required_params = cmd_def.required.as_deref().unwrap_or(&[]);
+                    let (required_properties, optional_properties): (Vec<_>, Vec<_>) = cmd_def
                         .properties
                         .iter()
-                        .filter(|(key, _)| *key != "command")
-                        .filter(|(key, _)| !existing_args.contains(*key)) // 排除已有参数
-                        .map(|(key, prop)| {
+                        .filter(|(key, _)| key.as_str() != "command")
+                        .filter(|(key, _)| !existing_args.contains(*key))
+                        .partition(|(key, _)| required_params.contains(key));
+
+                    let items: Vec<CompletionItem> = required_properties
+                        .into_iter()
+                        .chain(optional_properties)
+                        .enumerate()
+                        .map(|(index, (key, prop))| {
+                            let is_required = required_params.contains(key);
                             let value_options = CommandDefinition::collect_property_value_options(
                                 &matching_defs,
                                 key,
@@ -895,8 +903,22 @@ impl LanguageServer for Backend {
 
                             CompletionItem {
                                 label: key.clone(),
+                                label_details: Some(CompletionItemLabelDetails {
+                                    detail: None,
+                                    description: Some(if is_required {
+                                        "required".to_string()
+                                    } else {
+                                        "optional".to_string()
+                                    }),
+                                }),
                                 kind: Some(CompletionItemKind::FIELD),
                                 detail: prop.description.clone(),
+                                sort_text: Some(format!(
+                                    "{}_{:04}_{}",
+                                    if is_required { 0 } else { 1 },
+                                    index,
+                                    key
+                                )),
                                 insert_text: Some(insert_text),
                                 insert_text_format: Some(InsertTextFormat::SNIPPET),
                                 command,

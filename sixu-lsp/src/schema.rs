@@ -1,5 +1,6 @@
+use serde::de::{MapAccess, Visitor};
 use serde::{Deserialize, Deserializer};
-use std::collections::HashMap;
+use std::fmt;
 
 #[derive(Debug, Clone)]
 pub struct CommandSchema {
@@ -21,7 +22,7 @@ impl<'de> Deserialize<'de> for CommandSchema {
 #[derive(Debug, Deserialize, Clone)]
 pub struct CommandDefinition {
     pub description: Option<String>,
-    pub properties: HashMap<String, Property>,
+    pub properties: Properties,
     pub required: Option<Vec<String>>,
 }
 
@@ -67,6 +68,51 @@ impl CommandDefinition {
     }
 }
 
+#[derive(Debug, Clone, Default)]
+pub struct Properties(Vec<(String, Property)>);
+
+impl Properties {
+    pub fn get(&self, key: &str) -> Option<&Property> {
+        self.0
+            .iter()
+            .find_map(|(property_key, property)| (property_key == key).then_some(property))
+    }
+
+    pub fn iter(&self) -> impl Iterator<Item = (&String, &Property)> {
+        self.0.iter().map(|(key, property)| (key, property))
+    }
+}
+
+impl<'de> Deserialize<'de> for Properties {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        struct PropertiesVisitor;
+
+        impl<'de> Visitor<'de> for PropertiesVisitor {
+            type Value = Properties;
+
+            fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+                formatter.write_str("a JSON object containing command properties")
+            }
+
+            fn visit_map<A>(self, mut map: A) -> Result<Self::Value, A::Error>
+            where
+                A: MapAccess<'de>,
+            {
+                let mut properties = Vec::new();
+                while let Some((key, value)) = map.next_entry::<String, Property>()? {
+                    properties.push((key, value));
+                }
+                Ok(Properties(properties))
+            }
+        }
+
+        deserializer.deserialize_map(PropertiesVisitor)
+    }
+}
+
 #[derive(Debug, Deserialize, Clone)]
 pub struct Property {
     #[serde(rename = "type")]
@@ -102,7 +148,7 @@ pub enum StringOrArray {
 #[derive(Debug, Deserialize)]
 struct SchemaNode {
     pub description: Option<String>,
-    pub properties: Option<HashMap<String, Property>>,
+    pub properties: Option<Properties>,
     pub required: Option<Vec<String>>,
     #[serde(rename = "oneOf", default)]
     pub one_of: Vec<SchemaNode>,

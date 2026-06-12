@@ -545,6 +545,79 @@ async fn test_asset_format_param_completion_triggers_value_suggest() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
+async fn test_param_completion_orders_required_before_optional_by_property_order() {
+    let workspace_path = std::env::temp_dir()
+        .join("sixu-lsp-tests")
+        .join(format!("param-order-{}", std::process::id()));
+    std::fs::create_dir_all(&workspace_path).expect("应创建排序测试工作区");
+    std::fs::write(
+        workspace_path.join("commands.schema.json"),
+        r#"{
+  "oneOf": [
+    {
+      "properties": {
+        "command": { "type": "string", "const": "ordered" },
+        "optionalBefore": { "type": "string" },
+        "requiredFirst": { "type": "string" },
+        "optionalAfter": { "type": "string" },
+        "requiredSecond": { "type": "number" }
+      },
+      "required": ["command", "requiredFirst", "requiredSecond"]
+    }
+  ]
+}"#,
+    )
+    .expect("应写入排序测试 schema");
+
+    let mut ctx = TestContext::with_workspace(workspace_path).await;
+    let text = "::test {\n    @ordered \n}\n";
+    let uri = ctx.open_document("file:///test/param_order.sixu", text).await;
+    let _ = ctx.read_diagnostics().await;
+
+    let line = text.lines().nth(1).unwrap();
+    let items = ctx.completion(&uri, 1, line.len() as u32).await;
+    let items = items.expect("应返回参数补全项");
+    let labels: Vec<_> = items.iter().map(|item| item.label.as_str()).collect();
+
+    assert_eq!(
+        labels,
+        vec![
+            "requiredFirst",
+            "requiredSecond",
+            "optionalBefore",
+            "optionalAfter"
+        ]
+    );
+
+    let sort_texts: Vec<_> = items
+        .iter()
+        .map(|item| item.sort_text.as_deref())
+        .collect();
+    assert_eq!(
+        sort_texts,
+        vec![
+            Some("0_0000_requiredFirst"),
+            Some("0_0001_requiredSecond"),
+            Some("1_0002_optionalBefore"),
+            Some("1_0003_optionalAfter")
+        ]
+    );
+
+    let label_descriptions: Vec<_> = items
+        .iter()
+        .map(|item| {
+            item.label_details
+                .as_ref()
+                .and_then(|details| details.description.as_deref())
+        })
+        .collect();
+    assert_eq!(
+        label_descriptions,
+        vec![Some("required"), Some("required"), Some("optional"), Some("optional")]
+    );
+}
+
+#[tokio::test(flavor = "multi_thread")]
 async fn test_completion_trigger_characters_include_value_triggers() {
     let (mut service, _socket) = create_lsp_service();
     let request = Request::build("initialize")
