@@ -12,6 +12,54 @@ use tower::{Service, ServiceExt};
 use tower_lsp_server::jsonrpc::Request;
 use tower_lsp_server::ls_types::ServerCapabilities;
 
+async fn format_completion_context(name: &str) -> TestContext {
+    let workspace_path = std::env::temp_dir()
+        .join("sixu-lsp-tests")
+        .join(format!("format-completion-{}-{}", name, std::process::id()));
+
+    std::fs::create_dir_all(workspace_path.join("assets").join("foo"))
+        .expect("应创建 assets/foo 目录");
+    std::fs::create_dir_all(workspace_path.join("assets").join("other"))
+        .expect("应创建 assets/other 目录");
+    std::fs::write(workspace_path.join("assets").join("foo").join("bar.png"), "")
+        .expect("应写入测试 asset");
+    std::fs::write(workspace_path.join("assets").join("foo").join("baz.png"), "")
+        .expect("应写入测试 asset");
+    std::fs::write(workspace_path.join("assets").join("other").join("card.png"), "")
+        .expect("应写入测试 asset");
+    std::fs::write(
+        workspace_path.join("commands.schema.json"),
+        r#"{
+  "oneOf": [
+    {
+      "properties": {
+        "command": { "type": "string", "const": "charEnter" },
+        "name": { "type": "string", "format": "character" }
+      },
+      "required": ["command", "name"]
+    },
+    {
+      "properties": {
+        "command": { "type": "string", "const": "charAction" },
+        "name": { "type": "string", "format": "character" }
+      },
+      "required": ["command", "name"]
+    },
+    {
+      "properties": {
+        "command": { "type": "string", "const": "bg" },
+        "src": { "type": "string", "format": "asset" }
+      },
+      "required": ["command", "src"]
+    }
+  ]
+}"#,
+    )
+    .expect("应写入测试 commands.schema.json");
+
+    TestContext::with_workspace(workspace_path).await
+}
+
 // ============================================================
 // 参数排除测试（已有参数不应再出现）
 // ============================================================
@@ -412,6 +460,91 @@ async fn test_enum_value_completion_stops_after_quoted_value() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
+async fn test_character_format_value_completion_uses_project_cache() {
+    let mut ctx = format_completion_context("character").await;
+    let definitions = "::test {\n    @charEnter name=\"hero\"\n    @charEnter name=\"alice\"\n}\n";
+    ctx.open_document("file:///test/characters.sixu", definitions)
+        .await;
+    let _ = ctx.read_diagnostics().await;
+
+    let text = "::test {\n    @charAction name=\"h\"\n}\n";
+    let uri = ctx
+        .open_document("file:///test/character_completion.sixu", text)
+        .await;
+    let _ = ctx.read_diagnostics().await;
+
+    let line = text.lines().nth(1).unwrap();
+    let col = line.find("\"h\"").expect("应包含角色名前缀") + 2;
+    let items = ctx.completion(&uri, 1, col as u32).await;
+    let items = items.expect("应返回角色名补全项");
+    let labels: Vec<_> = items.iter().map(|item| item.label.as_str()).collect();
+
+    assert_eq!(labels, vec!["hero"]);
+    assert_eq!(items[0].insert_text.as_deref(), Some("hero"));
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn test_asset_format_value_completion_scans_assets_directory() {
+    let mut ctx = format_completion_context("asset").await;
+    let text = "::test {\n    @bg src=\"foo/\"\n}\n";
+    let uri = ctx.open_document("file:///test/asset_completion.sixu", text).await;
+    let _ = ctx.read_diagnostics().await;
+
+    let line = text.lines().nth(1).unwrap();
+    let col = line.find("\"foo/\"").expect("应包含 asset 前缀") + "\"foo/".len();
+    let items = ctx.completion(&uri, 1, col as u32).await;
+    let items = items.expect("应返回 asset 补全项");
+    let labels: Vec<_> = items.iter().map(|item| item.label.as_str()).collect();
+
+    assert_eq!(labels, vec!["foo/bar.png", "foo/baz.png"]);
+    assert_eq!(items[0].insert_text.as_deref(), Some("foo/bar.png"));
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn test_character_format_param_completion_triggers_value_suggest() {
+    let mut ctx = format_completion_context("character-param-trigger").await;
+    let text = "::test {\n    @charAction \n}\n";
+    let uri = ctx.open_document("file:///test/character_param.sixu", text).await;
+    let _ = ctx.read_diagnostics().await;
+
+    let line = text.lines().nth(1).unwrap();
+    let items = ctx.completion(&uri, 1, line.len() as u32).await;
+    let items = items.expect("应返回参数补全项");
+    let name = items
+        .iter()
+        .find(|item| item.label == "name")
+        .expect("应包含 name 参数");
+
+    assert_eq!(name.insert_text.as_deref(), Some("name=\"$1\""));
+    assert_eq!(
+        name.command.as_ref().map(|command| command.command.as_str()),
+        Some("editor.action.triggerSuggest")
+    );
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn test_asset_format_param_completion_triggers_value_suggest() {
+    let mut ctx = format_completion_context("asset-param-trigger").await;
+    let text = "::test {\n    @bg \n}\n";
+    let uri = ctx.open_document("file:///test/asset_param.sixu", text).await;
+    let _ = ctx.read_diagnostics().await;
+
+    let line = text.lines().nth(1).unwrap();
+    let items = ctx.completion(&uri, 1, line.len() as u32).await;
+    let items = items.expect("应返回参数补全项");
+    let src = items
+        .iter()
+        .find(|item| item.label == "src")
+        .expect("应包含 src 参数");
+
+    assert_eq!(src.insert_text.as_deref(), Some("src=\"$1\""));
+    assert_eq!(
+        src.command.as_ref().map(|command| command.command.as_str()),
+        Some("editor.action.triggerSuggest")
+    );
+}
+
+#[tokio::test(flavor = "multi_thread")]
 async fn test_completion_trigger_characters_include_value_triggers() {
     let (mut service, _socket) = create_lsp_service();
     let request = Request::build("initialize")
@@ -501,7 +634,7 @@ async fn test_mixed_params_exclusion() {
 async fn test_no_completion_on_equals() {
     // 在等号后面不应触发补全（正在输入值）
     let mut ctx = TestContext::new().await;
-    let text = "::test {\n    @bg src=\n}\n";
+    let text = "::test {\n    @bg fadeTime=\n}\n";
     let uri = ctx.open_document("file:///test/after_eq.sixu", text).await;
     let _ = ctx.read_diagnostics().await;
 

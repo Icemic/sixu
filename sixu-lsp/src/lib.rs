@@ -6,7 +6,7 @@ use sixu::cst::node::{CstArgument, CstValueKind};
 use sixu::cst::parser::parse_tolerant;
 use sixu::parser;
 use std::collections::HashSet;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use tokio::time::{Duration, Instant};
 use tower_lsp_server::jsonrpc::Result;
@@ -20,7 +20,7 @@ pub use cst_helper::*;
 
 const VALIDATION_THROTTLE: Duration = Duration::from_secs(1);
 
-fn find_argument_value_context(line_prefix: &str) -> Option<(String, String, bool)> {
+fn find_argument_value_context(line_prefix: &str) -> Option<(String, String, bool, String)> {
     let trigger_idx = match (line_prefix.rfind('@'), line_prefix.rfind('#')) {
         (Some(at), Some(hash)) => at.max(hash),
         (Some(at), None) => at,
@@ -50,9 +50,11 @@ fn find_argument_value_context(line_prefix: &str) -> Option<(String, String, boo
 
     let value_prefix = after_command[equals_idx + 1..].trim_start();
     let quoted = value_prefix.starts_with('"') || value_prefix.starts_with('\'');
+    let value_text;
     if quoted {
         let quote = value_prefix.chars().next()?;
         let value_after_quote = &value_prefix[quote.len_utf8()..];
+        value_text = value_after_quote.to_string();
         if value_after_quote.chars().any(char::is_whitespace) {
             return None;
         }
@@ -78,9 +80,28 @@ fn find_argument_value_context(line_prefix: &str) -> Option<(String, String, boo
         .any(|ch| ch.is_whitespace() || ch == ',' || ch == ')')
     {
         return None;
+    } else {
+        value_text = value_prefix.to_string();
     }
 
-    Some((command_name, argument_name.to_string(), quoted))
+    Some((command_name, argument_name.to_string(), quoted, value_text))
+}
+
+fn string_value(value: &sixu::cst::node::CstValue) -> Option<String> {
+    match value.kind {
+        CstValueKind::String { .. } => {
+            let raw = value.raw.trim();
+            if raw.len() >= 2
+                && ((raw.starts_with('"') && raw.ends_with('"'))
+                    || (raw.starts_with('\'') && raw.ends_with('\'')))
+            {
+                Some(raw[1..raw.len() - 1].to_string())
+            } else {
+                Some(raw.to_string())
+            }
+        }
+        _ => None,
+    }
 }
 
 fn narrow_command_definitions<'a>(
@@ -99,20 +120,7 @@ fn narrow_command_definitions<'a>(
                     return true;
                 };
 
-                let value = match value.kind {
-                    CstValueKind::String { .. } => {
-                        let raw = value.raw.trim();
-                        if raw.len() >= 2
-                            && ((raw.starts_with('"') && raw.ends_with('"'))
-                                || (raw.starts_with('\'') && raw.ends_with('\'')))
-                        {
-                            raw[1..raw.len() - 1].to_string()
-                        } else {
-                            raw.to_string()
-                        }
-                    }
-                    _ => value.raw.clone(),
-                };
+                let value = string_value(value).unwrap_or_else(|| value.raw.clone());
 
                 if let Some(const_value) = &property.const_value {
                     return const_value == &value;
@@ -138,6 +146,7 @@ fn narrow_command_definitions<'a>(
 pub struct Backend {
     client: Client,
     schema_cache: Arc<DashMap<PathBuf, Option<Arc<CommandSchema>>>>,
+    character_cache: Arc<DashMap<PathBuf, Arc<Vec<String>>>>,
     documents: Arc<DashMap<Uri, Rope>>,
     last_validation_at: Arc<DashMap<Uri, Instant>>,
     pending_validation: Arc<DashMap<Uri, ()>>,
@@ -148,28 +157,28 @@ impl Backend {
         Backend {
             client,
             schema_cache: Arc::new(DashMap::new()),
+            character_cache: Arc::new(DashMap::new()),
             documents: Arc::new(DashMap::new()),
             last_validation_at: Arc::new(DashMap::new()),
             pending_validation: Arc::new(DashMap::new()),
         }
     }
 
-    async fn get_schema_for_uri<'a>(&'a self, uri: &Uri) -> Option<Arc<CommandSchema>> {
-        let mut schema_path = None;
-
+    fn schema_path_for_uri(&self, uri: &Uri) -> Option<PathBuf> {
         let file_path = uri.to_file_path()?;
         let mut current = file_path.parent();
         while let Some(directory) = current {
             let path = directory.join("commands.schema.json");
             if path.exists() {
-                schema_path = Some(path);
-                break;
+                return Some(path);
             }
             current = directory.parent();
         }
 
-        let schema_path = schema_path?;
+        None
+    }
 
+    async fn get_schema_at_path(&self, schema_path: PathBuf) -> Option<Arc<CommandSchema>> {
         if let Some(entry) = self.schema_cache.get(&schema_path) {
             return entry.clone();
         } else {
@@ -215,6 +224,97 @@ impl Backend {
                 }
             }
         }
+    }
+
+    async fn get_schema_for_uri<'a>(&'a self, uri: &Uri) -> Option<Arc<CommandSchema>> {
+        self.get_schema_at_path(self.schema_path_for_uri(uri)?).await
+    }
+
+    async fn get_project_schema_for_uri(&self, uri: &Uri) -> Option<(PathBuf, Arc<CommandSchema>)> {
+        let schema_path = self.schema_path_for_uri(uri)?;
+        let project_root = schema_path.parent()?.to_path_buf();
+        let schema = self.get_schema_at_path(schema_path).await?;
+        Some((project_root, schema))
+    }
+
+    fn refresh_character_cache(&self, project_root: &Path, schema: &CommandSchema) {
+        let mut values = Vec::new();
+        let mut seen = HashSet::new();
+
+        for entry in self.documents.iter() {
+            let Some(path) = entry.key().to_file_path() else {
+                continue;
+            };
+            if !path.starts_with(project_root) {
+                continue;
+            }
+
+            let cst = parse_tolerant("character_cache", &entry.value().to_string());
+            for command in extract_commands(&cst) {
+                let matching_defs: Vec<_> = schema
+                    .commands
+                    .iter()
+                    .filter(|definition| {
+                        definition.get_command_name().as_deref() == Some(&command.command)
+                    })
+                    .collect();
+                let matching_defs = narrow_command_definitions(matching_defs, &command.arguments);
+
+                for argument in &command.arguments {
+                    if !matching_defs.iter().any(|definition| {
+                        definition
+                            .properties
+                            .get(&argument.name)
+                            .and_then(|property| property.format.as_deref())
+                            == Some("character")
+                    }) {
+                        continue;
+                    }
+
+                    let Some(value) = argument.value.as_ref().and_then(string_value) else {
+                        continue;
+                    };
+                    if !value.is_empty() && seen.insert(value.clone()) {
+                        values.push(value);
+                    }
+                }
+            }
+        }
+
+        values.sort();
+        self.character_cache
+            .insert(project_root.to_path_buf(), Arc::new(values));
+    }
+
+    fn asset_paths(project_root: &Path, prefix: &str) -> Vec<String> {
+        let assets_dir = project_root.join("assets");
+        let mut pending = vec![assets_dir.clone()];
+        let mut items = Vec::new();
+
+        while let Some(directory) = pending.pop() {
+            let Ok(entries) = std::fs::read_dir(&directory) else {
+                continue;
+            };
+
+            for entry in entries.flatten() {
+                let path = entry.path();
+                if path.is_dir() {
+                    pending.push(path);
+                    continue;
+                }
+
+                let Ok(relative) = path.strip_prefix(&assets_dir) else {
+                    continue;
+                };
+                let value = relative.to_string_lossy().replace('\\', "/");
+                if value.starts_with(prefix) {
+                    items.push(value);
+                }
+            }
+        }
+
+        items.sort();
+        items
     }
 
     async fn validate(&self, uri: Uri, text: String) {
@@ -286,7 +386,9 @@ impl Backend {
         collect_errors(&cst.nodes, &mut diagnostics);
 
         // 3. Schema Check
-        if let Some(schema) = self.get_schema_for_uri(&uri).await {
+        if let Some((project_root, schema)) = self.get_project_schema_for_uri(&uri).await {
+            self.refresh_character_cache(&project_root, &schema);
+
             let cst = parse_tolerant("validate", &text);
             let commands = extract_commands(&cst);
             for cmd in &commands {
@@ -548,24 +650,82 @@ impl LanguageServer for Backend {
         };
         let line_prefix = &line[..slice_end];
 
-        if let Some((value_command_name, value_argument_name, value_quoted)) =
+        if let Some((value_command_name, value_argument_name, value_quoted, value_prefix)) =
             find_argument_value_context(line_prefix)
         {
-            let schema = match self.get_schema_for_uri(&uri).await {
-                Some(schema) => schema,
+            let (project_root, schema) = match self.get_project_schema_for_uri(&uri).await {
+                Some(result) => result,
                 None => return Ok(None),
             };
 
-            let matching_defs: Vec<_> = schema
+            let mut matching_defs: Vec<_> = schema
                 .commands
                 .iter()
                 .filter(|c| c.get_command_name().as_deref() == Some(&value_command_name))
                 .collect();
+            let cst = parse_tolerant("completion", &rope.to_string());
+            let commands = extract_commands(&cst);
+            if let Some(command) = commands.iter().find(|cmd| {
+                cmd.command == value_command_name
+                    && cmd.span.start_line <= position.line as usize + 1
+                    && cmd.span.end_line >= position.line as usize + 1
+            }) {
+                matching_defs = narrow_command_definitions(matching_defs, &command.arguments);
+            }
             let prop = matching_defs
                 .iter()
                 .find_map(|def| def.properties.get(&value_argument_name));
 
             if let Some(prop) = prop {
+                if prop.format.as_deref() == Some("character") {
+                    self.refresh_character_cache(&project_root, &schema);
+                    let Some(values) = self.character_cache.get(&project_root) else {
+                        return Ok(None);
+                    };
+
+                    let items = values
+                        .iter()
+                        .filter(|value| value.starts_with(&value_prefix))
+                        .filter(|value| value.as_str() != value_prefix)
+                        .map(|value| CompletionItem {
+                            label: value.clone(),
+                            kind: Some(CompletionItemKind::VALUE),
+                            detail: Some("Character".to_string()),
+                            insert_text: Some(if prop.is_string() && !value_quoted {
+                                format!("\"{}\"", value)
+                            } else {
+                                value.clone()
+                            }),
+                            ..Default::default()
+                        })
+                        .collect::<Vec<_>>();
+
+                    if !items.is_empty() {
+                        return Ok(Some(CompletionResponse::Array(items)));
+                    }
+                }
+
+                if prop.format.as_deref() == Some("asset") {
+                    let items = Self::asset_paths(&project_root, &value_prefix)
+                        .into_iter()
+                        .map(|value| CompletionItem {
+                            label: value.clone(),
+                            kind: Some(CompletionItemKind::FILE),
+                            detail: Some("Asset".to_string()),
+                            insert_text: Some(if prop.is_string() && !value_quoted {
+                                format!("\"{}\"", value)
+                            } else {
+                                value
+                            }),
+                            ..Default::default()
+                        })
+                        .collect::<Vec<_>>();
+
+                    if !items.is_empty() {
+                        return Ok(Some(CompletionResponse::Array(items)));
+                    }
+                }
+
                 let value_options = CommandDefinition::collect_property_value_options(
                     &matching_defs,
                     &value_argument_name,
@@ -720,6 +880,18 @@ impl LanguageServer for Backend {
                             } else {
                                 format!("{}=", key)
                             };
+                            let command = if matches!(
+                                prop.format.as_deref(),
+                                Some("character") | Some("asset")
+                            ) {
+                                Some(Command {
+                                    title: "Trigger Suggest".to_string(),
+                                    command: "editor.action.triggerSuggest".to_string(),
+                                    arguments: None,
+                                })
+                            } else {
+                                None
+                            };
 
                             CompletionItem {
                                 label: key.clone(),
@@ -727,6 +899,7 @@ impl LanguageServer for Backend {
                                 detail: prop.description.clone(),
                                 insert_text: Some(insert_text),
                                 insert_text_format: Some(InsertTextFormat::SNIPPET),
+                                command,
                                 ..Default::default()
                             }
                         })

@@ -77,6 +77,7 @@ pub struct Property {
     #[serde(rename = "enum")]
     pub enum_values: Option<Vec<String>>,
     pub default: Option<serde_json::Value>,
+    pub format: Option<String>,
 }
 
 impl Property {
