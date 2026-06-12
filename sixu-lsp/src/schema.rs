@@ -31,6 +31,40 @@ impl CommandDefinition {
             .get("command")
             .and_then(|p| p.const_value.clone())
     }
+
+    pub fn collect_property_value_options(
+        definitions: &[&CommandDefinition],
+        property_name: &str,
+        default: Option<&serde_json::Value>,
+    ) -> Vec<String> {
+        let mut value_options = Vec::new();
+        for definition in definitions {
+            if let Some(property) = definition.properties.get(property_name) {
+                if let Some(enum_values) = &property.enum_values {
+                    for value in enum_values {
+                        if !value_options.contains(value) {
+                            value_options.push(value.clone());
+                        }
+                    }
+                }
+
+                if let Some(value) = &property.const_value
+                    && !value_options.contains(value)
+                {
+                    value_options.push(value.clone());
+                }
+            }
+        }
+
+        if let Some(default_value) = default.and_then(|value| value.as_str())
+            && let Some(index) = value_options.iter().position(|value| value == default_value)
+        {
+            let default_value = value_options.remove(index);
+            value_options.insert(0, default_value);
+        }
+
+        value_options
+    }
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -41,9 +75,20 @@ pub struct Property {
     #[serde(rename = "const")]
     pub const_value: Option<String>,
     #[serde(rename = "enum")]
-    #[allow(dead_code)]
     pub enum_values: Option<Vec<String>>,
     pub default: Option<serde_json::Value>,
+}
+
+impl Property {
+    pub fn is_string(&self) -> bool {
+        self.type_
+            .as_ref()
+            .map(|type_| match type_ {
+                StringOrArray::String(value) => value == "string",
+                StringOrArray::Array(values) => values.contains(&"string".to_string()),
+            })
+            .unwrap_or(false)
+    }
 }
 
 #[derive(Debug, Deserialize, Clone)]

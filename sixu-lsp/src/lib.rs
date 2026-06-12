@@ -20,6 +20,69 @@ pub use cst_helper::*;
 
 const VALIDATION_THROTTLE: Duration = Duration::from_secs(1);
 
+fn find_argument_value_context(line_prefix: &str) -> Option<(String, String, bool)> {
+    let trigger_idx = match (line_prefix.rfind('@'), line_prefix.rfind('#')) {
+        (Some(at), Some(hash)) => at.max(hash),
+        (Some(at), None) => at,
+        (None, Some(hash)) => hash,
+        (None, None) => return None,
+    };
+
+    let after_trigger = &line_prefix[trigger_idx + 1..];
+    let separator_pos = after_trigger.find(|c: char| c.is_whitespace() || c == '(')?;
+    if separator_pos == 0 {
+        return None;
+    }
+
+    let command_name = after_trigger[..separator_pos].to_string();
+    let after_command = &after_trigger[separator_pos..];
+    let equals_idx = after_command.rfind('=')?;
+    let before_equals = &after_command[..equals_idx];
+    let argument_name = before_equals
+        .trim_end()
+        .rsplit_once(|c: char| !(c.is_alphanumeric() || c == '_'))
+        .map(|(_, name)| name)
+        .unwrap_or_else(|| before_equals.trim_end());
+
+    if argument_name.is_empty() {
+        return None;
+    }
+
+    let value_prefix = after_command[equals_idx + 1..].trim_start();
+    let quoted = value_prefix.starts_with('"') || value_prefix.starts_with('\'');
+    if quoted {
+        let quote = value_prefix.chars().next()?;
+        let value_after_quote = &value_prefix[quote.len_utf8()..];
+        if value_after_quote.chars().any(char::is_whitespace) {
+            return None;
+        }
+
+        let mut escape_next = false;
+        for ch in value_after_quote.chars() {
+            if escape_next {
+                escape_next = false;
+                continue;
+            }
+
+            if ch == '\\' {
+                escape_next = true;
+                continue;
+            }
+
+            if ch == quote {
+                return None;
+            }
+        }
+    } else if value_prefix
+        .chars()
+        .any(|ch| ch.is_whitespace() || ch == ',' || ch == ')')
+    {
+        return None;
+    }
+
+    Some((command_name, argument_name.to_string(), quoted))
+}
+
 #[derive(Debug, Clone)]
 pub struct Backend {
     client: Client,
@@ -291,6 +354,9 @@ impl LanguageServer for Backend {
                         " ".to_string(),
                         "(".to_string(),
                         "#".to_string(),
+                        "=".to_string(),
+                        "\"".to_string(),
+                        "'".to_string(),
                     ]),
                     work_done_progress_options: Default::default(),
                     all_commit_characters: None,
@@ -429,6 +495,52 @@ impl LanguageServer for Backend {
         };
         let line_prefix = &line[..slice_end];
 
+        if let Some((value_command_name, value_argument_name, value_quoted)) =
+            find_argument_value_context(line_prefix)
+        {
+            let schema = match self.get_schema_for_uri(&uri).await {
+                Some(schema) => schema,
+                None => return Ok(None),
+            };
+
+            let matching_defs: Vec<_> = schema
+                .commands
+                .iter()
+                .filter(|c| c.get_command_name().as_deref() == Some(&value_command_name))
+                .collect();
+            let prop = matching_defs
+                .iter()
+                .find_map(|def| def.properties.get(&value_argument_name));
+
+            if let Some(prop) = prop {
+                let value_options = CommandDefinition::collect_property_value_options(
+                    &matching_defs,
+                    &value_argument_name,
+                    prop.default.as_ref(),
+                );
+
+                if !value_options.is_empty() {
+                    let is_string = prop.is_string();
+                    let items = value_options
+                        .into_iter()
+                        .map(|value| CompletionItem {
+                            label: value.clone(),
+                            kind: Some(CompletionItemKind::ENUM_MEMBER),
+                            detail: prop.description.clone(),
+                            insert_text: Some(if is_string && !value_quoted {
+                                format!("\"{}\"", value)
+                            } else {
+                                value
+                            }),
+                            ..Default::default()
+                        })
+                        .collect();
+
+                    return Ok(Some(CompletionResponse::Array(items)));
+                }
+            }
+        }
+
         // 检查是否在等号后面（正在输入值）
         let trimmed = line_prefix.trim_end();
         if trimmed.ends_with('=') {
@@ -504,43 +616,12 @@ impl LanguageServer for Backend {
                         .filter(|(key, _)| *key != "command")
                         .filter(|(key, _)| !existing_args.contains(*key)) // 排除已有参数
                         .map(|(key, prop)| {
-                            let mut value_options = Vec::new();
-                            for def in &matching_defs {
-                                if let Some(matching_prop) = def.properties.get(key) {
-                                    if let Some(enum_values) = &matching_prop.enum_values {
-                                        for value in enum_values {
-                                            if !value_options.contains(value) {
-                                                value_options.push(value.clone());
-                                            }
-                                        }
-                                    }
-
-                                    if let Some(value) = &matching_prop.const_value
-                                        && !value_options.contains(value)
-                                    {
-                                        value_options.push(value.clone());
-                                    }
-                                }
-                            }
-
-                            if let Some(default_value) = prop.default.as_ref().and_then(|v| v.as_str())
-                                && let Some(index) =
-                                    value_options.iter().position(|value| value == default_value)
-                            {
-                                let default_value = value_options.remove(index);
-                                value_options.insert(0, default_value);
-                            }
-
-                            let is_string = prop
-                                .type_
-                                .as_ref()
-                                .map(|t| match t {
-                                    StringOrArray::String(s) => s == "string",
-                                    StringOrArray::Array(arr) => {
-                                        arr.contains(&"string".to_string())
-                                    }
-                                })
-                                .unwrap_or(false);
+                            let value_options = CommandDefinition::collect_property_value_options(
+                                &matching_defs,
+                                key,
+                                prop.default.as_ref(),
+                            );
+                            let is_string = prop.is_string();
 
                             let is_pure_boolean = prop
                                 .type_

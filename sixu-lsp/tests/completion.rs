@@ -6,6 +6,11 @@
 
 mod helpers;
 use helpers::*;
+use serde_json::json;
+use sixu_lsp::create_lsp_service;
+use tower::{Service, ServiceExt};
+use tower_lsp_server::jsonrpc::Request;
+use tower_lsp_server::ls_types::ServerCapabilities;
 
 // ============================================================
 // 参数排除测试（已有参数不应再出现）
@@ -292,6 +297,143 @@ async fn test_oneof_const_param_completion_uses_snippet_choices() {
         effect.insert_text_format,
         Some(tower_lsp_server::ls_types::InsertTextFormat::SNIPPET)
     );
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn test_enum_value_completion_after_equals() {
+    let mut ctx = nested_oneof_context("enum-value-after-equals").await;
+    let text = "::test {\n    @transPerform effect=\n}\n";
+    let uri = ctx
+        .open_document("file:///test/enum_value_after_equals.sixu", text)
+        .await;
+    let _ = ctx.read_diagnostics().await;
+
+    let line = text.lines().nth(1).unwrap();
+    let items = ctx.completion(&uri, 1, line.len() as u32).await;
+    let items = items.expect("应返回参数值补全项");
+
+    let insert_texts: Vec<_> = items
+        .iter()
+        .map(|item| (item.label.as_str(), item.insert_text.as_deref()))
+        .collect();
+    assert_eq!(
+        insert_texts,
+        vec![
+            ("crossfade", Some("\"crossfade\"")),
+            ("wipe", Some("\"wipe\"")),
+            ("fade", Some("\"fade\"")),
+        ]
+    );
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn test_enum_value_completion_inside_quotes() {
+    let mut ctx = nested_oneof_context("enum-value-inside-quotes").await;
+    let text = "::test {\n    @transPerform effect=\"\"\n}\n";
+    let uri = ctx
+        .open_document("file:///test/enum_value_inside_quotes.sixu", text)
+        .await;
+    let _ = ctx.read_diagnostics().await;
+
+    let line = text.lines().nth(1).unwrap();
+    let opening_quote_col = line.find('"').expect("应包含引号") + 1;
+    let items = ctx.completion(&uri, 1, opening_quote_col as u32).await;
+    let items = items.expect("应在引号内返回参数值补全项");
+
+    let insert_texts: Vec<_> = items
+        .iter()
+        .map(|item| (item.label.as_str(), item.insert_text.as_deref()))
+        .collect();
+    assert_eq!(
+        insert_texts,
+        vec![
+            ("crossfade", Some("crossfade")),
+            ("wipe", Some("wipe")),
+            ("fade", Some("fade")),
+        ]
+    );
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn test_enum_value_completion_does_not_trigger_after_space_inside_quotes() {
+    let mut ctx = nested_oneof_context("enum-value-space-inside-quotes").await;
+    let text = "::test {\n    @transPerform effect=\" \"\n}\n";
+    let uri = ctx
+        .open_document("file:///test/enum_value_space_inside_quotes.sixu", text)
+        .await;
+    let _ = ctx.read_diagnostics().await;
+
+    let line = text.lines().nth(1).unwrap();
+    let space_col = line.find("\" \"").expect("应包含引号内空格") + 2;
+    let items = ctx.completion(&uri, 1, space_col as u32).await;
+
+    assert!(
+        items.is_none() || items.as_ref().unwrap().is_empty(),
+        "引号内已输入空格后不应提示枚举值，实际: {:?}",
+        items.map(|items| items
+            .iter()
+            .map(|item| item.label.clone())
+            .collect::<Vec<_>>())
+    );
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn test_enum_value_completion_stops_after_quoted_value() {
+    let mut ctx = nested_oneof_context("enum-value-after-quoted-value").await;
+    let text = "::test {\n    @transPerform effect=\"crossfade\" \n}\n";
+    let uri = ctx
+        .open_document("file:///test/enum_value_after_quoted_value.sixu", text)
+        .await;
+    let _ = ctx.read_diagnostics().await;
+
+    let line = text.lines().nth(1).unwrap();
+    let items = ctx.completion(&uri, 1, line.len() as u32).await;
+    let items = items.expect("应回到参数补全项");
+    let labels: Vec<_> = items.iter().map(|item| item.label.as_str()).collect();
+
+    assert!(
+        !labels.contains(&"crossfade") && !labels.contains(&"wipe") && !labels.contains(&"fade"),
+        "完整参数值后不应继续提示枚举值，实际: {:?}",
+        labels
+    );
+    assert!(
+        labels.contains(&"fadeTime"),
+        "完整参数值后的空格应回到参数补全，实际: {:?}",
+        labels
+    );
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn test_completion_trigger_characters_include_value_triggers() {
+    let (mut service, _socket) = create_lsp_service();
+    let request = Request::build("initialize")
+        .params(json!({
+            "capabilities": {},
+            "workspaceFolders": []
+        }))
+        .id(1)
+        .finish();
+
+    let resp = service
+        .ready()
+        .await
+        .unwrap()
+        .call(request)
+        .await
+        .expect("initialize request should succeed")
+        .expect("initialize should return a response");
+    let (_, result) = resp.into_parts();
+    let value = result.expect("initialize should return capabilities");
+    let capabilities: ServerCapabilities =
+        serde_json::from_value(value["capabilities"].clone()).expect("capabilities should parse");
+    let trigger_characters = capabilities
+        .completion_provider
+        .and_then(|options| options.trigger_characters)
+        .expect("应声明 completion trigger characters");
+
+    assert!(trigger_characters.contains(&"=".to_string()));
+    assert!(trigger_characters.contains(&"\"".to_string()));
+    assert!(trigger_characters.contains(&"'".to_string()));
 }
 
 #[tokio::test(flavor = "multi_thread")]
