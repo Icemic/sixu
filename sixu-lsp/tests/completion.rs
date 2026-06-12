@@ -171,20 +171,6 @@ async fn test_systemcall_paren_param_exclusion() {
 // 上下文验证
 // ============================================================
 
-async fn nested_oneof_context(name: &str) -> TestContext {
-    let workspace_path = std::env::temp_dir()
-        .join("sixu-lsp-tests")
-        .join(format!("{}-{}", name, std::process::id()));
-    std::fs::create_dir_all(&workspace_path).expect("应创建临时测试工作区");
-    std::fs::write(
-        workspace_path.join("commands.schema.json"),
-        include_str!("fixtures/nested-oneof.json"),
-    )
-    .expect("应写入临时 commands.schema.json");
-
-    TestContext::with_workspace(workspace_path).await
-}
-
 #[tokio::test(flavor = "multi_thread")]
 async fn test_no_completion_after_closing_paren() {
     // completion_test.sixu 测试 8：右括号后不触发补全
@@ -296,6 +282,28 @@ async fn test_oneof_const_param_completion_uses_snippet_choices() {
     assert_eq!(
         effect.insert_text_format,
         Some(tower_lsp_server::ls_types::InsertTextFormat::SNIPPET)
+    );
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn test_oneof_branch_param_completion_uses_matching_const_branch() {
+    let mut ctx = nested_oneof_context("oneof-branch-param-choice").await;
+    let text = "::test {\n    @transPerform effect=\"fade\" \n}\n";
+    let uri = ctx
+        .open_document("file:///test/oneof_branch_param_choice.sixu", text)
+        .await;
+    let _ = ctx.read_diagnostics().await;
+
+    let line = text.lines().nth(1).unwrap();
+    let items = ctx.completion(&uri, 1, line.len() as u32).await;
+    let items = items.expect("应返回参数补全项");
+    let labels: Vec<_> = items.iter().map(|item| item.label.as_str()).collect();
+
+    assert!(!labels.contains(&"effect"), "已输入 effect 后不应再提示 effect");
+    assert!(
+        labels.contains(&"in") && labels.contains(&"hold") && labels.contains(&"out"),
+        "effect=fade 后应提示 fade 分支参数，实际: {:?}",
+        labels
     );
 }
 

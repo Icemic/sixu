@@ -2,7 +2,7 @@ use dashmap::DashMap;
 use nom::Finish;
 use ropey::Rope;
 use sixu::cst::formatter::CstFormatter;
-use sixu::cst::node::CstValueKind;
+use sixu::cst::node::{CstArgument, CstValueKind};
 use sixu::cst::parser::parse_tolerant;
 use sixu::parser;
 use std::collections::HashSet;
@@ -81,6 +81,57 @@ fn find_argument_value_context(line_prefix: &str) -> Option<(String, String, boo
     }
 
     Some((command_name, argument_name.to_string(), quoted))
+}
+
+fn narrow_command_definitions<'a>(
+    definitions: Vec<&'a CommandDefinition>,
+    arguments: &[CstArgument],
+) -> Vec<&'a CommandDefinition> {
+    let narrowed_definitions: Vec<_> = definitions
+        .iter()
+        .copied()
+        .filter(|definition| {
+            arguments.iter().all(|argument| {
+                let Some(value) = argument.value.as_ref() else {
+                    return true;
+                };
+                let Some(property) = definition.properties.get(&argument.name) else {
+                    return true;
+                };
+
+                let value = match value.kind {
+                    CstValueKind::String { .. } => {
+                        let raw = value.raw.trim();
+                        if raw.len() >= 2
+                            && ((raw.starts_with('"') && raw.ends_with('"'))
+                                || (raw.starts_with('\'') && raw.ends_with('\'')))
+                        {
+                            raw[1..raw.len() - 1].to_string()
+                        } else {
+                            raw.to_string()
+                        }
+                    }
+                    _ => value.raw.clone(),
+                };
+
+                if let Some(const_value) = &property.const_value {
+                    return const_value == &value;
+                }
+
+                if let Some(enum_values) = &property.enum_values {
+                    return enum_values.contains(&value);
+                }
+
+                true
+            })
+        })
+        .collect();
+
+    if narrowed_definitions.is_empty() {
+        definitions
+    } else {
+        narrowed_definitions
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -239,11 +290,13 @@ impl Backend {
             let cst = parse_tolerant("validate", &text);
             let commands = extract_commands(&cst);
             for cmd in &commands {
-                // Find command definition
-                let def = schema
+                let matching_defs: Vec<_> = schema
                     .commands
                     .iter()
-                    .find(|c| c.get_command_name().as_deref() == Some(&cmd.command));
+                    .filter(|c| c.get_command_name().as_deref() == Some(&cmd.command))
+                    .collect();
+                let matching_defs = narrow_command_definitions(matching_defs, &cmd.arguments);
+                let def = matching_defs.first().copied();
 
                 if let Some(def) = def {
                     // Check required parameters
@@ -599,16 +652,26 @@ impl LanguageServer for Backend {
                     None => return Ok(None),
                 };
 
-                if let Some(cmd_def) = schema
+                let matching_defs: Vec<_> = schema
                     .commands
                     .iter()
-                    .find(|c| c.get_command_name().as_deref() == Some(&cmd_name))
-                {
-                    let matching_defs: Vec<_> = schema
-                        .commands
-                        .iter()
-                        .filter(|c| c.get_command_name().as_deref() == Some(&cmd_name))
-                        .collect();
+                    .filter(|c| c.get_command_name().as_deref() == Some(&cmd_name))
+                    .collect();
+
+                if !matching_defs.is_empty() {
+                    let cst = parse_tolerant("completion", &rope.to_string());
+                    let commands = extract_commands(&cst);
+                    let current_command = commands.iter().find(|cmd| {
+                        cmd.command == cmd_name
+                            && cmd.span.start_line <= position.line as usize + 1
+                            && cmd.span.end_line >= position.line as usize + 1
+                    });
+                    let matching_defs: Vec<_> = if let Some(command) = current_command {
+                        narrow_command_definitions(matching_defs, &command.arguments)
+                    } else {
+                        matching_defs
+                    };
+                    let cmd_def = matching_defs[0];
 
                     let items: Vec<CompletionItem> = cmd_def
                         .properties

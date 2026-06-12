@@ -106,6 +106,25 @@ async fn test_unknown_parameter() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
+async fn test_oneof_branch_parameters_are_not_unknown() {
+    let mut ctx = nested_oneof_context("oneof-branch-diagnostics").await;
+    ctx.open_document(
+        "file:///test/oneof_branch_diagnostics.sixu",
+        "::test {\n    @transPerform effect=\"fade\" in=0.2 hold=0.3 out=0.5\n}\n",
+    )
+    .await;
+
+    let diagnostics = ctx.read_diagnostics().await;
+    assert!(
+        diagnostics
+            .iter()
+            .all(|diagnostic| !diagnostic.message.contains("Unknown parameter")),
+        "fade 分支参数不应产生 Unknown parameter，实际: {:?}",
+        diagnostics.iter().map(|d| &d.message).collect::<Vec<_>>()
+    );
+}
+
+#[tokio::test(flavor = "multi_thread")]
 async fn test_type_mismatch() {
     let mut ctx = TestContext::new().await;
     let text = read_fixture("05_type_mismatch.sixu");

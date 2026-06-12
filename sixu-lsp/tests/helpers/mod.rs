@@ -265,6 +265,21 @@ pub fn fixture_dir() -> std::path::PathBuf {
     manifest_dir.join("tests").join("fixtures")
 }
 
+/// 使用 nested oneOf schema fixture 创建测试上下文
+pub async fn nested_oneof_context(name: &str) -> TestContext {
+    let workspace_path = std::env::temp_dir()
+        .join("sixu-lsp-tests")
+        .join(format!("{}-{}", name, std::process::id()));
+    std::fs::create_dir_all(&workspace_path).expect("应创建临时测试工作区");
+    std::fs::write(
+        workspace_path.join("commands.schema.json"),
+        include_str!("../fixtures/nested-oneof.json"),
+    )
+    .expect("应写入临时 commands.schema.json");
+
+    TestContext::with_workspace(workspace_path).await
+}
+
 /// 详细对比两个字符串，输出差异位置（复用自 cst_format.rs 的风格）
 pub fn assert_text_eq(actual: &str, expected: &str, test_name: &str) {
     let actual_normalized = actual.replace("\r\n", "\n");
