@@ -5,6 +5,7 @@ use sixu::cst::formatter::CstFormatter;
 use sixu::cst::node::CstValueKind;
 use sixu::cst::parser::parse_tolerant;
 use sixu::parser;
+use std::collections::HashSet;
 use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::time::{Duration, Instant};
@@ -555,21 +556,28 @@ impl LanguageServer for Backend {
                     None => return Ok(None),
                 };
 
+                let mut command_names = HashSet::new();
                 let items: Vec<CompletionItem> = schema
                     .commands
                     .iter()
                     .filter_map(|cmd| {
-                        cmd.get_command_name().map(|name| CompletionItem {
-                            label: name.clone(),
-                            kind: Some(CompletionItemKind::FUNCTION),
-                            detail: cmd.description.clone(),
-                            insert_text: Some(format!("{} ", name)),
-                            command: Some(Command {
-                                title: "Trigger Suggest".to_string(),
-                                command: "editor.action.triggerSuggest".to_string(),
-                                arguments: None,
-                            }),
-                            ..Default::default()
+                        cmd.get_command_name().and_then(|name| {
+                            if !command_names.insert(name.clone()) {
+                                return None;
+                            }
+
+                            Some(CompletionItem {
+                                label: name.clone(),
+                                kind: Some(CompletionItemKind::FUNCTION),
+                                detail: cmd.description.clone(),
+                                insert_text: Some(format!("{} ", name)),
+                                command: Some(Command {
+                                    title: "Trigger Suggest".to_string(),
+                                    command: "editor.action.triggerSuggest".to_string(),
+                                    arguments: None,
+                                }),
+                                ..Default::default()
+                            })
                         })
                     })
                     .collect();

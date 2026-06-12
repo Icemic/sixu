@@ -1,0 +1,285 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "oneOf": [
+    {
+      "type": "object",
+      "properties": {
+        "command": {
+          "type": "string",
+          "const": "transPrepare"
+        },
+        "retain": {
+          "default": "snapshot",
+          "type": "string",
+          "enum": [
+            "snapshot",
+            "live"
+          ],
+          "description": "How the previous scene should be retained before the transition starts",
+          "title": "Retain",
+          "x-i18n": {
+            "zh-CN": "保留模式"
+          },
+          "x-i18n-desc": {
+            "zh-CN": "在转场开始前如何保留旧场景"
+          }
+        }
+      },
+      "required": [
+        "command"
+      ],
+      "description": "Prepare a full-scene transition while keeping the current scene visible",
+      "title": "Prepare Scene Transition",
+      "x-i18n": {
+        "zh-CN": "准备场景转场"
+      },
+      "x-i18n-desc": {
+        "zh-CN": "准备整个场景的转场，但暂不开始播放"
+      }
+    },
+    {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "command": {
+              "type": "string",
+              "const": "transPerform"
+            },
+            "effect": {
+              "default": "crossfade",
+              "description": "Transition effect",
+              "title": "Effect",
+              "x-i18n": {
+                "zh-CN": "效果"
+              },
+              "x-i18n-desc": {
+                "zh-CN": "转场效果"
+              },
+              "type": "string",
+              "const": "crossfade"
+            },
+            "fadeTime": {
+              "default": 1000,
+              "description": "Fade time in milliseconds",
+              "title": "Fade Time",
+              "x-i18n": {
+                "zh-CN": "渐变时间"
+              },
+              "x-i18n-desc": {
+                "zh-CN": "渐变时间（毫秒）"
+              },
+              "type": "number"
+            },
+            "skippable": {
+              "default": false,
+              "description": "Whether it can be skipped",
+              "title": "Skippable",
+              "x-i18n": {
+                "zh-CN": "可跳过"
+              },
+              "x-i18n-desc": {
+                "zh-CN": "是否可跳过"
+              },
+              "type": "boolean"
+            },
+            "noWait": {
+              "default": false,
+              "description": "Whether to skip waiting for the transition to complete",
+              "title": "No Wait",
+              "x-i18n": {
+                "zh-CN": "不等待"
+              },
+              "x-i18n-desc": {
+                "zh-CN": "是否跳过等待过渡完成"
+              },
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "command"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "command": {
+              "type": "string",
+              "const": "transPerform"
+            },
+            "effect": {
+              "type": "string",
+              "const": "wipe",
+              "description": "Transition effect",
+              "title": "Effect",
+              "x-i18n": {
+                "zh-CN": "效果"
+              },
+              "x-i18n-desc": {
+                "zh-CN": "转场效果"
+              }
+            },
+            "fadeTime": {
+              "default": 1000,
+              "description": "Fade time in milliseconds",
+              "title": "Fade Time",
+              "x-i18n": {
+                "zh-CN": "渐变时间"
+              },
+              "x-i18n-desc": {
+                "zh-CN": "渐变时间（毫秒）"
+              },
+              "type": "number"
+            },
+            "skippable": {
+              "default": false,
+              "description": "Whether it can be skipped",
+              "title": "Skippable",
+              "x-i18n": {
+                "zh-CN": "可跳过"
+              },
+              "x-i18n-desc": {
+                "zh-CN": "是否可跳过"
+              },
+              "type": "boolean"
+            },
+            "noWait": {
+              "default": false,
+              "description": "Whether to skip waiting for the transition to complete",
+              "title": "No Wait",
+              "x-i18n": {
+                "zh-CN": "不等待"
+              },
+              "x-i18n-desc": {
+                "zh-CN": "是否跳过等待过渡完成"
+              },
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "command",
+            "effect"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "command": {
+              "type": "string",
+              "const": "transPerform"
+            },
+            "effect": {
+              "type": "string",
+              "const": "fade",
+              "description": "Transition effect",
+              "title": "Effect",
+              "x-i18n": {
+                "zh-CN": "效果"
+              },
+              "x-i18n-desc": {
+                "zh-CN": "转场效果"
+              }
+            },
+            "in": {
+              "type": "number",
+              "description": "Fade-in ratio from 0 to 1",
+              "title": "In",
+              "x-i18n": {
+                "zh-CN": "淡入占比"
+              },
+              "x-i18n-desc": {
+                "zh-CN": "新画面从纯色淡入阶段的时长占比，预期范围 0 到 1"
+              }
+            },
+            "hold": {
+              "type": "number",
+              "description": "Hold ratio from 0 to 1",
+              "title": "Hold",
+              "x-i18n": {
+                "zh-CN": "停留占比"
+              },
+              "x-i18n-desc": {
+                "zh-CN": "纯色画面停留阶段的时长占比，预期范围 0 到 1"
+              }
+            },
+            "out": {
+              "type": "number",
+              "description": "Fade-out ratio from 0 to 1",
+              "title": "Out",
+              "x-i18n": {
+                "zh-CN": "淡出占比"
+              },
+              "x-i18n-desc": {
+                "zh-CN": "旧画面淡出到纯色阶段的时长占比，预期范围 0 到 1"
+              }
+            },
+            "color": {
+              "default": "#000",
+              "description": "Fade color",
+              "title": "Color",
+              "format": "color",
+              "x-i18n": {
+                "zh-CN": "颜色"
+              },
+              "x-i18n-desc": {
+                "zh-CN": "淡出与停留阶段使用的颜色"
+              },
+              "type": "string"
+            },
+            "fadeTime": {
+              "default": 1000,
+              "description": "Fade time in milliseconds",
+              "title": "Fade Time",
+              "x-i18n": {
+                "zh-CN": "渐变时间"
+              },
+              "x-i18n-desc": {
+                "zh-CN": "渐变时间（毫秒）"
+              },
+              "type": "number"
+            },
+            "skippable": {
+              "default": false,
+              "description": "Whether it can be skipped",
+              "title": "Skippable",
+              "x-i18n": {
+                "zh-CN": "可跳过"
+              },
+              "x-i18n-desc": {
+                "zh-CN": "是否可跳过"
+              },
+              "type": "boolean"
+            },
+            "noWait": {
+              "default": false,
+              "description": "Whether to skip waiting for the transition to complete",
+              "title": "No Wait",
+              "x-i18n": {
+                "zh-CN": "不等待"
+              },
+              "x-i18n-desc": {
+                "zh-CN": "是否跳过等待过渡完成"
+              },
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "command",
+            "effect",
+            "in",
+            "hold",
+            "out"
+          ]
+        }
+      ],
+      "description": "Start a prepared full-scene transition",
+      "title": "Start Scene Transition",
+      "x-i18n": {
+        "zh-CN": "执行场景转场"
+      },
+      "x-i18n-desc": {
+        "zh-CN": "启动已准备好的整个场景转场"
+      }
+    }
+  ]
+}

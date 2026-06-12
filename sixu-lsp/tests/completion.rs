@@ -206,6 +206,40 @@ async fn test_command_name_completion() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
+async fn test_command_name_completion_deduplicates_oneof_branches() {
+    let workspace_path = std::env::temp_dir()
+        .join("sixu-lsp-tests")
+        .join(format!(
+            "nested-oneof-completion-{}",
+            std::process::id()
+        ));
+    std::fs::create_dir_all(&workspace_path).expect("应创建临时测试工作区");
+    std::fs::write(
+        workspace_path.join("commands.schema.json"),
+        include_str!("fixtures/nested-oneof.json"),
+    )
+    .expect("应写入临时 commands.schema.json");
+
+    let mut ctx = TestContext::with_workspace(workspace_path).await;
+    let text = "::test {\n    @tran\n}\n";
+    let uri = ctx.open_document("file:///test/cmd_name_oneof.sixu", text).await;
+    let _ = ctx.read_diagnostics().await;
+
+    let items = ctx.completion(&uri, 1, 9).await;
+    let items = items.expect("@ 后应触发命令名补全");
+
+    let trans_perform_count = items
+        .iter()
+        .filter(|item| item.label == "transPerform")
+        .count();
+    assert_eq!(
+        trans_perform_count, 1,
+        "同名 oneOf 分支只应出现一次，实际: {:?}",
+        items.iter().map(|item| &item.label).collect::<Vec<_>>()
+    );
+}
+
+#[tokio::test(flavor = "multi_thread")]
 async fn test_systemcall_name_completion() {
     // completion_test.sixu 测试 10：# 后输入系统调用名触发补全
     let mut ctx = TestContext::new().await;
