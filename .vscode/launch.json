@@ -10,10 +10,10 @@
 			"type": "extensionHost",
 			"request": "launch",
 			"args": [
-				"--extensionDevelopmentPath=${workspaceFolder | fileWorkspaceFolder}/sixu-vscode-extension",
+				"--extensionDevelopmentPath=${workspaceFolder:sixu}/sixu-vscode-extension",
 			],
 			"env": {
-				"SIXU_LSP_PATH": "${workspaceFolder | fileWorkspaceFolder}/target/debug/sixu-lsp.exe"
+				"SIXU_LSP_PATH": "${workspaceFolder:sixu}/target/debug/sixu-lsp.exe"
 			}
 		}
 	]
