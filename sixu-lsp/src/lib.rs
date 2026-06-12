@@ -492,12 +492,45 @@ impl LanguageServer for Backend {
                     .iter()
                     .find(|c| c.get_command_name().as_deref() == Some(&cmd_name))
                 {
+                    let matching_defs: Vec<_> = schema
+                        .commands
+                        .iter()
+                        .filter(|c| c.get_command_name().as_deref() == Some(&cmd_name))
+                        .collect();
+
                     let items: Vec<CompletionItem> = cmd_def
                         .properties
                         .iter()
                         .filter(|(key, _)| *key != "command")
                         .filter(|(key, _)| !existing_args.contains(*key)) // 排除已有参数
                         .map(|(key, prop)| {
+                            let mut value_options = Vec::new();
+                            for def in &matching_defs {
+                                if let Some(matching_prop) = def.properties.get(key) {
+                                    if let Some(enum_values) = &matching_prop.enum_values {
+                                        for value in enum_values {
+                                            if !value_options.contains(value) {
+                                                value_options.push(value.clone());
+                                            }
+                                        }
+                                    }
+
+                                    if let Some(value) = &matching_prop.const_value
+                                        && !value_options.contains(value)
+                                    {
+                                        value_options.push(value.clone());
+                                    }
+                                }
+                            }
+
+                            if let Some(default_value) = prop.default.as_ref().and_then(|v| v.as_str())
+                                && let Some(index) =
+                                    value_options.iter().position(|value| value == default_value)
+                            {
+                                let default_value = value_options.remove(index);
+                                value_options.insert(0, default_value);
+                            }
+
                             let is_string = prop
                                 .type_
                                 .as_ref()
@@ -518,7 +551,23 @@ impl LanguageServer for Backend {
                                 })
                                 .unwrap_or(false);
 
-                            let insert_text = if let Some(default) = &prop.default {
+                            let insert_text = if !value_options.is_empty() {
+                                let value_options = value_options
+                                    .iter()
+                                    .map(|value| {
+                                        value
+                                            .replace('\\', "\\\\")
+                                            .replace(',', "\\,")
+                                            .replace('|', "\\|")
+                                    })
+                                    .collect::<Vec<_>>()
+                                    .join(",");
+                                if is_string {
+                                    format!("{}=\"${{1|{}|}}\"", key, value_options)
+                                } else {
+                                    format!("{}=${{1|{}|}}", key, value_options)
+                                }
+                            } else if let Some(default) = &prop.default {
                                 format!("{}={}", key, default)
                             } else if is_string {
                                 format!("{}=\"$1\"", key)

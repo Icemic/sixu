@@ -166,6 +166,20 @@ async fn test_systemcall_paren_param_exclusion() {
 // 上下文验证
 // ============================================================
 
+async fn nested_oneof_context(name: &str) -> TestContext {
+    let workspace_path = std::env::temp_dir()
+        .join("sixu-lsp-tests")
+        .join(format!("{}-{}", name, std::process::id()));
+    std::fs::create_dir_all(&workspace_path).expect("应创建临时测试工作区");
+    std::fs::write(
+        workspace_path.join("commands.schema.json"),
+        include_str!("fixtures/nested-oneof.json"),
+    )
+    .expect("应写入临时 commands.schema.json");
+
+    TestContext::with_workspace(workspace_path).await
+}
+
 #[tokio::test(flavor = "multi_thread")]
 async fn test_no_completion_after_closing_paren() {
     // completion_test.sixu 测试 8：右括号后不触发补全
@@ -207,20 +221,7 @@ async fn test_command_name_completion() {
 
 #[tokio::test(flavor = "multi_thread")]
 async fn test_command_name_completion_deduplicates_oneof_branches() {
-    let workspace_path = std::env::temp_dir()
-        .join("sixu-lsp-tests")
-        .join(format!(
-            "nested-oneof-completion-{}",
-            std::process::id()
-        ));
-    std::fs::create_dir_all(&workspace_path).expect("应创建临时测试工作区");
-    std::fs::write(
-        workspace_path.join("commands.schema.json"),
-        include_str!("fixtures/nested-oneof.json"),
-    )
-    .expect("应写入临时 commands.schema.json");
-
-    let mut ctx = TestContext::with_workspace(workspace_path).await;
+    let mut ctx = nested_oneof_context("command-name-dedup").await;
     let text = "::test {\n    @tran\n}\n";
     let uri = ctx.open_document("file:///test/cmd_name_oneof.sixu", text).await;
     let _ = ctx.read_diagnostics().await;
@@ -236,6 +237,60 @@ async fn test_command_name_completion_deduplicates_oneof_branches() {
         trans_perform_count, 1,
         "同名 oneOf 分支只应出现一次，实际: {:?}",
         items.iter().map(|item| &item.label).collect::<Vec<_>>()
+    );
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn test_enum_param_completion_uses_snippet_choices() {
+    let mut ctx = nested_oneof_context("enum-param-choice").await;
+    let text = "::test {\n    @transPrepare \n}\n";
+    let uri = ctx
+        .open_document("file:///test/enum_param_choice.sixu", text)
+        .await;
+    let _ = ctx.read_diagnostics().await;
+
+    let line = text.lines().nth(1).unwrap();
+    let items = ctx.completion(&uri, 1, line.len() as u32).await;
+    let items = items.expect("应返回参数补全项");
+    let retain = items
+        .iter()
+        .find(|item| item.label == "retain")
+        .expect("应包含 retain 参数");
+
+    assert_eq!(
+        retain.insert_text.as_deref(),
+        Some("retain=\"${1|snapshot,live|}\"")
+    );
+    assert_eq!(
+        retain.insert_text_format,
+        Some(tower_lsp_server::ls_types::InsertTextFormat::SNIPPET)
+    );
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn test_oneof_const_param_completion_uses_snippet_choices() {
+    let mut ctx = nested_oneof_context("oneof-const-param-choice").await;
+    let text = "::test {\n    @transPerform \n}\n";
+    let uri = ctx
+        .open_document("file:///test/oneof_const_param_choice.sixu", text)
+        .await;
+    let _ = ctx.read_diagnostics().await;
+
+    let line = text.lines().nth(1).unwrap();
+    let items = ctx.completion(&uri, 1, line.len() as u32).await;
+    let items = items.expect("应返回参数补全项");
+    let effect = items
+        .iter()
+        .find(|item| item.label == "effect")
+        .expect("应包含 effect 参数");
+
+    assert_eq!(
+        effect.insert_text.as_deref(),
+        Some("effect=\"${1|crossfade,wipe,fade|}\"")
+    );
+    assert_eq!(
+        effect.insert_text_format,
+        Some(tower_lsp_server::ls_types::InsertTextFormat::SNIPPET)
     );
 }
 
