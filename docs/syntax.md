@@ -432,10 +432,19 @@ locals > archive variables > global variables
 //#marker id=Labc123
 ```
 
-它的语义不是普通注释，而是把一个 marker 绑定到下面第一个有实际运行意义的子节点上。当前约束如下：
+它的语义不是普通注释，而是把一个 marker 绑定到下面第一个属性或有实际运行意义的子节点上。属性和它修饰的内容可以分别绑定 marker：
+
+```sixu
+//#marker id=Lcondition
+#[cond("flag")]
+//#marker id=Lcontent
+@changebg src="opened.webp"
+```
+
+属性 marker 在属性开始处理时触发；内容 marker 只在条件通过、内容实际执行后触发。当前约束如下：
 
 1. 写法必须精确为 `//#marker id=<LineId>`
-2. 一个子节点前最多只能有一个 marker directive
+2. 一个属性或子节点前最多只能有一个 marker directive
 3. 若 marker 后直接遇到块结束或文件结束，解析报错
 4. 普通用户通常不需要手写它，主要由上层工具导出时生成
 

@@ -122,6 +122,7 @@ pub fn attribute(input: &str) -> ParseResult<&str, Attribute> {
     let (input, _) = char(']').parse(input)?;
 
     let attribute = Attribute {
+        marker: None,
         keyword: keyword.to_string(),
         condition,
     };
@@ -137,6 +138,7 @@ mod tests {
     fn test_attribute() {
         let input = "#[attribute_name(\"condition\")]";
         let expected = Attribute {
+            marker: None,
             keyword: "attribute_name".to_string(),
             condition: Some("condition".to_string()),
         };
@@ -148,6 +150,7 @@ mod tests {
     fn test_attribute_without_condition() {
         let input = "#[attribute_name]";
         let expected = Attribute {
+            marker: None,
             keyword: "attribute_name".to_string(),
             condition: None,
         };
@@ -159,6 +162,7 @@ mod tests {
     fn test_attribute_with_double_quotes() {
         let input = "#[attribute_name(\"a > b && (x + 1) < 10\")]";
         let expected = Attribute {
+            marker: None,
             keyword: "attribute_name".to_string(),
             condition: Some("a > b && (x + 1) < 10".to_string()),
         };
@@ -170,6 +174,7 @@ mod tests {
     fn test_attribute_with_single_quotes() {
         let input = "#[attribute_name('a > b && (x + 1) < 10')]";
         let expected = Attribute {
+            marker: None,
             keyword: "attribute_name".to_string(),
             condition: Some("a > b && (x + 1) < 10".to_string()),
         };
@@ -182,6 +187,7 @@ mod tests {
         // Condition can contain any characters since it's just a string
         let input = "#[attribute_name(\"a == 'hello' && b > (c * d)\")]";
         let expected = Attribute {
+            marker: None,
             keyword: "attribute_name".to_string(),
             condition: Some("a == 'hello' && b > (c * d)".to_string()),
         };
@@ -194,6 +200,7 @@ mod tests {
         // Spaces around the quoted string inside parentheses
         let input = "#[attribute_name( \"condition\" )]";
         let expected = Attribute {
+            marker: None,
             keyword: "attribute_name".to_string(),
             condition: Some("condition".to_string()),
         };
@@ -207,6 +214,7 @@ mod tests {
     fn test_attribute_cond() {
         let input = "#[cond(\"x > 10\")]";
         let expected = Attribute {
+            marker: None,
             keyword: "cond".to_string(),
             condition: Some("x > 10".to_string()),
         };
@@ -219,6 +227,7 @@ mod tests {
         // `if` is an alias for `cond`
         let input = "#[if(\"save.x = 1\")]";
         let expected = Attribute {
+            marker: None,
             keyword: "if".to_string(),
             condition: Some("save.x = 1".to_string()),
         };
@@ -230,6 +239,7 @@ mod tests {
     fn test_attribute_while() {
         let input = "#[while(\"counter < 10\")]";
         let expected = Attribute {
+            marker: None,
             keyword: "while".to_string(),
             condition: Some("counter < 10".to_string()),
         };
@@ -241,6 +251,7 @@ mod tests {
     fn test_attribute_loop_without_condition() {
         let input = "#[loop]";
         let expected = Attribute {
+            marker: None,
             keyword: "loop".to_string(),
             condition: None,
         };
@@ -252,10 +263,24 @@ mod tests {
     fn test_attribute_if_complex_condition() {
         let input = "#[if(\"a =123 && (b + 1) > '])'.length\")]";
         let expected = Attribute {
+            marker: None,
             keyword: "if".to_string(),
             condition: Some("a =123 && (b + 1) > '])'.length".to_string()),
         };
         let result = attribute(input).unwrap().1;
         assert_eq!(result, expected);
+    }
+
+    #[cfg(feature = "serde")]
+    #[test]
+    fn test_attribute_deserializes_without_marker() {
+        let attribute: Attribute = serde_json::from_str(
+            r#"{"keyword":"cond","condition":"flag"}"#,
+        )
+        .unwrap();
+
+        assert_eq!(attribute.marker, None);
+        assert_eq!(attribute.keyword, "cond");
+        assert_eq!(attribute.condition.as_deref(), Some("flag"));
     }
 }

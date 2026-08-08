@@ -66,7 +66,8 @@ fn block_children(mut input: &str) -> ParseResult<&str, Vec<Child>> {
             continue;
         }
 
-        if let Ok((next_input, next_attribute)) = attribute(input) {
+        if let Ok((next_input, mut next_attribute)) = attribute(input) {
+            next_attribute.marker = marker.take();
             attributes.push(next_attribute);
             input = next_input;
             continue;
@@ -352,6 +353,26 @@ mod tests {
     }
 
     #[test]
+    fn test_block_marker_directive_binds_attribute_and_content_separately() {
+        let parsed = block(
+            "{\n//#marker id=Lcond\n#[cond(\"ARCHIVE.value !== 0\")]\n//#marker id=Lscript\n@{ ARCHIVE.other = 111 }\n}",
+        )
+        .unwrap()
+        .1;
+
+        let child = &parsed.children()[0];
+        assert_eq!(child.marker.as_ref().unwrap().id, "Lscript");
+        assert_eq!(child.attributes.len(), 1);
+        assert_eq!(child.attributes[0].marker.as_ref().unwrap().id, "Lcond");
+        assert_eq!(child.attributes[0].keyword, "cond");
+        assert_eq!(
+            child.attributes[0].condition.as_deref(),
+            Some("ARCHIVE.value !== 0")
+        );
+        assert!(matches!(child.content, ChildContent::EmbeddedCode(_)));
+    }
+
+    #[test]
     fn test_block_marker_directive_survives_after_text_and_empty_arg_commands() {
         let parsed = block(
             "{\n//#marker id=L4\n\"line\"\n//#marker id=L5\n@textClear\n//#marker id=L6\n@textBoxHide\n//#marker id=L7\n@bgTint tint=\"#000\" fadeTime=0\n//#marker id=L8\n@bg src=\"room.webp\" fadeTime=0\n}",
@@ -523,6 +544,7 @@ mod tests {
                 Block::new(vec![Child {
                     marker: None,
                     attributes: vec![Attribute {
+                        marker: None,
                         keyword: "condition".to_string(),
                         condition: Some("a > b".to_string()),
                     }],
@@ -589,6 +611,7 @@ mod tests {
                 Block::new(vec![Child {
                     marker: None,
                     attributes: vec![Attribute {
+                        marker: None,
                         keyword: "attribute_name".to_string(),
                         condition: Some("a = 123".to_string()),
                     }],
@@ -615,10 +638,12 @@ mod tests {
                     marker: None,
                     attributes: vec![
                         Attribute {
+                            marker: None,
                             keyword: "attribute_name".to_string(),
                             condition: Some("a = 123".to_string()),
                         },
                         Attribute {
+                            marker: None,
                             keyword: "attribute_name".to_string(),
                             condition: Some("a && (b + 1) > '])'.length".to_string()),
                         }
@@ -643,6 +668,7 @@ mod tests {
                 Block::new(vec![Child {
                     marker: None,
                     attributes: vec![Attribute {
+                        marker: None,
                         keyword: "cond".to_string(),
                         condition: Some("x > 0".to_string()),
                     }],
@@ -670,6 +696,7 @@ mod tests {
                 Block::new(vec![Child {
                     marker: None,
                     attributes: vec![Attribute {
+                        marker: None,
                         keyword: "if".to_string(),
                         condition: Some("save.x = 1".to_string()),
                     }],
@@ -693,6 +720,7 @@ mod tests {
                 Block::new(vec![Child {
                     marker: None,
                     attributes: vec![Attribute {
+                        marker: None,
                         keyword: "while".to_string(),
                         condition: Some("counter < 3".to_string()),
                     }],
@@ -722,6 +750,7 @@ mod tests {
                 Block::new(vec![Child {
                     marker: None,
                     attributes: vec![Attribute {
+                        marker: None,
                         keyword: "loop".to_string(),
                         condition: None,
                     }],

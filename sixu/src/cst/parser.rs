@@ -1787,6 +1787,26 @@ mod tests {
     }
 
     #[test]
+    fn test_cst_to_ast_binds_attribute_and_content_markers_separately() {
+        let input = r#"
+::entry {
+//#marker id=Lcond
+#[cond("ARCHIVE.value !== 0")]
+//#marker id=Lscript
+@{ ARCHIVE.other = 111 }
+}
+"#;
+
+        let cst = parse_tolerant("test", input);
+        let ast = cst.to_ast().unwrap();
+        let child = &ast.paragraphs[0].block.children()[0];
+
+        assert_eq!(child.marker.as_ref().unwrap().id, "Lscript");
+        assert_eq!(child.attributes.len(), 1);
+        assert_eq!(child.attributes[0].marker.as_ref().unwrap().id, "Lcond");
+    }
+
+    #[test]
     fn test_parse_quoted_string_double() {
         let input = r#""hello world""#;
         let result = parse_quoted_string(Span::new(input));

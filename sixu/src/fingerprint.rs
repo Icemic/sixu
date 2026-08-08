@@ -519,7 +519,7 @@ mod tests {
     use super::*;
     use std::collections::HashMap;
 
-    use crate::format::{CommandLine, Comment, CommentKind, RValue};
+    use crate::format::{CommandLine, Comment, CommentKind, LineMarker, RValue};
 
     fn text_child(value: &str) -> Child {
         Child {
@@ -575,10 +575,12 @@ mod tests {
             marker: None,
             attributes: vec![
                 Attribute {
+                    marker: None,
                     keyword: "if".to_string(),
                     condition: Some("a".to_string()),
                 },
                 Attribute {
+                    marker: None,
                     keyword: "while".to_string(),
                     condition: Some("b".to_string()),
                 },
@@ -589,10 +591,12 @@ mod tests {
             marker: None,
             attributes: vec![
                 Attribute {
+                    marker: None,
                     keyword: "while".to_string(),
                     condition: Some("b".to_string()),
                 },
                 Attribute {
+                    marker: None,
                     keyword: "if".to_string(),
                     condition: Some("a".to_string()),
                 },
@@ -601,6 +605,29 @@ mod tests {
         }]);
 
         assert_eq!(first.fingerprint(), second.fingerprint());
+    }
+
+    #[test]
+    fn fingerprint_ignores_attribute_marker() {
+        let child = |marker| Child {
+            marker: None,
+            attributes: vec![Attribute {
+                marker,
+                keyword: "cond".to_string(),
+                condition: Some("flag".to_string()),
+            }],
+            content: ChildContent::TextLine(
+                LeadingText::None,
+                Text::Text("content".to_string()),
+                TailingText::None,
+            ),
+        };
+        let without_marker = Block::new(vec![child(None)]);
+        let with_marker = Block::new(vec![child(Some(LineMarker {
+            id: "Lcond".to_string(),
+        }))]);
+
+        assert_eq!(without_marker.fingerprint(), with_marker.fingerprint());
     }
 
     #[test]

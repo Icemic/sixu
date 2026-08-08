@@ -258,6 +258,87 @@ after
 }
 
 #[test]
+fn test_false_condition_emits_attribute_marker_but_not_content_marker() {
+    let script = r#"
+::entry {
+//#marker id=Lcond
+#[cond("false")]
+//#marker id=Lcontent
+hidden
+after
+}
+"#;
+
+    let (_, story) = parse("test", script).unwrap();
+    let executor = TestExecutor::new();
+    let mut runtime = Runtime::new(executor);
+    runtime.add_story(story);
+    runtime.start("test", Some("entry")).unwrap();
+
+    match runtime.step() {
+        Ok(StepResult::NeedsCondition(condition)) => {
+            assert_eq!(condition, "false");
+            assert_eq!(runtime.executor().markers(), vec!["Lcond"]);
+            runtime.resume_condition(false);
+        }
+        other => panic!("Expected NeedsCondition, got {:?}", other),
+    }
+
+    match runtime.step() {
+        Ok(StepResult::Done) => {}
+        other => panic!("Expected Done after resume, got {:?}", other),
+    }
+
+    assert_eq!(runtime.executor().markers(), vec!["Lcond"]);
+    assert_eq!(runtime.executor().texts(), vec!["after"]);
+}
+
+#[test]
+fn test_true_condition_emits_content_marker_after_script_resume() {
+    let script = r#"
+::entry {
+//#marker id=Lcond
+#[cond("true")]
+//#marker id=Lscript
+@{ ARCHIVE.value = 111 }
+after
+}
+"#;
+
+    let (_, story) = parse("test", script).unwrap();
+    let executor = TestExecutor::new();
+    let mut runtime = Runtime::new(executor);
+    runtime.add_story(story);
+    runtime.start("test", Some("entry")).unwrap();
+
+    match runtime.step() {
+        Ok(StepResult::NeedsCondition(condition)) => {
+            assert_eq!(condition, "true");
+            assert_eq!(runtime.executor().markers(), vec!["Lcond"]);
+            runtime.resume_condition(true);
+        }
+        other => panic!("Expected NeedsCondition, got {:?}", other),
+    }
+
+    match runtime.step() {
+        Ok(StepResult::NeedsScript(script)) => {
+            assert_eq!(script.trim(), "ARCHIVE.value = 111");
+            assert_eq!(runtime.executor().markers(), vec!["Lcond"]);
+            runtime.resume_script(None, true);
+        }
+        other => panic!("Expected NeedsScript, got {:?}", other),
+    }
+
+    match runtime.step() {
+        Ok(StepResult::Done) => {}
+        other => panic!("Expected Done after script resume, got {:?}", other),
+    }
+
+    assert_eq!(runtime.executor().markers(), vec!["Lcond", "Lscript"]);
+    assert_eq!(runtime.executor().texts(), vec!["after"]);
+}
+
+#[test]
 fn test_marker_on_after_line_emitted_at_after_position() {
     let script = r#"
 ::entry {

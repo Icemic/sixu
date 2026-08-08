@@ -35,13 +35,14 @@ enum StepPhase {
     Ready,
     /// Yielded for condition evaluation; child is saved for resumption
     AwaitingCondition { child: Child },
-    /// Yielded for script evaluation
-    AwaitingScript,
+    /// Yielded for script evaluation; content marker is emitted after resumption
+    AwaitingScript { marker: Option<LineMarker> },
     /// Yielded for story file loading; paragraph target saved
     AwaitingStoryFile {
         story_name: String,
         paragraph_name: String,
         arguments: Vec<ResolvedArgument>,
+        marker: Option<LineMarker>,
     },
 }
 
@@ -335,6 +336,7 @@ impl<E: RuntimeExecutor> Runtime<E> {
                 story_name,
                 paragraph_name,
                 arguments: arguments.to_vec(),
+                marker: None,
             };
             Ok(false)
         }
@@ -364,12 +366,15 @@ impl<E: RuntimeExecutor> Runtime<E> {
                 // Resuming after condition evaluation
                 return self.process_child(child);
             }
-            StepPhase::AwaitingScript => {
+            StepPhase::AwaitingScript { marker } => {
                 // Resuming after script evaluation
                 let (_, is_continue) = self
                     .script_result
                     .take()
                     .expect("resumed from AwaitingScript without script result");
+                if let Some(marker) = marker.as_ref() {
+                    self.executor.handle_marker(&mut self.context, marker)?;
+                }
                 return Ok(if is_continue {
                     None
                 } else {
@@ -380,8 +385,12 @@ impl<E: RuntimeExecutor> Runtime<E> {
                 story_name,
                 paragraph_name,
                 arguments,
+                marker,
             } => {
                 self.push_loaded_paragraph(story_name, paragraph_name, &arguments)?;
+                if let Some(marker) = marker.as_ref() {
+                    self.executor.handle_marker(&mut self.context, marker)?;
+                }
                 return Ok(None); // continue execution
             }
         }
@@ -427,40 +436,41 @@ impl<E: RuntimeExecutor> Runtime<E> {
 
         let mut is_loop = false;
         let marker = child.marker.clone();
-        // Tracks whether the marker has already been emitted (e.g. before yielding NeedsCondition),
-        // to prevent double-emission at the end of this method.
-        let mut marker_emitted = false;
+        let is_resuming_condition = self.condition_result.is_some();
 
         // Extract attribute info before potentially moving child
-        let (keyword, condition) = if !child.attributes.is_empty() {
+        let (attribute_marker, keyword, condition) = if !child.attributes.is_empty() {
             if child.attributes.len() > 1 {
                 log::warn!("Multiple attributes on same child, only last one is used");
             }
             let attr = child.attributes.last().unwrap();
-            (attr.keyword.clone(), attr.condition.clone())
+            (
+                attr.marker.clone(),
+                attr.keyword.clone(),
+                attr.condition.clone(),
+            )
         } else {
-            (String::new(), None)
+            (None, String::new(), None)
         };
 
         // Process attributes
         if !keyword.is_empty() {
+            if !is_resuming_condition {
+                if let Some(marker) = attribute_marker.as_ref() {
+                    self.executor.handle_marker(&mut self.context, marker)?;
+                }
+            }
             match keyword.as_str() {
                 "cond" | "if" => {
                     if let Some(ref cond_str) = condition {
                         let result = match self.condition_result.take() {
                             Some(r) => r,
                             None => {
-                                // Emit marker before yielding so callers see it immediately
-                                if let Some(marker) = marker.as_ref() {
-                                    self.executor.handle_marker(&mut self.context, marker)?;
-                                }
                                 let cond_str = cond_str.clone();
                                 self.phase = StepPhase::AwaitingCondition { child };
                                 return Ok(Some(StepResult::NeedsCondition(cond_str)));
                             }
                         };
-                        // Marker was already emitted before the condition yield
-                        marker_emitted = true;
                         if !result {
                             return Ok(None); // condition not met, skip this child
                         }
@@ -471,17 +481,11 @@ impl<E: RuntimeExecutor> Runtime<E> {
                         let result = match self.condition_result.take() {
                             Some(r) => r,
                             None => {
-                                // Emit marker before yielding so callers see it immediately
-                                if let Some(marker) = marker.as_ref() {
-                                    self.executor.handle_marker(&mut self.context, marker)?;
-                                }
                                 let cond_str = cond_str.clone();
                                 self.phase = StepPhase::AwaitingCondition { child };
                                 return Ok(Some(StepResult::NeedsCondition(cond_str)));
                             }
                         };
-                        // Marker was already emitted before the condition yield
-                        marker_emitted = true;
                         if !result {
                             return Ok(None); // condition not met, skip this child
                         }
@@ -566,8 +570,15 @@ impl<E: RuntimeExecutor> Runtime<E> {
                     Some(v) => v,
                     None => {
                         // Phase was set to AwaitingStoryFile by handle_system_call
-                        let story_name = match &self.phase {
-                            StepPhase::AwaitingStoryFile { story_name, .. } => story_name.clone(),
+                        let story_name = match &mut self.phase {
+                            StepPhase::AwaitingStoryFile {
+                                story_name,
+                                marker: pending_marker,
+                                ..
+                            } => {
+                                *pending_marker = marker;
+                                story_name.clone()
+                            }
                             _ => unreachable!(),
                         };
                         return Ok(Some(StepResult::NeedsStoryFile(story_name)));
@@ -578,17 +589,15 @@ impl<E: RuntimeExecutor> Runtime<E> {
                 if let Some((_, is_continue)) = self.script_result.take() {
                     is_continue
                 } else {
-                    self.phase = StepPhase::AwaitingScript;
+                    self.phase = StepPhase::AwaitingScript { marker };
                     return Ok(Some(StepResult::NeedsScript(script)));
                 }
             }
             ChildContent::Comment(_) => true,
         };
 
-        if !marker_emitted {
-            if let Some(marker) = marker.as_ref() {
-                self.executor.handle_marker(&mut self.context, marker)?;
-            }
+        if let Some(marker) = marker.as_ref() {
+            self.executor.handle_marker(&mut self.context, marker)?;
         }
 
         Ok(if is_continue {

@@ -163,6 +163,7 @@ impl CstAttribute {
     /// 转换为 AST Attribute
     pub fn to_ast(&self) -> format::Attribute {
         format::Attribute {
+            marker: None,
             keyword: self.keyword.clone(),
             condition: self.condition.clone(),
         }
@@ -460,7 +461,9 @@ impl CstBlock {
         for node in &self.children {
             match node {
                 CstNode::Attribute(attr) => {
-                    pending_attributes.push(attr.to_ast());
+                    let mut attribute = attr.to_ast();
+                    attribute.marker = pending_marker.take();
+                    pending_attributes.push(attribute);
                 }
                 CstNode::Trivia(CstTrivia::LineComment { content, .. }) => {
                     if let Some(marker) = parse_marker_directive_content(content)? {

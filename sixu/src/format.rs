@@ -540,6 +540,8 @@ impl ResolvedSystemCallLine {
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
 pub struct Attribute {
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub marker: Option<LineMarker>,
     pub keyword: String,
     pub condition: Option<String>,
 }
