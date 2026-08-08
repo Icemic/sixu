@@ -30,8 +30,10 @@ pub enum StepResult {
 }
 
 /// Internal state tracking for step/resume execution
+#[derive(Default)]
 enum StepPhase {
     /// Ready for normal execution
+    #[default]
     Ready,
     /// Yielded for condition evaluation; child is saved for resumption
     AwaitingCondition { child: Child },
@@ -44,12 +46,6 @@ enum StepPhase {
         arguments: Vec<ResolvedArgument>,
         marker: Option<LineMarker>,
     },
-}
-
-impl Default for StepPhase {
-    fn default() -> Self {
-        StepPhase::Ready
-    }
 }
 
 /// Runtime manages the execution context and executor together

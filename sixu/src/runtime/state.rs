@@ -162,14 +162,18 @@ mod tests {
         ]);
         let mut state = ExecutionState::new("story".to_string(), "entry".to_string(), block);
 
-        let first = state.next_line().expect("first text child should be returned");
+        let first = state
+            .next_line()
+            .expect("first text child should be returned");
         assert!(matches!(
             first.content,
             ChildContent::TextLine(LeadingText::None, Text::Text(ref text), TailingText::None)
                 if text == "a"
         ));
 
-        let second = state.next_line().expect("second text child should be returned");
+        let second = state
+            .next_line()
+            .expect("second text child should be returned");
         assert!(matches!(
             second.content,
             ChildContent::TextLine(LeadingText::None, Text::Text(ref text), TailingText::None)

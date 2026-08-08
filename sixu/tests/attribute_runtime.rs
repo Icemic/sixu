@@ -424,7 +424,10 @@ fn test_markers_survive_across_text_and_empty_argument_boundaries() {
         }
     }
 
-    assert_eq!(runtime.executor().markers(), vec!["L4", "L5", "L6", "L7", "L8", "L9"]);
+    assert_eq!(
+        runtime.executor().markers(),
+        vec!["L4", "L5", "L6", "L7", "L8", "L9"]
+    );
 }
 
 #[test]

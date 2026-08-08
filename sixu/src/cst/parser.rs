@@ -492,7 +492,10 @@ fn parse_array_value(input: Span) -> ParseResult<CstValue> {
     // 复用 AST primitive 解析器获取结构化的 Literal::Array
     let parsed = crate::parser::primitive::array(&raw)
         .map_err(|_| {
-            nom::Err::Error(nom::error::Error::new(start_span, nom::error::ErrorKind::Tag))
+            nom::Err::Error(nom::error::Error::new(
+                start_span,
+                nom::error::ErrorKind::Tag,
+            ))
         })
         .map(|(_, lit)| format::RValue::Literal(lit))?;
 

@@ -6,11 +6,7 @@ use super::RuntimeContext;
 /// Trait defining the executor behavior for runtime execution
 pub trait RuntimeExecutor: Send + Sync {
     /// Handle a marker event after a marked child has finished processing.
-    fn handle_marker(
-        &mut self,
-        _ctx: &mut RuntimeContext,
-        _marker: &LineMarker,
-    ) -> Result<()> {
+    fn handle_marker(&mut self, _ctx: &mut RuntimeContext, _marker: &LineMarker) -> Result<()> {
         Ok(())
     }
 

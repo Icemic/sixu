@@ -13,20 +13,31 @@ use tower_lsp_server::jsonrpc::Request;
 use tower_lsp_server::ls_types::ServerCapabilities;
 
 async fn format_completion_context(name: &str) -> TestContext {
-    let workspace_path = std::env::temp_dir()
-        .join("sixu-lsp-tests")
-        .join(format!("format-completion-{}-{}", name, std::process::id()));
+    let workspace_path = std::env::temp_dir().join("sixu-lsp-tests").join(format!(
+        "format-completion-{}-{}",
+        name,
+        std::process::id()
+    ));
 
     std::fs::create_dir_all(workspace_path.join("assets").join("foo"))
         .expect("应创建 assets/foo 目录");
     std::fs::create_dir_all(workspace_path.join("assets").join("other"))
         .expect("应创建 assets/other 目录");
-    std::fs::write(workspace_path.join("assets").join("foo").join("bar.png"), "")
-        .expect("应写入测试 asset");
-    std::fs::write(workspace_path.join("assets").join("foo").join("baz.png"), "")
-        .expect("应写入测试 asset");
-    std::fs::write(workspace_path.join("assets").join("other").join("card.png"), "")
-        .expect("应写入测试 asset");
+    std::fs::write(
+        workspace_path.join("assets").join("foo").join("bar.png"),
+        "",
+    )
+    .expect("应写入测试 asset");
+    std::fs::write(
+        workspace_path.join("assets").join("foo").join("baz.png"),
+        "",
+    )
+    .expect("应写入测试 asset");
+    std::fs::write(
+        workspace_path.join("assets").join("other").join("card.png"),
+        "",
+    )
+    .expect("应写入测试 asset");
     std::fs::write(
         workspace_path.join("commands.schema.json"),
         r#"{
@@ -251,18 +262,16 @@ async fn test_command_name_completion() {
     let items = items.expect("@ 后应触发命令名补全");
 
     let labels: Vec<&str> = items.iter().map(|i| i.label.as_str()).collect();
-    assert!(
-        labels.contains(&"bg"),
-        "应包含 bg 命令，实际: {:?}",
-        labels
-    );
+    assert!(labels.contains(&"bg"), "应包含 bg 命令，实际: {:?}", labels);
 }
 
 #[tokio::test(flavor = "multi_thread")]
 async fn test_command_name_completion_deduplicates_oneof_branches() {
     let mut ctx = nested_oneof_context("command-name-dedup").await;
     let text = "::test {\n    @tran\n}\n";
-    let uri = ctx.open_document("file:///test/cmd_name_oneof.sixu", text).await;
+    let uri = ctx
+        .open_document("file:///test/cmd_name_oneof.sixu", text)
+        .await;
     let _ = ctx.read_diagnostics().await;
 
     let items = ctx.completion(&uri, 1, 9).await;
@@ -273,7 +282,8 @@ async fn test_command_name_completion_deduplicates_oneof_branches() {
         .filter(|item| item.label == "transPerform")
         .count();
     assert_eq!(
-        trans_perform_count, 1,
+        trans_perform_count,
+        1,
         "同名 oneOf 分支只应出现一次，实际: {:?}",
         items.iter().map(|item| &item.label).collect::<Vec<_>>()
     );
@@ -347,7 +357,10 @@ async fn test_oneof_branch_param_completion_uses_matching_const_branch() {
     let items = items.expect("应返回参数补全项");
     let labels: Vec<_> = items.iter().map(|item| item.label.as_str()).collect();
 
-    assert!(!labels.contains(&"effect"), "已输入 effect 后不应再提示 effect");
+    assert!(
+        !labels.contains(&"effect"),
+        "已输入 effect 后不应再提示 effect"
+    );
     assert!(
         labels.contains(&"in") && labels.contains(&"hold") && labels.contains(&"out"),
         "effect=fade 后应提示 fade 分支参数，实际: {:?}",
@@ -487,7 +500,9 @@ async fn test_character_format_value_completion_uses_project_cache() {
 async fn test_asset_format_value_completion_scans_assets_directory() {
     let mut ctx = format_completion_context("asset").await;
     let text = "::test {\n    @bg src=\"foo/\"\n}\n";
-    let uri = ctx.open_document("file:///test/asset_completion.sixu", text).await;
+    let uri = ctx
+        .open_document("file:///test/asset_completion.sixu", text)
+        .await;
     let _ = ctx.read_diagnostics().await;
 
     let line = text.lines().nth(1).unwrap();
@@ -504,7 +519,9 @@ async fn test_asset_format_value_completion_scans_assets_directory() {
 async fn test_character_format_param_completion_triggers_value_suggest() {
     let mut ctx = format_completion_context("character-param-trigger").await;
     let text = "::test {\n    @charAction \n}\n";
-    let uri = ctx.open_document("file:///test/character_param.sixu", text).await;
+    let uri = ctx
+        .open_document("file:///test/character_param.sixu", text)
+        .await;
     let _ = ctx.read_diagnostics().await;
 
     let line = text.lines().nth(1).unwrap();
@@ -517,7 +534,9 @@ async fn test_character_format_param_completion_triggers_value_suggest() {
 
     assert_eq!(name.insert_text.as_deref(), Some("name=\"$1\""));
     assert_eq!(
-        name.command.as_ref().map(|command| command.command.as_str()),
+        name.command
+            .as_ref()
+            .map(|command| command.command.as_str()),
         Some("editor.action.triggerSuggest")
     );
 }
@@ -526,7 +545,9 @@ async fn test_character_format_param_completion_triggers_value_suggest() {
 async fn test_asset_format_param_completion_triggers_value_suggest() {
     let mut ctx = format_completion_context("asset-param-trigger").await;
     let text = "::test {\n    @bg \n}\n";
-    let uri = ctx.open_document("file:///test/asset_param.sixu", text).await;
+    let uri = ctx
+        .open_document("file:///test/asset_param.sixu", text)
+        .await;
     let _ = ctx.read_diagnostics().await;
 
     let line = text.lines().nth(1).unwrap();
@@ -571,7 +592,9 @@ async fn test_param_completion_orders_required_before_optional_by_property_order
 
     let mut ctx = TestContext::with_workspace(workspace_path).await;
     let text = "::test {\n    @ordered \n}\n";
-    let uri = ctx.open_document("file:///test/param_order.sixu", text).await;
+    let uri = ctx
+        .open_document("file:///test/param_order.sixu", text)
+        .await;
     let _ = ctx.read_diagnostics().await;
 
     let line = text.lines().nth(1).unwrap();
@@ -589,10 +612,7 @@ async fn test_param_completion_orders_required_before_optional_by_property_order
         ]
     );
 
-    let sort_texts: Vec<_> = items
-        .iter()
-        .map(|item| item.sort_text.as_deref())
-        .collect();
+    let sort_texts: Vec<_> = items.iter().map(|item| item.sort_text.as_deref()).collect();
     assert_eq!(
         sort_texts,
         vec![
@@ -613,7 +633,12 @@ async fn test_param_completion_orders_required_before_optional_by_property_order
         .collect();
     assert_eq!(
         label_descriptions,
-        vec![Some("required"), Some("required"), Some("optional"), Some("optional")]
+        vec![
+            Some("required"),
+            Some("required"),
+            Some("optional"),
+            Some("optional")
+        ]
     );
 }
 

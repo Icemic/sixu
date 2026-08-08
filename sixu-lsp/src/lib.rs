@@ -227,7 +227,8 @@ impl Backend {
     }
 
     async fn get_schema_for_uri<'a>(&'a self, uri: &Uri) -> Option<Arc<CommandSchema>> {
-        self.get_schema_at_path(self.schema_path_for_uri(uri)?).await
+        self.get_schema_at_path(self.schema_path_for_uri(uri)?)
+            .await
     }
 
     async fn get_project_schema_for_uri(&self, uri: &Uri) -> Option<(PathBuf, Arc<CommandSchema>)> {

@@ -79,7 +79,10 @@ impl RuntimeContext {
     }
 
     pub fn current_paragraph_locals(&self) -> Option<&HashMap<String, Literal>> {
-        self.stack.iter().rev().find_map(|state| state.locals.as_ref())
+        self.stack
+            .iter()
+            .rev()
+            .find_map(|state| state.locals.as_ref())
     }
 
     pub fn current_paragraph_locals_mut(&mut self) -> Option<&mut HashMap<String, Literal>> {

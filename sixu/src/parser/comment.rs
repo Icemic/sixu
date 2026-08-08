@@ -34,7 +34,10 @@ pub fn comment_single_node(input: &str) -> ParseResult<&str, Comment> {
 
 pub fn marker_directive_comment(input: &str) -> ParseResult<&str, LineMarker> {
     let (input, _) = tag("//#marker id=").parse(input)?;
-    let (input, id) = cut(take_while1(|ch: char| ch.is_ascii_alphanumeric() || ch == '_')).parse(input)?;
+    let (input, id) = cut(take_while1(|ch: char| {
+        ch.is_ascii_alphanumeric() || ch == '_'
+    }))
+    .parse(input)?;
     let (input, _) = opt(line_ending).parse(input)?;
 
     let marker = LineMarker::parse_id(id).ok_or_else(|| {

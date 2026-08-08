@@ -468,7 +468,9 @@ impl CstBlock {
                 CstNode::Trivia(CstTrivia::LineComment { content, .. }) => {
                     if let Some(marker) = parse_marker_directive_content(content)? {
                         if pending_marker.is_some() {
-                            return Err(anyhow::anyhow!("duplicate marker directive before child").into());
+                            return Err(
+                                anyhow::anyhow!("duplicate marker directive before child").into()
+                            );
                         }
                         pending_marker = Some(marker);
                     } else {

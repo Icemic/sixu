@@ -58,7 +58,9 @@ impl CommandDefinition {
         }
 
         if let Some(default_value) = default.and_then(|value| value.as_str())
-            && let Some(index) = value_options.iter().position(|value| value == default_value)
+            && let Some(index) = value_options
+                .iter()
+                .position(|value| value == default_value)
         {
             let default_value = value_options.remove(index);
             value_options.insert(0, default_value);

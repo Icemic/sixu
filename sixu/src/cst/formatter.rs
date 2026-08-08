@@ -280,10 +280,8 @@ impl CstFormatter {
         use crate::format::Literal;
         match lit {
             Literal::Array(elements) => {
-                let parts: Vec<String> = elements
-                    .iter()
-                    .map(Self::format_literal_compact)
-                    .collect();
+                let parts: Vec<String> =
+                    elements.iter().map(Self::format_literal_compact).collect();
                 format!("[{}]", parts.join(","))
             }
             Literal::String(s) => format!("\"{}\"", s),

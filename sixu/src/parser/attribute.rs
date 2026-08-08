@@ -274,10 +274,8 @@ mod tests {
     #[cfg(feature = "serde")]
     #[test]
     fn test_attribute_deserializes_without_marker() {
-        let attribute: Attribute = serde_json::from_str(
-            r#"{"keyword":"cond","condition":"flag"}"#,
-        )
-        .unwrap();
+        let attribute: Attribute =
+            serde_json::from_str(r#"{"keyword":"cond","condition":"flag"}"#).unwrap();
 
         assert_eq!(attribute.marker, None);
         assert_eq!(attribute.keyword, "cond");

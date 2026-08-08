@@ -118,11 +118,9 @@ pub fn plain_text(input: &str) -> ParseResult<&str, String> {
     let mut end_pos = 0;
     let chars: Vec<char> = input.chars().collect();
 
-    for i in 0..chars.len() {
-        let ch = chars[i];
-
+    for (i, ch) in chars.iter().enumerate() {
         // Stop at newline
-        if ch == '\n' || ch == '\r' {
+        if *ch == '\n' || *ch == '\r' {
             break;
         }
 

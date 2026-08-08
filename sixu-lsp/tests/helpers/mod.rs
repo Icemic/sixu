@@ -267,9 +267,11 @@ pub fn fixture_dir() -> std::path::PathBuf {
 
 /// 使用 nested oneOf schema fixture 创建测试上下文
 pub async fn nested_oneof_context(name: &str) -> TestContext {
-    let workspace_path = std::env::temp_dir()
-        .join("sixu-lsp-tests")
-        .join(format!("{}-{}", name, std::process::id()));
+    let workspace_path = std::env::temp_dir().join("sixu-lsp-tests").join(format!(
+        "{}-{}",
+        name,
+        std::process::id()
+    ));
     std::fs::create_dir_all(&workspace_path).expect("应创建临时测试工作区");
     std::fs::write(
         workspace_path.join("commands.schema.json"),

@@ -93,7 +93,14 @@ pub fn block_child(input: &str) -> ParseResult<&str, ChildContent> {
 }
 
 fn semantic_child(input: &str) -> ParseResult<&str, ChildContent> {
-    alt((embedded_code, block_child, command_line, systemcall_line, text_line)).parse(input)
+    alt((
+        embedded_code,
+        block_child,
+        command_line,
+        systemcall_line,
+        text_line,
+    ))
+    .parse(input)
 }
 
 pub fn embedded_code(input: &str) -> ParseResult<&str, ChildContent> {
@@ -122,9 +129,8 @@ pub fn embedded_code_hash(input: &str) -> ParseResult<&str, ChildContent> {
 #[cfg(test)]
 mod tests {
     use crate::format::{
-        Argument, Attribute, ChildContent, Comment, CommentKind, CommandLine, LeadingText,
-        Literal, RValue,
-        SystemCallLine, TailingText, TemplateLiteral, TemplateLiteralPart, Text, Variable,
+        Argument, Attribute, ChildContent, CommandLine, Comment, CommentKind, LeadingText, Literal,
+        RValue, SystemCallLine, TailingText, TemplateLiteral, TemplateLiteralPart, Text, Variable,
     };
 
     use super::*;
