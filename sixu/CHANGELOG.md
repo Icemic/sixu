@@ -5,7 +5,40 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## v0.15.0 (2026-08-08)
+
+### Chore
+
+ - <csr-id-7dc6137e372ec88fea451d272bd81a04cd7245f7/> remove unused pollster dependency
+
+### New Features
+
+ - <csr-id-3c05a46d64ea2e4316ef76c30543568854bb65c1/> support separate markers for attributes and content
+
+### Commit Statistics
+
+<csr-read-only-do-not-edit/>
+
+ - 3 commits contributed to the release.
+ - 78 days passed between releases.
+ - 2 commits were understood as [conventional](https://www.conventionalcommits.org).
+ - 0 issues like '(#ID)' were seen in commit messages
+
+### Commit Details
+
+<csr-read-only-do-not-edit/>
+
+<details><summary>view details</summary>
+
+ * **Uncategorized**
+    - Remove unused pollster dependency ([`7dc6137`](https://github.com/Icemic/sixu/commit/7dc6137e372ec88fea451d272bd81a04cd7245f7))
+    - Format & lint ([`c7d652b`](https://github.com/Icemic/sixu/commit/c7d652bc67dccf9144b96cc318140877bc2c4a60))
+    - Support separate markers for attributes and content ([`3c05a46`](https://github.com/Icemic/sixu/commit/3c05a46d64ea2e4316ef76c30543568854bb65c1))
+</details>
+
 ## v0.14.1 (2026-05-22)
+
+<csr-id-9e64efce0d02de7d81b32bd6962447f656014959/>
 
 ### Refactor
 
@@ -15,7 +48,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <csr-read-only-do-not-edit/>
 
- - 1 commit contributed to the release.
+ - 2 commits contributed to the release.
  - 9 days passed between releases.
  - 1 commit was understood as [conventional](https://www.conventionalcommits.org).
  - 0 issues like '(#ID)' were seen in commit messages
@@ -27,6 +60,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 <details><summary>view details</summary>
 
  * **Uncategorized**
+    - Release sixu v0.14.1 ([`5a77751`](https://github.com/Icemic/sixu/commit/5a7775179ff21e4682026b207fc4a5d4b32df4cf))
     - Rename BlockFingerprint to Fingerprint and update related methods ([`9e64efc`](https://github.com/Icemic/sixu/commit/9e64efce0d02de7d81b32bd6962447f656014959))
 </details>
 
@@ -37,10 +71,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
  - <csr-id-ae7e07afacd41564423c87028dc52bdb527df74f/> enhance runtime with paragraph-local variable support and error handling
  - <csr-id-6798e4c578fcee8a50e0c54331096cc94f89da88/> add comment handling in CST and runtime processing
    - Introduced Comment and CommentKind enums to represent line and block comments.
-- Updated CstBlock to handle comments as children nodes.
-- Modified fingerprint encoding to ignore comment children.
-- Enhanced block parsing to preserve comments and skip them during execution.
-- Added tests to verify comment handling in various scenarios.
 
 ### Bug Fixes
 
@@ -67,6 +97,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - Update parameter syntax for call commands in examples ([`07c5f85`](https://github.com/Icemic/sixu/commit/07c5f8533967545baa0699a7066eae92e6333713))
     - Add comment handling in CST and runtime processing ([`6798e4c`](https://github.com/Icemic/sixu/commit/6798e4c578fcee8a50e0c54331096cc94f89da88))
 </details>
+
+<csr-unknown>
+Updated CstBlock to handle comments as children nodes.Modified fingerprint encoding to ignore comment children.Enhanced block parsing to preserve comments and skip them during execution.Added tests to verify comment handling in various scenarios.<csr-unknown/>
 
 ## v0.13.0 (2026-05-09)
 
